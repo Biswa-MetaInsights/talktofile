@@ -1,0 +1,50 @@
+# Production stack: FastAPI backend + Caddy (TLS, SPA, /api proxy, WSS).
+# Postgres is external (Supabase) — no DB container here.
+#
+# Required env (a .env file next to this compose file, or real env vars):
+#   DOMAIN, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+# Backend secrets come from backend/.env (OPENAI_API_KEY, SECRET_KEY,
+# DATABASE_URL, SUPABASE_*, ALLOWED_ORIGINS, ENVIRONMENT).
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env
+    expose:
+      - "9099"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9099/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  default:
+    name: talktofile-network
