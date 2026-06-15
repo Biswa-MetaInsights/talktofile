@@ -1,0 +1,13 @@
+backend/.env
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/*.db
+backend/*.sqlite3
+frontend/node_modules/
+frontend/dist/
+.env
+*.egg-info/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,27 @@
+# DOMAIN drives automatic HTTPS. For a real domain Caddy obtains a Let's Encrypt
+# certificate automatically (ports 80/443 must be reachable). Defaults to
+# "localhost" for local testing, where Caddy uses its internal CA.
+{$DOMAIN:localhost} {
+	encode zstd gzip
+
+	# API + WebSockets → backend container. Caddy upgrades ws/wss automatically.
+	handle /api/* {
+		reverse_proxy backend:9099
+	}
+
+	# Single-page app: serve files, fall back to index.html for client routes.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	# Sensible security headers.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
