@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Send, RotateCcw, FileText, Files, GitCompare, Sparkles, ChevronDown, BookOpen, X, Square, LogOut } from 'lucide-react'
 import MessageBubble from './MessageBubble'
 import TypingIndicator from './TypingIndicator'
-import type { Message, SessionInfo } from '../types'
+import type { Message, SessionInfo, User } from '../types'
 import { createChatWebSocket, documentApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import ReactMarkdown from 'react-markdown'
@@ -17,20 +17,30 @@ interface Props {
 let msgIdCounter = 0
 const nextId = () => String(++msgIdCounter)
 
-function buildWelcome(session: SessionInfo): string {
+function greetingPrefix(user: User | null): string {
+  // Greet registered (non-guest) users by name. Guests have a random
+  // generated username, so we keep their welcome generic.
+  if (!user || user.is_guest) return ''
+  const fullName = user.profile?.full_name?.trim()
+  const name = (fullName ? fullName.split(/\s+/)[0] : user.username)?.trim()
+  return name ? `Hi ${name}! ` : ''
+}
+
+function buildWelcome(session: SessionInfo, user: User | null): string {
   const docs = session.documents
   const nonEnglish = docs.filter((d) => d.original_language && d.original_language !== 'en')
   const langNote = nonEnglish.length > 0 ? ` Some files aren't in English — I'll answer in English.` : ''
+  const hi = greetingPrefix(user)
 
   if (session.mode === 'compare' && docs.length === 2) {
-    return `I've analysed **${docs[0].filename}** and **${docs[1].filename}**.${langNote}\n\nAsk me to compare them — differences, similarities, contradictions or mistakes — or anything else. Try a suggested question below.`
+    return `${hi}I've analysed **${docs[0].filename}** and **${docs[1].filename}**.${langNote}\n\nAsk me to compare them — differences, similarities, contradictions or mistakes — or anything else. Try a suggested question below.`
   }
   if (session.mode === 'multi') {
     const names = docs.map((d) => `**${d.filename}**`).join(', ')
-    return `I've analysed ${docs.length} files: ${names}.${langNote}\n\nEach file's summary is in the side panel. What would you like to do with them?`
+    return `${hi}I've analysed ${docs.length} files: ${names}.${langNote}\n\nEach file's summary is in the side panel. What would you like to do with them?`
   }
   const d = docs[0]
-  return `I've analysed **${d?.filename ?? 'your document'}**.${langNote}\n\nI'm ready to answer any questions about it. What would you like to know?`
+  return `${hi}I've analysed **${d?.filename ?? 'your document'}**.${langNote}\n\nI'm ready to answer any questions about it. What would you like to know?`
 }
 
 type ConnStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
@@ -84,7 +94,7 @@ export default function ChatWindow({ session, onReset }: Props) {
         setMessages([{
           id: nextId(),
           role: 'assistant',
-          content: buildWelcome(session),
+          content: buildWelcome(session, userRef.current),
           timestamp: new Date(),
         }])
       }
@@ -168,6 +178,11 @@ export default function ChatWindow({ session, onReset }: Props) {
 
   const isTypingRef = useRef(false)
   useEffect(() => { isTypingRef.current = isTyping }, [isTyping])
+
+  // user mirrored in a ref so connect() reads the latest without re-creating the
+  // socket (avoids dropping the chat on unrelated user updates like persona).
+  const userRef = useRef(user)
+  useEffect(() => { userRef.current = user }, [user])
 
   useEffect(() => {
     manualCloseRef.current = false
