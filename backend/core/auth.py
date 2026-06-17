@@ -102,22 +102,32 @@ def get_or_create_supabase_user(db: Session, claims) -> dict:
     """
     from models.db_models import User
 
+    # Test accounts / early users on the Pro allowlist are provisioned as Pro.
+    pro_by_email = get_settings().is_pro_email(claims.email)
+
     user = db.scalar(select(User).where(User.supabase_user_id == claims.user_id))
     if user is None:
         user = User(
             supabase_user_id=claims.user_id,
             username=None,
             hashed_password=None,
-            plan="free",
+            plan="pro" if pro_by_email else "free",
             email=claims.email or "",
         )
         db.add(user)
         db.commit()
         db.refresh(user)
     else:
+        changed = False
         # Keep the email in sync once an anonymous user signs up with one.
         if not claims.is_anonymous and claims.email and not user.email:
             user.email = claims.email
+            changed = True
+        # Promote allowlisted users to Pro (e.g. added to the list after signup).
+        if pro_by_email and user.plan != "pro":
+            user.plan = "pro"
+            changed = True
+        if changed:
             db.commit()
             db.refresh(user)
 

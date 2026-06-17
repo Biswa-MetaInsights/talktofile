@@ -35,6 +35,15 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   const hydrate = async (accessToken: string, isAnonymous: boolean) => {
     setAuthToken(accessToken)
     setToken(accessToken)
+    // If the user signed up while email confirmation was required, their profile
+    // was stashed pending verification — apply it now that they're really signed in.
+    if (!isAnonymous) {
+      const pending = localStorage.getItem('ttf_pending_profile')
+      if (pending) {
+        try { await authApi.updateProfile(JSON.parse(pending)) } catch { /* best-effort */ }
+        localStorage.removeItem('ttf_pending_profile')
+      }
+    }
     try {
       const me = await authApi.me()
       setUser({
@@ -46,7 +55,7 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       })
     } catch {
       // Backend unreachable — still mark the session so the app can show an error.
-      setUser({ username: 'user', plan: isAnonymous ? 'free' : 'pro', is_guest: isAnonymous, persona: null })
+      setUser({ username: 'user', plan: isAnonymous ? 'free' : 'free', is_guest: isAnonymous, persona: null })
     }
   }
 
@@ -91,7 +100,9 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase!.auth.signUp({ email, password })
     if (error) throw new Error(error.message)
     if (!data.session) {
-      // Email confirmation is enabled in the Supabase project.
+      // Email confirmation is enabled — no session yet. Stash the profile so it's
+      // saved once the user clicks the verification link and signs in.
+      localStorage.setItem('ttf_pending_profile', JSON.stringify({ ...profile, email }))
       throw new Error('Account created — check your email to confirm, then sign in.')
     }
     await hydrate(data.session.access_token, false)

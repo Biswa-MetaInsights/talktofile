@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, LogIn, Crown, Eye, EyeOff, AlertCircle, Check, Sparkles } from 'lucide-react'
+import { X, LogIn, Crown, Eye, EyeOff, AlertCircle, Check, Sparkles, Mail } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { SUPABASE_ENABLED } from '../lib/supabase'
 import type { UserProfile } from '../types'
@@ -32,6 +32,8 @@ export default function AuthModal({
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')          // verification / success notices (not errors)
+  const [offerSignup, setOfferSignup] = useState(false)  // show "create account" CTA after a failed login
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -41,7 +43,7 @@ export default function AuthModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
+    setError(''); setInfo(''); setOfferSignup(false)
     setLoading(true)
     try {
       if (mode === 'login') {
@@ -61,8 +63,22 @@ export default function AuthModal({
       onClose()
     } catch (err: any) {
       // Backend errors carry response.data.detail; Supabase auth errors carry .message.
-      const msg = err.response?.data?.detail || err.message || 'Something went wrong. Please try again.'
-      setError(typeof msg === 'string' ? msg : JSON.stringify(msg))
+      const raw = err.response?.data?.detail || err.message || 'Something went wrong. Please try again.'
+      const msg = typeof raw === 'string' ? raw : JSON.stringify(raw)
+
+      if (/check your email|confirm your email|verification|verify/i.test(msg)) {
+        // Signup succeeded but needs email verification.
+        setInfo(`We've sent a verification link to ${username}. Click it to activate your account, then sign in.`)
+      } else if (/email not confirmed|not confirmed/i.test(msg)) {
+        // Login attempt before verifying.
+        setInfo(`Your email isn't verified yet. Please click the verification link we sent to ${username}, then sign in.`)
+      } else if (/invalid login credentials|invalid.*credentials/i.test(msg)) {
+        // Supabase can't reveal whether the email exists — offer signup.
+        setError('Incorrect email or password.')
+        setOfferSignup(true)
+      } else {
+        setError(msg)
+      }
     } finally {
       setLoading(false)
     }
@@ -217,14 +233,35 @@ export default function AuthModal({
             )}
 
             <AnimatePresence>
+              {info && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="flex items-start gap-2 text-indigo-700 text-sm bg-indigo-50 rounded-lg px-3 py-2.5 border border-indigo-200"
+                >
+                  <Mail className="w-4 h-4 flex-shrink-0 mt-0.5" /> <span>{info}</span>
+                </motion.div>
+              )}
               {error && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="flex items-center gap-2 text-red-600 text-sm bg-red-50 rounded-lg px-3 py-2 border border-red-200"
+                  className="text-sm bg-red-50 rounded-lg px-3 py-2 border border-red-200"
                 >
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
+                  <div className="flex items-center gap-2 text-red-600">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
+                  </div>
+                  {offerSignup && (
+                    <button
+                      type="button"
+                      onClick={() => { setMode('subscribe'); setError(''); setOfferSignup(false) }}
+                      className="mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 underline underline-offset-2"
+                    >
+                      New here? Create a free account →
+                    </button>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

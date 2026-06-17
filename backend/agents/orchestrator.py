@@ -34,43 +34,44 @@ class MalformedFileError(ValueError):
     """Raised when a file is corrupt or cannot be parsed as its declared type."""
 
 
+def _join_pages(pages: list[str]) -> str:
+    """Join page texts with explicit page markers so the assistant can locate and
+    return specific pages when a user asks (e.g. "give me pages 2-3")."""
+    out = []
+    for i, t in enumerate(pages, 1):
+        if t and t.strip():
+            out.append(f"[Page {i}]\n{t.strip()}")
+    return "\n\n".join(out)
+
+
 def _extract_pdf_text(content: bytes) -> str:
     """Extract text from a PDF, trying pdfplumber first then PyMuPDF.
 
     Different engines succeed on different PDFs (CID/embedded fonts common in
     European documents often defeat one but not the other), so we try both and
-    keep whichever yields more text.
+    keep whichever yields more text. Pages are tagged with [Page N] markers.
     """
-    best = ""
+    best_pages: list[str] = []
 
     # Engine 1: pdfplumber
     try:
         import pdfplumber
-        parts = []
         with pdfplumber.open(io.BytesIO(content)) as pdf:
-            for page in pdf.pages:
-                t = page.extract_text()
-                if t:
-                    parts.append(t)
-        best = "\n\n".join(parts)
+            best_pages = [page.extract_text() or "" for page in pdf.pages]
     except Exception:
-        pass
+        best_pages = []
 
     # Engine 2: PyMuPDF (fitz) — often recovers text pdfplumber misses.
     try:
         import fitz  # PyMuPDF
-        parts = []
         with fitz.open(stream=content, filetype="pdf") as doc:
-            for page in doc:
-                t = page.get_text("text")
-                if t:
-                    parts.append(t)
-        alt = "\n\n".join(parts)
-        if len(alt.strip()) > len(best.strip()):
-            best = alt
+            alt_pages = [page.get_text("text") or "" for page in doc]
+        if len("".join(alt_pages).strip()) > len("".join(best_pages).strip()):
+            best_pages = alt_pages
     except Exception:
         pass
 
+    best = _join_pages(best_pages)
     if not best.strip():
         raise NoReadableTextError(
             "This PDF has no embedded text layer — it looks like a scanned or "
@@ -119,6 +120,35 @@ def _extract_raw(filename: str, content: bytes) -> str:
                 if row_str.strip():
                     rows.append(row_str)
         return "\n".join(rows)
+
+    elif ext == "pptx":
+        _guard_zip_bomb(content)
+        from pptx import Presentation
+        prs = Presentation(io.BytesIO(content))
+        slides = []
+        for i, slide in enumerate(prs.slides, 1):
+            texts = []
+            for shape in slide.shapes:
+                if shape.has_text_frame and shape.text_frame.text.strip():
+                    texts.append(shape.text_frame.text.strip())
+            if texts:
+                slides.append(f"[Slide {i}]\n" + "\n".join(texts))
+        return "\n\n".join(slides)
+
+    elif ext in ("html", "htm"):
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(content.decode("utf-8", errors="replace"), "html.parser")
+        for tag in soup(["script", "style", "noscript"]):
+            tag.decompose()
+        return soup.get_text(separator="\n").strip()
+
+    elif ext == "json":
+        import json as _json
+        try:
+            parsed = _json.loads(content.decode("utf-8", errors="replace"))
+            return _json.dumps(parsed, indent=2, ensure_ascii=False)
+        except _json.JSONDecodeError:
+            raise MalformedFileError("File is not valid JSON.")
 
     elif ext in ("txt", "csv", "md"):
         return content.decode("utf-8", errors="replace")
@@ -203,7 +233,8 @@ async def run_pipeline(
                 documents[0].raw_text, client
             )
         else:
-            summaries = [(d.filename, d.summary) for d in documents]
+            from agents.analyst_agent import summary_to_text
+            summaries = [(d.filename, summary_to_text(d.summary)) for d in documents]
             session.suggested_questions = await generate_multi_doc_questions(
                 summaries, session.mode, client
             )

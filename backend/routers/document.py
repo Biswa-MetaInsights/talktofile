@@ -9,7 +9,7 @@ from agents.orchestrator import run_pipeline, PipelineStage
 
 router = APIRouter(prefix="/document", tags=["document"])
 
-ALLOWED_EXTENSIONS = {"pdf", "docx", "txt", "xlsx", "csv", "md"}
+ALLOWED_EXTENSIONS = {"pdf", "docx", "txt", "xlsx", "csv", "md", "pptx", "html", "htm", "json"}
 _READ_CHUNK = 1024 * 1024  # 1 MB
 
 

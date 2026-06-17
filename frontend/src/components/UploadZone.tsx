@@ -16,6 +16,9 @@ const ACCEPT = {
   'application/pdf': ['.pdf'],
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+  'text/html': ['.html', '.htm'],
+  'application/json': ['.json'],
   'text/plain': ['.txt'],
   'text/csv': ['.csv'],
   'text/markdown': ['.md'],
@@ -133,7 +136,7 @@ export default function UploadZone({ onReady, onRequireUpgrade }: Props) {
     }
 
     if (rejections.length > 0) {
-      setError('Some files have an unsupported type. Allowed: PDF, DOCX, XLSX, TXT, CSV, MD.')
+      setError('Some files have an unsupported type. Allowed: PDF, DOCX, XLSX, PPTX, HTML, JSON, TXT, CSV, MD.')
       return
     }
     if (accepted.length > 0) processFiles(accepted)
@@ -163,7 +166,7 @@ export default function UploadZone({ onReady, onRequireUpgrade }: Props) {
             {plan === 'pro' ? 'Upload Your Documents' : 'Upload Your Document'}
           </h2>
           <p className="text-slate-500 text-sm">
-            PDF, DOCX, XLSX, TXT, CSV, Markdown — any language
+            PDF, Word, Excel, PowerPoint, HTML, JSON, CSV, text — any language
           </p>
           <p className="text-slate-400 text-xs mt-1">
             {plan === 'pro'
@@ -225,7 +228,7 @@ export default function UploadZone({ onReady, onRequireUpgrade }: Props) {
                   <p className="text-slate-400 text-sm mt-1">or click to browse</p>
                 </div>
                 <div className="flex flex-wrap justify-center gap-2">
-                  {['PDF', 'DOCX', 'XLSX', 'TXT', 'CSV', 'MD'].map((t) => (
+                  {['PDF', 'DOCX', 'XLSX', 'PPTX', 'HTML', 'JSON', 'TXT', 'CSV', 'MD'].map((t) => (
                     <span key={t} className="px-2 py-0.5 text-xs bg-slate-100 text-slate-500 rounded-md font-mono border border-slate-200">.{t.toLowerCase()}</span>
                   ))}
                 </div>

@@ -18,7 +18,8 @@ class DocumentData:
     chunks: list[str] = field(default_factory=list)
     embeddings: Optional[np.ndarray] = None
     index: Any = None  # faiss.IndexFlatIP
-    summary: str = ""
+    # Structured summary: {overview, doc_type, key_points[], topics[]}
+    summary: dict = field(default_factory=dict)
     # Raw extracted text kept for table/numeric questions (e.g. Excel calculations).
     raw_text: str = ""
     is_tabular: bool = False

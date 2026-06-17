@@ -54,7 +54,34 @@ def build_faiss_index(embeddings: np.ndarray) -> faiss.IndexFlatIP:
     return index
 
 
-async def generate_summary(text: str, client: AsyncOpenAI) -> str:
+def _parse_summary(raw: str) -> dict:
+    """Normalise the model's JSON into our structured summary shape."""
+    import json
+    fallback = {"overview": "", "doc_type": "", "key_points": [], "topics": []}
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return {**fallback, "overview": raw[:400]}
+    if not isinstance(data, dict):
+        return fallback
+    return {
+        "overview": str(data.get("overview", "")).strip(),
+        "doc_type": str(data.get("doc_type", "")).strip(),
+        "key_points": [str(p).strip() for p in (data.get("key_points") or []) if str(p).strip()][:6],
+        "topics": [str(t).strip() for t in (data.get("topics") or []) if str(t).strip()][:8],
+    }
+
+
+def summary_to_text(summary: dict) -> str:
+    """Flatten a structured summary to a short string (for multi-doc prompts)."""
+    if not isinstance(summary, dict):
+        return str(summary or "")
+    parts = [summary.get("overview", "")]
+    parts += [f"- {p}" for p in summary.get("key_points", [])]
+    return "\n".join(p for p in parts if p)
+
+
+async def generate_summary(text: str, client: AsyncOpenAI) -> dict:
     sample = text[:8000]
     response = await client.chat.completions.create(
         model="gpt-4o",
@@ -62,18 +89,21 @@ async def generate_summary(text: str, client: AsyncOpenAI) -> str:
             {
                 "role": "system",
                 "content": (
-                    "You are a document analyst. Provide a concise, structured summary of the document. "
-                    "Include: main topic, key points (3-5 bullets), document type, and any notable entities. "
-                    "Keep it under 200 words. Format with markdown. "
-                    "ALWAYS write your summary in English, even if the document is in another language."
+                    "You are a document analyst. Analyse the document and return a JSON object with:\n"
+                    "- 'overview': one engaging, plain-language sentence capturing what the document is and its purpose.\n"
+                    "- 'doc_type': a short label (e.g. Report, Contract, Research Paper, Invoice, Slide Deck, Resume).\n"
+                    "- 'key_points': an array of 3-5 short, punchy takeaways (each a brief phrase, not a paragraph).\n"
+                    "- 'topics': an array of 3-6 one-or-two-word topic tags.\n"
+                    "ALWAYS write everything in English, even if the document is in another language."
                 ),
             },
             {"role": "user", "content": f"Document content:\n\n{sample}"},
         ],
         temperature=0.3,
-        max_tokens=400,
+        max_tokens=500,
+        response_format={"type": "json_object"},
     )
-    return response.choices[0].message.content.strip()
+    return _parse_summary(response.choices[0].message.content.strip())
 
 
 def _parse_questions(raw: str, limit: int = 5) -> list[str]:
@@ -176,10 +206,10 @@ async def retrieve_chunks(
     return results
 
 
-async def analyse_one(text: str, client: AsyncOpenAI) -> tuple[list[str], np.ndarray, faiss.IndexFlatIP, str]:
+async def analyse_one(text: str, client: AsyncOpenAI) -> tuple[list[str], np.ndarray, faiss.IndexFlatIP, dict]:
     """Chunk, embed, index and summarise a single document.
 
-    Returns: (chunks, embeddings, faiss_index, summary)
+    Returns: (chunks, embeddings, faiss_index, summary_dict)
     """
     chunks = chunk_text(text)
     embeddings, summary = await asyncio.gather(

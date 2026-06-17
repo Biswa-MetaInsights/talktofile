@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { FileText, Globe, GitCompare, Files } from 'lucide-react'
 import Navbar from './components/Navbar'
 import UploadZone from './components/UploadZone'
 import ChatWindow from './components/ChatWindow'
 import AuthModal from './components/AuthModal'
+import SummaryCard from './components/SummaryCard'
 import { useAuth } from './context/AuthContext'
 import type { SessionInfo } from './types'
 
@@ -82,14 +81,12 @@ function AppShell() {
                 </div>
 
                 {session.documents.map((d, i) => (
-                  d.summary ? (
+                  (d.summary?.overview || d.summary?.key_points?.length) ? (
                     <div key={i} className="glass-card rounded-2xl p-4">
-                      <h3 className="text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-2 truncate" title={d.filename}>
+                      <h3 className="text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-2.5 truncate" title={d.filename}>
                         {session.documents.length > 1 ? d.filename : 'Summary'}
                       </h3>
-                      <div className="prose-custom text-xs">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{d.summary}</ReactMarkdown>
-                      </div>
+                      <SummaryCard summary={d.summary} compact />
                     </div>
                   ) : null
                 ))}

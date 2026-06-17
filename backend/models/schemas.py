@@ -73,10 +73,17 @@ class UserInfo(BaseModel):
     profile: dict = {}
 
 
+class DocumentSummary(BaseModel):
+    overview: str = ""
+    doc_type: str = ""
+    key_points: list[str] = []
+    topics: list[str] = []
+
+
 class DocumentInfo(BaseModel):
     filename: str
     original_language: str
-    summary: str
+    summary: DocumentSummary = DocumentSummary()
 
 
 class SessionInfo(BaseModel):

@@ -38,10 +38,17 @@ export interface Message {
 
 export type SessionMode = 'single' | 'compare' | 'multi'
 
+export interface DocumentSummary {
+  overview: string
+  doc_type: string
+  key_points: string[]
+  topics: string[]
+}
+
 export interface DocumentInfo {
   filename: string
   original_language: string
-  summary: string
+  summary: DocumentSummary
 }
 
 export interface SessionInfo {

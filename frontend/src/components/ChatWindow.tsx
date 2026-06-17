@@ -3,11 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Send, RotateCcw, FileText, Files, GitCompare, Sparkles, ChevronDown, BookOpen, X, Square, LogOut } from 'lucide-react'
 import MessageBubble from './MessageBubble'
 import TypingIndicator from './TypingIndicator'
+import SummaryCard from './SummaryCard'
 import type { Message, SessionInfo, User } from '../types'
 import { createChatWebSocket, documentApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 
 interface Props {
   session: SessionInfo
@@ -347,10 +346,8 @@ export default function ChatWindow({ session, onReset }: Props) {
               </div>
               {docs.map((d, i) => (
                 <div key={i}>
-                  {docs.length > 1 && <p className="text-xs font-medium text-slate-800 mb-1 truncate">{d.filename}</p>}
-                  <div className="prose-custom text-xs text-slate-700 leading-relaxed">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{d.summary}</ReactMarkdown>
-                  </div>
+                  {docs.length > 1 && <p className="text-xs font-medium text-slate-800 mb-1.5 truncate">{d.filename}</p>}
+                  <SummaryCard summary={d.summary} compact />
                 </div>
               ))}
             </div>
