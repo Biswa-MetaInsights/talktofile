@@ -60,7 +60,8 @@ export default function AuthModal({
       }
       onClose()
     } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Something went wrong. Please try again.'
+      // Backend errors carry response.data.detail; Supabase auth errors carry .message.
+      const msg = err.response?.data?.detail || err.message || 'Something went wrong. Please try again.'
       setError(typeof msg === 'string' ? msg : JSON.stringify(msg))
     } finally {
       setLoading(false)
