@@ -6,6 +6,7 @@ import UploadZone from './components/UploadZone'
 import ChatWindow from './components/ChatWindow'
 import AuthModal from './components/AuthModal'
 import SummaryCard from './components/SummaryCard'
+import ConfirmDialog from './components/ConfirmDialog'
 import { useAuth } from './context/AuthContext'
 import type { SessionInfo } from './types'
 
@@ -14,14 +15,13 @@ type AuthModalState = { open: boolean; mode: 'subscribe' | 'login' }
 function AppShell() {
   const [session, setSession] = useState<SessionInfo | null>(null)
   const [authModal, setAuthModal] = useState<AuthModalState>({ open: false, mode: 'subscribe' })
+  const [confirmLeave, setConfirmLeave] = useState(false)
 
   const handleReset = () => setSession(null)
   // The logo is easy to click by accident mid-chat — confirm before discarding.
   const handleHome = () => {
-    if (session && !window.confirm('Leave this chat? Your conversation and the uploaded document will be cleared.')) {
-      return
-    }
-    setSession(null)
+    if (session) setConfirmLeave(true)
+    else setSession(null)
   }
   const openAuth = (mode: 'subscribe' | 'login' = 'subscribe') => setAuthModal({ open: true, mode })
 
@@ -113,6 +113,16 @@ function AppShell() {
       {authModal.open && (
         <AuthModal initialMode={authModal.mode} onClose={() => setAuthModal((s) => ({ ...s, open: false }))} />
       )}
+
+      <ConfirmDialog
+        open={confirmLeave}
+        title="Leave this chat?"
+        message="Your conversation and the uploaded document will be cleared. This can't be undone."
+        confirmLabel="Leave"
+        cancelLabel="Stay"
+        onConfirm={() => { setConfirmLeave(false); setSession(null) }}
+        onCancel={() => setConfirmLeave(false)}
+      />
     </div>
   )
 }
