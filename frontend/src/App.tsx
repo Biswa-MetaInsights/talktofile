@@ -16,6 +16,13 @@ function AppShell() {
   const [authModal, setAuthModal] = useState<AuthModalState>({ open: false, mode: 'subscribe' })
 
   const handleReset = () => setSession(null)
+  // The logo is easy to click by accident mid-chat — confirm before discarding.
+  const handleHome = () => {
+    if (session && !window.confirm('Leave this chat? Your conversation and the uploaded document will be cleared.')) {
+      return
+    }
+    setSession(null)
+  }
   const openAuth = (mode: 'subscribe' | 'login' = 'subscribe') => setAuthModal({ open: true, mode })
 
   const modeBadge = session
@@ -28,7 +35,7 @@ function AppShell() {
 
   return (
     <div className="min-h-screen bg-slate-50 bg-grid relative">
-      <Navbar onOpenAuth={openAuth} onHome={handleReset} />
+      <Navbar onOpenAuth={openAuth} onHome={handleHome} />
 
       <main className="relative z-10 pt-14 min-h-screen flex">
         <AnimatePresence mode="wait">
