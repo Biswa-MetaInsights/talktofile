@@ -28,10 +28,11 @@ function AppShell() {
   }
 
   const handleReset = () => setSession(null)
-  // The logo is easy to click by accident mid-chat — confirm before discarding.
+  // The logo returns to the landing page. Mid-chat it confirms first (the
+  // conversation would be lost); otherwise it goes straight to the landing.
   const handleHome = () => {
     if (session) setConfirmLeave(true)
-    else setSession(null)
+    else setView('landing')
   }
   const openAuth = (mode: 'subscribe' | 'login' = 'subscribe') => setAuthModal({ open: true, mode })
 
@@ -141,7 +142,7 @@ function AppShell() {
         message="Your conversation and the uploaded document will be cleared. This can't be undone."
         confirmLabel="Leave"
         cancelLabel="Stay"
-        onConfirm={() => { setConfirmLeave(false); setSession(null) }}
+        onConfirm={() => { setConfirmLeave(false); setSession(null); setView('landing') }}
         onCancel={() => setConfirmLeave(false)}
       />
     </div>

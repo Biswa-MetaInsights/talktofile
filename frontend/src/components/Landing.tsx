@@ -18,7 +18,7 @@ const STEPS = [
 ]
 
 const FEATURES = [
-  { icon: Globe, title: 'Any language in, English out', body: 'Upload documents in Malayalam, Arabic, French — anything. Sage answers in English.' },
+  { icon: Globe, title: 'Any language in, English out', body: 'Upload documents in Arabic, French, German, Dutch, Spanish, Chinese — virtually any language. Sage always answers in clear English.' },
   { icon: GitCompare, title: 'Compare documents', body: 'Upload several files and surface differences, similarities and contradictions.' },
   { icon: Table2, title: 'Spreadsheet intelligence', body: 'Real calculations on your tables — using only the numbers in your file, never made up.' },
   { icon: ShieldCheck, title: 'No hallucinations', body: 'If the answer isn’t in your document, Sage says so. It never invents facts.' },
