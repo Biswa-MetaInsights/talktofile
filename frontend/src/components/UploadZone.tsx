@@ -6,6 +6,7 @@ import type { PipelineUpdate, SessionInfo } from '../types'
 import { PLAN_LIMITS } from '../types'
 import { documentApi, createProcessWebSocket } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import { track } from '../lib/analytics'
 
 interface Props {
   onReady: (session: SessionInfo) => void
@@ -89,6 +90,7 @@ export default function UploadZone({ onReady, onRequireUpgrade }: Props) {
               suggested_questions: data.suggested_questions ?? [],
               ready: true,
             }
+            track('document_uploaded', { count: selected.length, mode: sessionInfo.mode, plan })
             resolve()
           } else if (data.stage === 'error') {
             reject(new Error(data.message))

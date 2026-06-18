@@ -7,6 +7,7 @@ import SummaryCard from './SummaryCard'
 import type { Message, SessionInfo, User } from '../types'
 import { createChatWebSocket, documentApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import { track } from '../lib/analytics'
 
 interface Props {
   session: SessionInfo
@@ -242,6 +243,7 @@ export default function ChatWindow({ session, onReset }: Props) {
     streamingIdRef.current = null
     stoppedRef.current = false
     wsRef.current?.send(JSON.stringify({ question: q }))
+    track('question_asked', { mode: session.mode })
 
     setTimeout(() => inputRef.current?.focus(), 50)
   }, [input, isConnected, isTyping])

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { authApi, setAuthToken } from '../api/client'
 import { supabase, SUPABASE_ENABLED } from '../lib/supabase'
+import { identifyUser, track, resetAnalytics } from '../lib/analytics'
 import type { User, UserProfile } from '../types'
 
 interface AuthContextValue {
@@ -53,6 +54,7 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
         persona: me.data.persona,
         profile: me.data.profile,
       })
+      if (!isAnonymous) identifyUser(me.data.username, { plan: me.data.plan })
     } catch {
       // Backend unreachable — still mark the session so the app can show an error.
       setUser({ username: 'user', plan: isAnonymous ? 'free' : 'free', is_guest: isAnonymous, persona: null })
@@ -99,6 +101,7 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   const register = async (email: string, password: string, profile: UserProfile) => {
     const { data, error } = await supabase!.auth.signUp({ email, password })
     if (error) throw new Error(error.message)
+    track('signup_submitted', { method: 'email' })
     if (!data.session) {
       // Email confirmation is enabled — no session yet. Stash the profile so it's
       // saved once the user clicks the verification link and signs in.
@@ -115,6 +118,7 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = async () => {
+    resetAnalytics()
     await supabase!.auth.signOut()
     await supabase!.auth.signInAnonymously()
   }
