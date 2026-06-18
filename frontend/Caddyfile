@@ -12,6 +12,17 @@
 	# Single-page app: serve files, fall back to index.html for client routes.
 	handle {
 		root * /srv
+
+		# Vite's build assets are content-hashed (their filename changes whenever
+		# the contents change), so they're safe to cache "forever".
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+
+		# The SPA shell (index.html and any non-asset path) must always be
+		# revalidated, so a new deploy is picked up immediately — no cache purge.
+		@shell not path /assets/*
+		header @shell Cache-Control "no-cache"
+
 		try_files {path} /index.html
 		file_server
 	}
