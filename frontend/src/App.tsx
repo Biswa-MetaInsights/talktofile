@@ -17,15 +17,11 @@ function AppShell() {
   const [session, setSession] = useState<SessionInfo | null>(null)
   const [authModal, setAuthModal] = useState<AuthModalState>({ open: false, mode: 'subscribe' })
   const [confirmLeave, setConfirmLeave] = useState(false)
-  // First-time visitors see the landing page; returning visitors go straight in.
-  const [view, setView] = useState<'landing' | 'app'>(
-    () => (localStorage.getItem('ttf_seen_landing') ? 'app' : 'landing')
-  )
+  // The landing page is the front door — always shown first. "Get started"
+  // (or "Sign in") moves into the app.
+  const [view, setView] = useState<'landing' | 'app'>('landing')
 
-  const enterApp = () => {
-    localStorage.setItem('ttf_seen_landing', '1')
-    setView('app')
-  }
+  const enterApp = () => setView('app')
 
   const handleReset = () => setSession(null)
   // The logo returns to the landing page. Mid-chat it confirms first (the
