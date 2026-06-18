@@ -63,12 +63,12 @@ export default function Landing({ onGetStarted, onSignIn }: Props) {
             <Sparkles className="w-3.5 h-3.5" /> Private by design
           </span>
           <h1 className="font-brand font-extrabold tracking-[-0.03em] text-slate-900 text-4xl sm:text-5xl md:text-6xl leading-[1.05]">
-            Chat with any document.<br />
-            <span className="bg-gradient-to-r from-indigo-600 to-indigo-500 bg-clip-text text-transparent">Get instant answers.</span>
+            Every document<br />
+            <span className="bg-gradient-to-r from-indigo-600 to-indigo-500 bg-clip-text text-transparent">has answers.</span>
           </h1>
           <p className="mt-6 text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Upload a PDF, spreadsheet, or slide deck in any language and ask it anything.
-            TalkToFile reads it, understands it, and answers — accurately, in seconds, and only from your file.
+            TalkToFile reads it so you don’t have to — upload anything, in any language,
+            and get accurate, sourced answers in seconds.
           </p>
           <div className="mt-8 flex items-center justify-center gap-3">
             <button
