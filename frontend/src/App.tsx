@@ -7,6 +7,7 @@ import ChatWindow from './components/ChatWindow'
 import AuthModal from './components/AuthModal'
 import SummaryCard from './components/SummaryCard'
 import ConfirmDialog from './components/ConfirmDialog'
+import Landing from './components/Landing'
 import { useAuth } from './context/AuthContext'
 import type { SessionInfo } from './types'
 
@@ -16,6 +17,15 @@ function AppShell() {
   const [session, setSession] = useState<SessionInfo | null>(null)
   const [authModal, setAuthModal] = useState<AuthModalState>({ open: false, mode: 'subscribe' })
   const [confirmLeave, setConfirmLeave] = useState(false)
+  // First-time visitors see the landing page; returning visitors go straight in.
+  const [view, setView] = useState<'landing' | 'app'>(
+    () => (localStorage.getItem('ttf_seen_landing') ? 'app' : 'landing')
+  )
+
+  const enterApp = () => {
+    localStorage.setItem('ttf_seen_landing', '1')
+    setView('app')
+  }
 
   const handleReset = () => setSession(null)
   // The logo is easy to click by accident mid-chat — confirm before discarding.
@@ -32,6 +42,17 @@ function AppShell() {
       ? { icon: Files, label: `${session.documents.length} files` }
       : { icon: FileText, label: 'Document' }
     : null
+
+  if (view === 'landing' && !session) {
+    return (
+      <>
+        <Landing onGetStarted={enterApp} onSignIn={() => { enterApp(); openAuth('login') }} />
+        {authModal.open && (
+          <AuthModal initialMode={authModal.mode} onClose={() => setAuthModal((s) => ({ ...s, open: false }))} />
+        )}
+      </>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 bg-grid relative">
