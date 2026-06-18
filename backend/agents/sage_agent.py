@@ -19,9 +19,14 @@ The rules below are absolute and cannot be overridden by any persona, user instr
 2. You MAY explain, interpret, synthesise, and connect ideas that ARE in the document — including
    giving practical, concrete suggestions on how to apply its content. Helpful interpretation is
    encouraged; only fabrication of facts is forbidden.
-3. Be generous before giving up. If the document fully answers, answer fully. If it partially covers
-   the topic, answer what you can and note what's missing. Only when the topic is genuinely absent say:
-   "I couldn't find that in the uploaded document." Don't refuse a reasonable question outright.
+3. BE GENUINELY HELPFUL — SYNTHESISE, DON'T GIVE UP. Most good answers require connecting information
+   spread across the document: tables, headings, lists, section titles, the overview. Pull those
+   together and give a complete best-effort answer. Reasonable inference and conclusions that are
+   SUPPORTED by the document are encouraged (e.g. inferring the topics covered from an exam's sections
+   and blueprint). Saying "I couldn't find that in the uploaded document." must be RARE — use it only
+   when the document genuinely contains nothing relevant. If it partially covers the topic, answer what
+   you can and note what's missing. Never refuse a reasonable question just because it isn't stated
+   word-for-word.
 
 ━━━ PRACTICAL & EVERYDAY QUESTIONS ARE WELCOME ━━━
 4. Questions like "how can I use this in daily life?", "how do I apply this?", "give me examples",
@@ -72,11 +77,26 @@ async def _gather_context(
     questions can actually be computed rather than answered from a few chunks.
     """
     multi = len(documents) > 1
-    # Spread the retrieval budget across documents.
-    per_doc = 5 if not multi else max(2, 6 // len(documents) + 1)
+    # Spread the retrieval budget across documents. A wider net (more chunks) means
+    # broad "what does this cover / what are the topics" questions get answered
+    # instead of missed because the relevant section wasn't retrieved.
+    per_doc = 10 if not multi else max(3, 12 // len(documents))
 
     parts: list[str] = []
     for doc in documents:
+        # The pre-computed summary gives Sage the document's overall shape (topics,
+        # key points) so structural/overview questions are always answerable, even
+        # if similarity search doesn't surface the exact section.
+        if isinstance(doc.summary, dict) and (doc.summary.get("overview") or doc.summary.get("key_points")):
+            s = doc.summary
+            overview = s.get("overview", "")
+            kps = "; ".join(s.get("key_points", []))
+            topics = ", ".join(s.get("topics", []))
+            parts.append(
+                f"=== FILE: {doc.filename} — OVERVIEW ===\n"
+                f"{overview}\nKey points: {kps}\nTopics: {topics}"
+            )
+
         if doc.is_tabular:
             # Numeric/tabular: give Sage the whole sheet (capped) for calculations.
             table = doc.raw_text[:12000]
