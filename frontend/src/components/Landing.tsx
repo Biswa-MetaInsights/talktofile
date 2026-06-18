@@ -60,7 +60,7 @@ export default function Landing({ onGetStarted, onSignIn }: Props) {
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         >
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-3 py-1 mb-6">
-            <Sparkles className="w-3.5 h-3.5" /> Powered by GPT-4o · Private by design
+            <Sparkles className="w-3.5 h-3.5" /> Private by design
           </span>
           <h1 className="font-brand font-extrabold tracking-[-0.03em] text-slate-900 text-4xl sm:text-5xl md:text-6xl leading-[1.05]">
             Chat with any document.<br />
