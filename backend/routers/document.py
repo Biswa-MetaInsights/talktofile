@@ -9,7 +9,14 @@ from agents.orchestrator import run_pipeline, PipelineStage
 
 router = APIRouter(prefix="/document", tags=["document"])
 
-ALLOWED_EXTENSIONS = {"pdf", "docx", "txt", "xlsx", "csv", "md", "pptx", "html", "htm", "json"}
+ALLOWED_EXTENSIONS = {
+    "pdf", "docx", "txt", "xlsx", "csv", "md", "pptx", "html", "htm", "json",
+    # Source-code / plain-text formats — accepted and read as text, not advertised in the UI.
+    "py", "c", "h", "cpp", "cc", "cxx", "hpp", "java", "js", "ts", "tsx", "jsx",
+    "go", "rs", "rb", "php", "cs", "swift", "kt", "kts", "sql", "sh", "bash",
+    "yaml", "yml", "xml", "toml", "ini", "cfg", "css", "scss", "less", "r",
+    "pl", "lua", "dart", "scala", "groovy", "bat", "ps1", "tex", "rst", "log",
+}
 _READ_CHUNK = 1024 * 1024  # 1 MB
 
 

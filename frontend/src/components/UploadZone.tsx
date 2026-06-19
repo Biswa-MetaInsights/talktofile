@@ -20,9 +20,16 @@ const ACCEPT = {
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
   'text/html': ['.html', '.htm'],
   'application/json': ['.json'],
-  'text/plain': ['.txt'],
   'text/csv': ['.csv'],
   'text/markdown': ['.md'],
+  // Plain-text + source-code formats (accepted silently, not shown in the UI).
+  'text/plain': [
+    '.txt', '.py', '.c', '.h', '.cpp', '.cc', '.cxx', '.hpp', '.java', '.js',
+    '.ts', '.tsx', '.jsx', '.go', '.rs', '.rb', '.php', '.cs', '.swift', '.kt',
+    '.kts', '.sql', '.sh', '.bash', '.yaml', '.yml', '.xml', '.toml', '.ini',
+    '.cfg', '.css', '.scss', '.less', '.r', '.pl', '.lua', '.dart', '.scala',
+    '.groovy', '.bat', '.ps1', '.tex', '.rst', '.log',
+  ],
 }
 
 export default function UploadZone({ onReady, onRequireUpgrade }: Props) {
