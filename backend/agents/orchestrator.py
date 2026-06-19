@@ -150,11 +150,9 @@ def _extract_raw(filename: str, content: bytes) -> str:
         except _json.JSONDecodeError:
             raise MalformedFileError("File is not valid JSON.")
 
-    elif ext in ("txt", "csv", "md"):
-        return content.decode("utf-8", errors="replace")
-
     else:
-        raise ValueError(f"Unsupported file type: .{ext}")
+        # txt / csv / md plus source-code & other plain-text formats — read as text.
+        return content.decode("utf-8", errors="replace")
 
 
 def extract_text_from_file(filename: str, content: bytes) -> str:
