@@ -21,8 +21,21 @@ export default function MessageBubble({ message, username, sessionId }: Props) {
   const [periodicVote, setPeriodicVote] = useState<1 | -1 | null>(null)
 
   const handleCopy = async () => {
+    const text = message.content
     try {
-      await navigator.clipboard.writeText(message.content)
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        // Fallback for non-secure contexts / older browsers.
+        const ta = document.createElement('textarea')
+        ta.value = text
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.focus(); ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      }
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
@@ -147,7 +160,7 @@ export default function MessageBubble({ message, username, sessionId }: Props) {
         )}
         <div className={`flex items-center gap-2 mt-1.5 ${isUser ? 'justify-end' : 'justify-between'}`}>
           {showActions && (
-            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all">
+            <div className="flex items-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 transition-all">
               <button
                 onClick={handleCopy}
                 title={copied ? 'Copied!' : 'Copy'}
