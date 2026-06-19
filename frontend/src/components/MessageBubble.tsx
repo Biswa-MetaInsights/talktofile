@@ -138,7 +138,7 @@ export default function MessageBubble({ message, username, sessionId }: Props) {
 
       {/* Bubble */}
       <div
-        className={`max-w-[78%] ${
+        className={`max-w-[78%] min-w-0 ${
           isUser
             ? 'bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-2xl rounded-br-sm shadow-sm shadow-indigo-200'
             : isGuard
