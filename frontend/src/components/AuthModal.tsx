@@ -1,13 +1,47 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, LogIn, Crown, Eye, EyeOff, AlertCircle, Check, Sparkles, Mail } from 'lucide-react'
+import { X, LogIn, Crown, Eye, EyeOff, AlertCircle, Check, Sparkles, Mail, KeyRound } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { SUPABASE_ENABLED } from '../lib/supabase'
 import type { UserProfile } from '../types'
 
-type Mode = 'subscribe' | 'login'
+type Mode = 'subscribe' | 'login' | 'reset'
 
 const COMPANY_SIZES = ['1–10', '11–50', '51–200', '201–1000', '1000+']
+
+/** Shared modal shell so the reset / recovery sub-views match the main modal. */
+function Shell({ icon, title, subtitle, onClose, children }: {
+  icon: React.ReactNode; title: string; subtitle: string; onClose: () => void; children: React.ReactNode
+}) {
+  return (
+    <AnimatePresence>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4 py-8 overflow-y-auto">
+        <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          onClick={(e) => e.stopPropagation()}
+          className="relative rounded-2xl w-full max-w-md p-6 my-auto bg-white border border-slate-200 shadow-2xl shadow-slate-900/10">
+          <div className="flex items-start justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-sm shadow-indigo-200">
+                {icon}
+              </div>
+              <div>
+                <h2 className="text-slate-900 font-semibold">{title}</h2>
+                <p className="text-xs text-slate-500">{subtitle}</p>
+              </div>
+            </div>
+            <button onClick={onClose} aria-label="Close" title="Close"
+              className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-red-50 hover:border-red-200 transition-all">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          {children}
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  )
+}
 
 export default function AuthModal({
   initialMode = 'subscribe',
@@ -16,8 +50,9 @@ export default function AuthModal({
   initialMode?: Mode
   onClose: () => void
 }) {
-  const { login, register } = useAuth()
+  const { login, register, resetPassword, updatePassword, recoveryMode, clearRecovery } = useAuth()
   const [mode, setMode] = useState<Mode>(initialMode)
+  const [newPassword, setNewPassword] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -82,6 +117,92 @@ export default function AuthModal({
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSendReset = async (e: React.FormEvent) => {
+    e.preventDefault(); setError(''); setInfo(''); setLoading(true)
+    try {
+      await resetPassword(username)   // the email field is `username` in Supabase mode
+      setInfo(`We've sent a password reset link to ${username}. Open it to choose a new password.`)
+    } catch (err: any) {
+      setError(err.message || 'Could not send the reset email. Please try again.')
+    } finally { setLoading(false) }
+  }
+
+  const handleSetNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault(); setError(''); setLoading(true)
+    try {
+      await updatePassword(newPassword)
+      onClose()   // password updated and the user is now signed in
+    } catch (err: any) {
+      setError(err.message || 'Could not update your password. Please try again.')
+    } finally { setLoading(false) }
+  }
+
+  // The user clicked the password-reset link — show the "set a new password" form.
+  if (recoveryMode) {
+    return (
+      <Shell icon={<KeyRound className="w-5 h-5 text-white" />} title="Set a new password"
+        subtitle="Choose a new password for your account" onClose={() => { clearRecovery(); onClose() }}>
+        <form onSubmit={handleSetNewPassword} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">New password</label>
+            <div className="relative">
+              <input type={showPassword ? 'text' : 'password'} value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)} placeholder="Min 8 characters" required
+                autoComplete="new-password" className="input-field pr-10" />
+              <button type="button" onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          {error && (
+            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 rounded-lg px-3 py-2 border border-red-200">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
+            </div>
+          )}
+          <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2">
+            {loading ? <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              : <><Check className="w-4 h-4" /> Update password</>}
+          </button>
+        </form>
+      </Shell>
+    )
+  }
+
+  // Forgot-password: collect the email and send a reset link.
+  if (mode === 'reset') {
+    return (
+      <Shell icon={<Mail className="w-5 h-5 text-white" />} title="Reset your password"
+        subtitle="We'll email you a link to set a new password" onClose={onClose}>
+        <form onSubmit={handleSendReset} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+            <input value={username} onChange={(e) => setUsername(e.target.value)} type="email"
+              placeholder="you@company.com" required autoComplete="email" className="input-field" />
+          </div>
+          {info && (
+            <div className="flex items-start gap-2 text-indigo-700 text-sm bg-indigo-50 rounded-lg px-3 py-2.5 border border-indigo-200">
+              <Mail className="w-4 h-4 flex-shrink-0 mt-0.5" /> <span>{info}</span>
+            </div>
+          )}
+          {error && (
+            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 rounded-lg px-3 py-2 border border-red-200">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
+            </div>
+          )}
+          <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2">
+            {loading ? <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              : <><Mail className="w-4 h-4" /> Send reset link</>}
+          </button>
+          <button type="button" onClick={() => { setMode('login'); setError(''); setInfo('') }}
+            className="w-full text-center text-sm text-slate-500 hover:text-slate-900 transition-colors">
+            ← Back to sign in
+          </button>
+        </form>
+      </Shell>
+    )
   }
 
   return (
@@ -194,6 +315,18 @@ export default function AuthModal({
                 </div>
               </div>
             </div>
+
+            {mode === 'login' && SUPABASE_ENABLED && (
+              <div className="flex justify-end -mt-1">
+                <button
+                  type="button"
+                  onClick={() => { setMode('reset'); setError(''); setInfo('') }}
+                  className="text-xs text-indigo-600 hover:text-indigo-700 transition-colors"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
 
             {mode === 'subscribe' && (
               <>

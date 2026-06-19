@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { FileText, Globe, GitCompare, Files } from 'lucide-react'
 import Navbar from './components/Navbar'
@@ -14,6 +14,7 @@ import type { SessionInfo } from './types'
 type AuthModalState = { open: boolean; mode: 'subscribe' | 'login' }
 
 function AppShell() {
+  const { recoveryMode } = useAuth()
   const [session, setSession] = useState<SessionInfo | null>(null)
   const [authModal, setAuthModal] = useState<AuthModalState>({ open: false, mode: 'subscribe' })
   const [confirmLeave, setConfirmLeave] = useState(false)
@@ -22,6 +23,15 @@ function AppShell() {
   const [view, setView] = useState<'landing' | 'app'>('landing')
 
   const enterApp = () => setView('app')
+
+  // When the user returns via a password-reset link, drop them into the app and
+  // open the modal (which shows the "set new password" form).
+  useEffect(() => {
+    if (recoveryMode) {
+      setView('app')
+      setAuthModal({ open: true, mode: 'login' })
+    }
+  }, [recoveryMode])
 
   const handleReset = () => setSession(null)
   // The logo returns to the landing page. Mid-chat it confirms first (the
