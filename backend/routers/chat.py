@@ -1,4 +1,5 @@
 import json
+import time
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from core.auth import get_current_user
@@ -61,6 +62,10 @@ async def chat_ws(websocket: WebSocket, session_id: str):
 
             if not question:
                 continue
+
+            # Keep the session fresh so an actively-used chat is never evicted by
+            # the idle TTL while the user is still talking to it.
+            session.last_active = time.time()
 
             if len(question) > 4000:
                 await websocket.send_json({"type": "error", "content": "Message too long"})

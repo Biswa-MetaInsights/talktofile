@@ -118,7 +118,7 @@ function AppShell() {
               </div>
 
               {/* Chat panel */}
-              <div className="flex-1 flex flex-col min-h-0 relative bg-slate-50">
+              <div className="flex-1 min-w-0 flex flex-col min-h-0 relative bg-slate-50">
                 <div className="flex-1 glass-card m-3 lg:m-4 rounded-2xl flex flex-col min-h-0 overflow-hidden" style={{ height: 'calc(100vh - 5rem)' }}>
                   <ChatWindow session={session} onReset={handleReset} />
                 </div>

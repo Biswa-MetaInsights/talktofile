@@ -134,9 +134,9 @@ export default function MessageBubble({ message, username, sessionId }: Props) {
         } px-4 py-3`}
       >
         {isUser ? (
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</p>
         ) : (
-          <div className={`prose-custom text-sm leading-relaxed ${isGuard ? 'text-amber-700' : ''}`}>
+          <div className={`prose-custom text-sm leading-relaxed break-words [overflow-wrap:anywhere] ${isGuard ? 'text-amber-700' : ''}`}>
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {message.content}
             </ReactMarkdown>
