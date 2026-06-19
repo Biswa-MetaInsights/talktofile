@@ -81,8 +81,21 @@ def summary_to_text(summary: dict) -> str:
     return "\n".join(p for p in parts if p)
 
 
+def _spread_sample(text: str, limit: int = 14000) -> str:
+    """Sample across the whole document (start + middle + end) so the summary
+    reflects all of it, not just the first few pages."""
+    if len(text) <= limit:
+        return text
+    third = limit // 3
+    head = text[:third]
+    mid_start = (len(text) - third) // 2
+    middle = text[mid_start:mid_start + third]
+    tail = text[-third:]
+    return f"{head}\n\n[...]\n\n{middle}\n\n[...]\n\n{tail}"
+
+
 async def generate_summary(text: str, client: AsyncOpenAI) -> dict:
-    sample = text[:8000]
+    sample = _spread_sample(text)
     response = await client.chat.completions.create(
         model="gpt-4o",
         messages=[
