@@ -17,6 +17,17 @@ from core.session_store import DocumentSession, DocumentData
 
 TABULAR_EXTS = {"xlsx", "xls", "csv"}
 
+# Code / markup / data files: natural-language detection is meaningless on them
+# (markup, JS, base64, etc. fool langdetect), so we treat them as English and
+# never show a misleading "not in English" note.
+CODE_LIKE_EXTS = {
+    "html", "htm", "json", "xml", "py", "c", "h", "cpp", "cc", "cxx", "hpp",
+    "java", "js", "ts", "tsx", "jsx", "go", "rs", "rb", "php", "cs", "swift",
+    "kt", "kts", "sql", "sh", "bash", "yaml", "yml", "toml", "ini", "cfg",
+    "css", "scss", "less", "r", "pl", "lua", "dart", "scala", "groovy",
+    "bat", "ps1", "tex", "rst", "log",
+}
+
 
 class PipelineStage(str, Enum):
     EXTRACTING = "extracting"
@@ -185,9 +196,13 @@ ProgressCallback = Callable[[PipelineStage, str], Awaitable[None]]
 async def _analyse_into_document(filename: str, content: bytes, client: AsyncOpenAI) -> DocumentData:
     """Extract → detect language → chunk/embed/index/summarise one file."""
     raw_text = extract_text_from_file(filename, content)
-    lang_code, _ = await detect_only(raw_text)
-    chunks, embeddings, index, summary = await analyse_one(raw_text, client)
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    # Skip language detection for code/markup/data files — it's unreliable there.
+    if ext in CODE_LIKE_EXTS:
+        lang_code = "en"
+    else:
+        lang_code, _ = await detect_only(raw_text)
+    chunks, embeddings, index, summary = await analyse_one(raw_text, client)
     return DocumentData(
         filename=filename,
         original_language=lang_code,
