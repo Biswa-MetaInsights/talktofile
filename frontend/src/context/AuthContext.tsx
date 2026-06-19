@@ -13,6 +13,13 @@ interface AuthContextValue {
   logout: () => void
   setPersona: (persona: string | null) => void
   isLoading: boolean
+  // Password reset (Supabase mode). resetPassword emails a recovery link;
+  // recoveryMode becomes true when the user returns via that link; updatePassword
+  // sets the new password.
+  resetPassword: (email: string) => Promise<void>
+  updatePassword: (password: string) => Promise<void>
+  recoveryMode: boolean
+  clearRecovery: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -32,6 +39,7 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [recoveryMode, setRecoveryMode] = useState(false)
 
   const hydrate = async (accessToken: string, isAnonymous: boolean) => {
     setAuthToken(accessToken)
@@ -81,6 +89,8 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
 
     const { data: sub } = sb.auth.onAuthStateChange(async (_event, session) => {
       if (cancelled) return
+      // User clicked the password-reset link — show the "set new password" UI.
+      if (_event === 'PASSWORD_RECOVERY') setRecoveryMode(true)
       if (session) {
         await hydrate(session.access_token, !!session.user.is_anonymous)
       } else {
@@ -126,8 +136,23 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   const setPersona = (persona: string | null) =>
     setUser((prev) => (prev ? { ...prev, persona } : prev))
 
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase!.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    })
+    if (error) throw new Error(error.message)
+  }
+
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase!.auth.updateUser({ password })
+    if (error) throw new Error(error.message)
+    setRecoveryMode(false)
+  }
+
+  const clearRecovery = () => setRecoveryMode(false)
+
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, setPersona, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, setPersona, isLoading, resetPassword, updatePassword, recoveryMode, clearRecovery }}>
       {children}
     </AuthContext.Provider>
   )
@@ -216,8 +241,12 @@ function LegacyAuthProvider({ children }: { children: ReactNode }) {
   const setPersona = (persona: string | null) =>
     setUser((prev) => (prev ? { ...prev, persona } : prev))
 
+  // Password reset isn't available in legacy (non-Supabase) mode.
+  const resetPassword = async () => { throw new Error('Password reset isn’t available in this mode.') }
+  const updatePassword = async () => { throw new Error('Password reset isn’t available in this mode.') }
+
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, setPersona, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, setPersona, isLoading, resetPassword, updatePassword, recoveryMode: false, clearRecovery: () => {} }}>
       {children}
     </AuthContext.Provider>
   )
