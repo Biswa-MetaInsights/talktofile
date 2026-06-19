@@ -79,7 +79,7 @@
   }
 
   .prose-custom pre {
-    @apply bg-slate-100 border border-slate-200 rounded-xl p-4 overflow-x-auto my-3;
+    @apply bg-slate-100 border border-slate-200 rounded-xl p-4 overflow-x-auto my-3 max-w-full;
   }
 
   .prose-custom pre code {
