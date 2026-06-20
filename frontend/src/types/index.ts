@@ -26,6 +26,12 @@ export interface AuthState {
 
 export type MessageRole = 'user' | 'assistant' | 'system'
 
+export interface Source {
+  filename: string
+  text: string
+  score: number
+}
+
 export interface Message {
   id: string
   role: MessageRole
@@ -34,6 +40,8 @@ export interface Message {
   isStreaming?: boolean
   isGuardReject?: boolean
   isPeriodicFeedback?: boolean
+  sources?: Source[]
+  followups?: string[]
 }
 
 export type SessionMode = 'single' | 'compare' | 'multi'

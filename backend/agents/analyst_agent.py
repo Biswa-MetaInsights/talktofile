@@ -202,6 +202,33 @@ async def generate_multi_doc_questions(
     return _parse_questions(response.choices[0].message.content.strip(), 5)
 
 
+async def generate_followup_questions(
+    question: str,
+    answer: str,
+    client: AsyncOpenAI,
+) -> list[str]:
+    """Suggest 3 short follow-up questions based on a completed Q&A exchange."""
+    response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "Based on this Q&A from a document session, suggest exactly 3 short, specific "
+                    "follow-up questions the user should ask to go deeper into the document. "
+                    "Keep each under 70 characters. English only. "
+                    "Return JSON: {\"questions\": [\"...\", \"...\", \"...\"]}"
+                ),
+            },
+            {"role": "user", "content": f"Q: {question}\n\nA: {answer[:700]}"},
+        ],
+        temperature=0.7,
+        max_tokens=200,
+        response_format={"type": "json_object"},
+    )
+    return _parse_questions(response.choices[0].message.content.strip(), 3)
+
+
 async def retrieve_chunks(
     query: str,
     index: faiss.IndexFlatIP,

@@ -7,7 +7,9 @@ from core.session_store import session_store
 from core.config import get_settings
 from models.schemas import ChatMessage
 from agents.guard_agent import guard_check
-from agents.sage_agent import get_streaming_answer
+from agents.sage_agent import get_streaming_answer, gather_sources
+from agents.analyst_agent import generate_followup_questions
+from openai import AsyncOpenAI
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -112,6 +114,21 @@ async def chat_ws(websocket: WebSocket, session_id: str):
                     session.chat_history = session.chat_history[-40:]
 
                 await websocket.send_json({"type": "done"})
+
+                # Post-answer enrichment: sources + follow-up questions (concurrent).
+                try:
+                    oai = AsyncOpenAI(api_key=get_settings().openai_api_key)
+                    sources, followups = await asyncio.gather(
+                        gather_sources(question, session.documents, oai),
+                        generate_followup_questions(question, complete_answer, oai),
+                        return_exceptions=True,
+                    )
+                    if isinstance(sources, list) and sources:
+                        await websocket.send_json({"type": "sources", "excerpts": sources})
+                    if isinstance(followups, list) and followups:
+                        await websocket.send_json({"type": "followups", "questions": followups})
+                except Exception:
+                    pass  # enrichment is best-effort — never break the chat
 
                 # Every 5 completed Q&A exchanges, ask for session feedback.
                 q_count = len(session.chat_history) // 2

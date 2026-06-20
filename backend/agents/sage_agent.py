@@ -173,3 +173,25 @@ async def get_streaming_answer(
     client = AsyncOpenAI(api_key=settings.openai_api_key)
     async for token in stream_answer(question, documents, chat_history, client, persona):
         yield token
+
+
+async def gather_sources(
+    question: str,
+    documents: list[DocumentData],
+    client: AsyncOpenAI,
+    min_score: float = 0.35,
+) -> list[dict]:
+    """Return the top source excerpts most relevant to the question."""
+    sources: list[dict] = []
+    for doc in documents:
+        if doc.is_tabular or doc.index is None or not doc.chunks:
+            continue
+        relevant = await retrieve_chunks(question, doc.index, doc.chunks, client, top_k=2)
+        for chunk, score in relevant:
+            if score >= min_score:
+                sources.append({
+                    "filename": doc.filename,
+                    "text": chunk[:280].strip(),
+                    "score": round(float(score), 2),
+                })
+    return sources[:3]

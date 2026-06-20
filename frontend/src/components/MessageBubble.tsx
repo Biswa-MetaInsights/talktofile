@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { ShieldAlert, User, Copy, Check, ThumbsUp, ThumbsDown, Sparkles } from 'lucide-react'
+import { ShieldAlert, User, Copy, Check, ThumbsUp, ThumbsDown, Sparkles, Quote, ChevronDown } from 'lucide-react'
 import type { Message } from '../types'
 import { feedbackApi } from '../api/client'
 
@@ -65,7 +65,9 @@ export default function MessageBubble({ message, username, sessionId }: Props) {
     }).catch(() => {})
   }
 
+  const [sourcesOpen, setSourcesOpen] = useState(false)
   const showActions = !isUser && !isGuard && !isPeriodicFeedback && !message.isStreaming && message.content.trim().length > 0
+  const hasSources = showActions && message.sources && message.sources.length > 0
 
   if (isPeriodicFeedback) {
     return (
@@ -137,8 +139,9 @@ export default function MessageBubble({ message, username, sessionId }: Props) {
       </div>
 
       {/* Bubble */}
+      <div className="max-w-[78%] min-w-0 flex flex-col gap-1.5">
       <div
-        className={`max-w-[78%] min-w-0 ${
+        className={`min-w-0 ${
           isUser
             ? 'bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-2xl rounded-br-sm shadow-sm shadow-indigo-200'
             : isGuard
@@ -191,6 +194,46 @@ export default function MessageBubble({ message, username, sessionId }: Props) {
             {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
+      </div>
+
+      {/* Source excerpts — collapsible, shown below Sage answers */}
+      {hasSources && (
+        <div className="min-w-0">
+          <button
+            onClick={() => setSourcesOpen((o) => !o)}
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600 transition-colors px-1"
+          >
+            <Quote className="w-3 h-3" />
+            {sourcesOpen ? 'Hide sources' : `View sources (${message.sources!.length})`}
+            <ChevronDown className={`w-3 h-3 transition-transform ${sourcesOpen ? 'rotate-180' : ''}`} />
+          </button>
+          <AnimatePresence>
+            {sourcesOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden mt-1.5 space-y-1.5"
+              >
+                {message.sources!.map((src, i) => (
+                  <div key={i} className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-semibold text-indigo-600 uppercase tracking-wider truncate max-w-[200px]" title={src.filename}>
+                        {src.filename}
+                      </span>
+                      <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">
+                        {Math.round(src.score * 100)}% match
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">{src.text}</p>
+                  </div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
       </div>
     </motion.div>
   )
