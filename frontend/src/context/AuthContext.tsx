@@ -20,6 +20,8 @@ interface AuthContextValue {
   updatePassword: (password: string) => Promise<void>
   recoveryMode: boolean
   clearRecovery: () => void
+  // Save editable profile details (everything except email/username).
+  saveProfile: (profile: UserProfile) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -151,8 +153,16 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
 
   const clearRecovery = () => setRecoveryMode(false)
 
+  const saveProfile = async (profile: UserProfile) => {
+    const me = await authApi.updateProfile(profile)
+    setUser((prev) => prev ? {
+      ...prev, plan: me.data.plan, is_guest: me.data.is_guest,
+      persona: me.data.persona, profile: me.data.profile,
+    } : prev)
+  }
+
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, setPersona, isLoading, resetPassword, updatePassword, recoveryMode, clearRecovery }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, setPersona, isLoading, resetPassword, updatePassword, recoveryMode, clearRecovery, saveProfile }}>
       {children}
     </AuthContext.Provider>
   )
@@ -245,8 +255,16 @@ function LegacyAuthProvider({ children }: { children: ReactNode }) {
   const resetPassword = async () => { throw new Error('Password reset isn’t available in this mode.') }
   const updatePassword = async () => { throw new Error('Password reset isn’t available in this mode.') }
 
+  const saveProfile = async (profile: UserProfile) => {
+    const me = await authApi.updateProfile(profile)
+    setUser((prev) => prev ? {
+      ...prev, plan: me.data.plan, is_guest: me.data.is_guest,
+      persona: me.data.persona, profile: me.data.profile,
+    } : prev)
+  }
+
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, setPersona, isLoading, resetPassword, updatePassword, recoveryMode: false, clearRecovery: () => {} }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, setPersona, isLoading, resetPassword, updatePassword, recoveryMode: false, clearRecovery: () => {}, saveProfile }}>
       {children}
     </AuthContext.Provider>
   )

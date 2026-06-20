@@ -4,11 +4,13 @@ import { FileText, LogOut, User, Sparkles, Crown, LogIn, Lock, MessageSquare, Us
 import { useAuth } from '../context/AuthContext'
 import PersonaModal from './PersonaModal'
 import FeedbackModal from './FeedbackModal'
+import ProfileModal from './ProfileModal'
 
 export default function Navbar({ onOpenAuth, onHome }: { onOpenAuth: (mode: 'subscribe' | 'login') => void; onHome?: () => void }) {
   const { user, logout } = useAuth()
   const [personaOpen, setPersonaOpen] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
   const isGuest = user?.is_guest ?? true
 
   return (
@@ -83,12 +85,16 @@ export default function Navbar({ onOpenAuth, onHome }: { onOpenAuth: (mode: 'sub
           </>
         ) : (
           <>
-            <div className="flex items-center gap-2 text-sm text-slate-600">
+            <button
+              onClick={() => setProfileOpen(true)}
+              title="View profile"
+              className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 rounded-lg px-1.5 py-1 hover:bg-slate-50 transition-all"
+            >
               <div className="w-6 h-6 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center">
                 <User className="w-3 h-3 text-indigo-600" />
               </div>
-              <span className="hidden sm:block">{user?.username}</span>
-            </div>
+              <span className="hidden sm:block max-w-[160px] truncate">{user?.username}</span>
+            </button>
             <button
               onClick={logout}
               className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-500 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-red-50"
@@ -102,6 +108,7 @@ export default function Navbar({ onOpenAuth, onHome }: { onOpenAuth: (mode: 'sub
 
       {personaOpen && <PersonaModal onClose={() => setPersonaOpen(false)} />}
       {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
+      {profileOpen && <ProfileModal onClose={() => setProfileOpen(false)} />}
     </motion.nav>
   )
 }
