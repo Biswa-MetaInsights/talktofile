@@ -147,6 +147,9 @@ export default function ChatWindow({ session, onReset }: Props) {
           if (!last) return prev
           return prev.map((m, i) => i === last.i ? { ...m, sources: data.excerpts } : m)
         })
+        if (data.excerpts?.length > 0) {
+          setCitationSource(data.excerpts[0])
+        }
       } else if (data.type === 'followups') {
         setMessages((prev) => {
           const items = [...prev].map((m, i) => ({ m, i })).filter(({ m }) => m.role === 'assistant' && !m.isPeriodicFeedback && !m.isGuardReject)
@@ -442,9 +445,20 @@ ${rows}
         className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scrollbar-thin bg-slate-50/80"
       >
         <AnimatePresence initial={false}>
-          {messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} username={user?.username} sessionId={session.session_id} onCiteSource={setCitationSource} />
-          ))}
+          {messages.map((msg, i) => {
+            const isLastWithSources = msg.role === 'assistant' && !!msg.sources?.length &&
+              !messages.slice(i + 1).some((m) => m.role === 'assistant' && !!m.sources?.length)
+            return (
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                username={user?.username}
+                sessionId={session.session_id}
+                onCiteSource={setCitationSource}
+                autoOpenSources={isLastWithSources}
+              />
+            )
+          })}
         </AnimatePresence>
         {isTyping && !streamingIdRef.current && <TypingIndicator />}
         <div ref={messagesEndRef} />

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -11,9 +11,10 @@ interface Props {
   username?: string
   sessionId?: string
   onCiteSource?: (source: Source) => void
+  autoOpenSources?: boolean
 }
 
-export default function MessageBubble({ message, username, sessionId, onCiteSource }: Props) {
+export default function MessageBubble({ message, username, sessionId, onCiteSource, autoOpenSources }: Props) {
   const isUser = message.role === 'user'
   const isGuard = message.isGuardReject
   const isPeriodicFeedback = message.isPeriodicFeedback
@@ -67,6 +68,7 @@ export default function MessageBubble({ message, username, sessionId, onCiteSour
   }
 
   const [sourcesOpen, setSourcesOpen] = useState(false)
+  useEffect(() => { if (autoOpenSources) setSourcesOpen(true) }, [autoOpenSources])
   const showActions = !isUser && !isGuard && !isPeriodicFeedback && !message.isStreaming && message.content.trim().length > 0
   const hasSources = showActions && message.sources && message.sources.length > 0
 
