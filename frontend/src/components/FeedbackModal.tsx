@@ -56,7 +56,7 @@ export default function FeedbackModal({ onClose }: { onClose: () => void }) {
         >
           <div className="flex items-start justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-sm shadow-indigo-200">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E60026] to-[#b3001e] flex items-center justify-center shadow-sm shadow-[#E60026]/20">
                 <MessageSquare className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -83,7 +83,7 @@ export default function FeedbackModal({ onClose }: { onClose: () => void }) {
                 {CATEGORIES.map((c) => (
                   <button key={c.key} onClick={() => setCategory(c.key)}
                     className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                      category === c.key ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50'
+                      category === c.key ? 'bg-[#E60026]/10 border-[#E60026]/20 text-[#E60026]' : 'border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50'
                     }`}>
                     {c.label}
                   </button>
@@ -97,7 +97,7 @@ export default function FeedbackModal({ onClose }: { onClose: () => void }) {
                   {[1, 2, 3, 4, 5].map((n) => (
                     <button key={n} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)} onClick={() => setRating(n === rating ? 0 : n)}
                       className="p-0.5" aria-label={`${n} star`}>
-                      <Star className={`w-6 h-6 transition-colors ${(hover || rating) >= n ? 'text-amber-400 fill-amber-400' : 'text-slate-300'}`} />
+                      <Star className={`w-6 h-6 transition-colors ${(hover || rating) >= n ? 'text-brand-600 fill-brand-600' : 'text-slate-300'}`} />
                     </button>
                   ))}
                 </div>

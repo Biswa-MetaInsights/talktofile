@@ -11,9 +11,17 @@ import { track } from '../lib/analytics'
 interface Props {
   onReady: (session: SessionInfo) => void
   onRequireUpgrade: () => void
+  // Reports whether an upload/processing is in flight, so the parent can guard
+  // against an accidental refresh while a file is being uploaded.
+  onBusyChange?: (busy: boolean) => void
+  // Files handed over from the landing-page dropbox. When present, they're run
+  // through the same onDrop validation + processing path as a direct drop here,
+  // so the upload starts automatically without the user dropping again.
+  initialFiles?: File[]
+  initialRejections?: FileRejection[]
 }
 
-const ACCEPT = {
+export const ACCEPT = {
   'application/pdf': ['.pdf'],
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
@@ -32,7 +40,7 @@ const ACCEPT = {
   ],
 }
 
-export default function UploadZone({ onReady, onRequireUpgrade }: Props) {
+export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, initialFiles, initialRejections }: Props) {
   const { token, user } = useAuth()
   const plan = user?.plan ?? 'free'
   const limits = PLAN_LIMITS[plan]
@@ -46,6 +54,13 @@ export default function UploadZone({ onReady, onRequireUpgrade }: Props) {
   const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => () => wsRef.current?.close(), [])
+
+  // Mirror upload/processing state up to the parent (drives the refresh guard).
+  // 'ready' still counts as busy until the session takes over a moment later.
+  useEffect(() => {
+    onBusyChange?.(!!stage && stage !== 'error')
+    return () => onBusyChange?.(false)
+  }, [stage, onBusyChange])
 
   const processFiles = useCallback(async (selected: File[]) => {
     setError('')
@@ -151,6 +166,17 @@ export default function UploadZone({ onReady, onRequireUpgrade }: Props) {
     if (accepted.length > 0) processFiles(accepted)
   }, [limits, plan, processFiles])
 
+  // If the user dropped/selected a file on the landing-page dropbox, kick off the
+  // exact same flow once on mount — same validation, same upload, same chat hand-off.
+  const consumedInitial = useRef(false)
+  useEffect(() => {
+    if (consumedInitial.current) return
+    if ((initialFiles?.length ?? 0) > 0 || (initialRejections?.length ?? 0) > 0) {
+      consumedInitial.current = true
+      onDrop(initialFiles ?? [], initialRejections ?? [])
+    }
+  }, [initialFiles, initialRejections, onDrop])
+
   const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
     onDrop,
     accept: ACCEPT,
@@ -189,12 +215,12 @@ export default function UploadZone({ onReady, onRequireUpgrade }: Props) {
           {...getRootProps()}
           className={`relative rounded-2xl border-2 border-dashed p-12 text-center cursor-pointer transition-all duration-300 ${
             isProcessing
-              ? 'border-indigo-300 bg-indigo-50/40 cursor-not-allowed'
+              ? 'border-brand-300 bg-brand-50/40 cursor-not-allowed'
               : isDragReject
               ? 'border-red-400 bg-red-50'
               : isDragActive
-              ? 'border-indigo-400 bg-indigo-50 scale-[1.02]'
-              : 'border-slate-300 bg-white hover:border-indigo-400 hover:bg-indigo-50/30'
+              ? 'border-brand-400 bg-brand-50 scale-[1.02]'
+              : 'border-slate-300 bg-white hover:border-brand-400 hover:bg-brand-50/30'
           }`}
         >
           <input {...getInputProps()} />
@@ -204,9 +230,9 @@ export default function UploadZone({ onReady, onRequireUpgrade }: Props) {
               <motion.div key="processing" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="space-y-5">
                 <div className="flex items-center justify-center">
                   <div className="relative">
-                    {files.length > 1 ? <Files className="w-12 h-12 text-indigo-500" /> : <FileText className="w-12 h-12 text-indigo-500" />}
+                    {files.length > 1 ? <Files className="w-12 h-12 text-brand-500" /> : <FileText className="w-12 h-12 text-brand-500" />}
                     <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">
-                      <Loader2 className="w-3.5 h-3.5 text-indigo-500 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 text-brand-500 animate-spin" />
                     </div>
                   </div>
                 </div>
@@ -214,10 +240,10 @@ export default function UploadZone({ onReady, onRequireUpgrade }: Props) {
                   <p className="text-slate-800 font-medium text-sm truncate">
                     {files.length > 1 ? `${files.length} files` : files[0]?.name}
                   </p>
-                  <p className="text-indigo-600 text-xs mt-1">{stageMsg}</p>
+                  <p className="text-brand-600 text-xs mt-1">{stageMsg}</p>
                 </div>
                 <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                  <motion.div className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full" animate={{ width: `${progress}%` }} transition={{ duration: 0.5, ease: 'easeOut' }} />
+                  <motion.div className="h-full bg-gradient-to-r from-brand-500 to-brand-600 rounded-full" animate={{ width: `${progress}%` }} transition={{ duration: 0.5, ease: 'easeOut' }} />
                 </div>
               </motion.div>
             ) : stage === 'ready' ? (
@@ -227,8 +253,8 @@ export default function UploadZone({ onReady, onRequireUpgrade }: Props) {
               </motion.div>
             ) : (
               <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-                <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100">
-                  <Upload className="w-7 h-7 text-indigo-500" />
+                <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-50 border border-brand-100">
+                  <Upload className="w-7 h-7 text-brand-500" />
                 </motion.div>
                 <div>
                   <p className="text-slate-800 font-medium">
@@ -242,7 +268,7 @@ export default function UploadZone({ onReady, onRequireUpgrade }: Props) {
                   ))}
                 </div>
                 {plan === 'pro' && (
-                  <p className="flex items-center justify-center gap-1.5 text-xs text-indigo-500">
+                  <p className="flex items-center justify-center gap-1.5 text-xs text-brand-500">
                     <GitCompare className="w-3.5 h-3.5" /> Upload 2 files to compare them, or up to 5 to analyse together
                   </p>
                 )}
@@ -258,13 +284,13 @@ export default function UploadZone({ onReady, onRequireUpgrade }: Props) {
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="mt-4 flex items-start gap-3 bg-indigo-50 rounded-xl px-4 py-3 border border-indigo-200"
+              className="mt-4 flex items-start gap-3 bg-brand-50 rounded-xl px-4 py-3 border border-brand-200"
             >
-              <Crown className="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
+              <Crown className="w-5 h-5 text-brand-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm text-slate-700">{upgradeHint}</p>
                 {user?.is_guest && (
-                  <button onClick={onRequireUpgrade} className="mt-2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all">
+                  <button onClick={onRequireUpgrade} className="mt-2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-all">
                     Create a free account
                   </button>
                 )}

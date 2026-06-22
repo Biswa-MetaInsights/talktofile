@@ -337,16 +337,16 @@ ${rows}
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 flex-shrink-0 bg-white rounded-t-2xl">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center flex-shrink-0">
-            <HeaderIcon className="w-4 h-4 text-indigo-500" />
+          <div className="w-8 h-8 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center flex-shrink-0">
+            <HeaderIcon className="w-4 h-4 text-brand-500" />
           </div>
           <div className="min-w-0">
             <p className="text-slate-800 text-sm font-medium truncate" title={docs.map((d) => d.filename).join(', ')}>{headerTitle}</p>
             <div className="flex items-center gap-2">
               <span className={`w-1.5 h-1.5 rounded-full ${
                 status === 'connected' ? 'bg-green-500'
-                : status === 'disconnected' ? 'bg-red-500'
-                : 'bg-amber-400 animate-pulse'
+                : status === 'disconnected' ? 'bg-brand-600'
+                : 'bg-brand-400 animate-pulse'
               }`} />
               <span className="text-xs text-slate-400">{
                 status === 'connected' ? 'Connected'
@@ -354,9 +354,9 @@ ${rows}
                 : status === 'reconnecting' ? 'Reconnecting...'
                 : 'Disconnected'
               }</span>
-              {session.mode === 'compare' && <span className="text-xs text-indigo-500">· Compare mode</span>}
+              {session.mode === 'compare' && <span className="text-xs text-brand-500">· Compare mode</span>}
               {nonEnglishCount > 0 && (
-                <span className="text-xs text-amber-500">· answers in English</span>
+                <span className="text-xs text-brand-500">· answers in English</span>
               )}
             </div>
           </div>
@@ -364,14 +364,14 @@ ${rows}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowSummary(!showSummary)}
-            className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50"
+            className="p-1.5 text-slate-400 hover:text-brand-600 transition-colors rounded-lg hover:bg-brand-50"
             title="View summaries"
           >
             <BookOpen className="w-4 h-4" />
           </button>
           <button
             onClick={exportReport}
-            className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50"
+            className="p-1.5 text-slate-400 hover:text-brand-600 transition-colors rounded-lg hover:bg-brand-50"
             title="Export report"
             disabled={messages.filter((m) => !m.isPeriodicFeedback).length < 2}
           >
@@ -379,7 +379,7 @@ ${rows}
           </button>
           <button
             onClick={onReset}
-            className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50"
+            className="p-1.5 text-slate-400 hover:text-brand-600 transition-colors rounded-lg hover:bg-brand-50"
             title="Upload new file(s)"
           >
             <RotateCcw className="w-4 h-4" />
@@ -405,9 +405,9 @@ ${rows}
             transition={{ duration: 0.25 }}
             className="overflow-hidden border-b border-slate-200 flex-shrink-0"
           >
-            <div className="px-5 py-4 bg-indigo-50/60 max-h-64 overflow-y-auto scrollbar-thin space-y-4">
+            <div className="px-5 py-4 bg-brand-50/60 max-h-64 overflow-y-auto scrollbar-thin space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
+                <span className="text-xs font-semibold text-brand-600 uppercase tracking-wider">
                   {docs.length > 1 ? 'Document Summaries' : 'Document Summary'}
                 </span>
                 <button onClick={() => setShowSummary(false)} className="text-slate-400 hover:text-slate-700">
@@ -448,7 +448,7 @@ ${rows}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             onClick={() => scrollToBottom()}
-            className="absolute bottom-24 right-6 w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-200 z-10"
+            className="absolute bottom-24 right-6 w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-md shadow-brand-200 z-10"
           >
             <ChevronDown className="w-4 h-4" />
           </motion.button>
@@ -459,7 +459,7 @@ ${rows}
       {messages.length <= 1 && session.suggested_questions.length > 0 && (
         <div className="px-4 pb-3 flex-shrink-0 bg-white border-t border-slate-100">
           <div className="flex items-center gap-1.5 mb-2 pt-3">
-            <Sparkles className="w-3 h-3 text-indigo-500" />
+            <Sparkles className="w-3 h-3 text-brand-500" />
             <span className="text-xs text-slate-400">Suggested questions</span>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -470,7 +470,7 @@ ${rows}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.08 }}
                 onClick={() => handleSuggestion(q)}
-                className="text-xs px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100 hover:border-indigo-200 transition-all truncate max-w-[200px]"
+                className="text-xs px-3 py-1.5 rounded-lg bg-brand-50 border border-brand-100 text-brand-600 hover:bg-brand-100 hover:border-brand-200 transition-all truncate max-w-[200px]"
                 title={q}
               >
                 {q}
@@ -487,7 +487,7 @@ ${rows}
         return (
           <div className="px-4 pb-3 flex-shrink-0 bg-white border-t border-slate-100">
             <div className="flex items-center gap-1.5 mb-2 pt-3">
-              <Sparkles className="w-3 h-3 text-indigo-500" />
+              <Sparkles className="w-3 h-3 text-brand-500" />
               <span className="text-xs text-slate-400">Follow-up suggestions</span>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -498,7 +498,7 @@ ${rows}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.07 }}
                   onClick={() => handleSuggestion(q)}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 transition-all truncate max-w-[260px]"
+                  className="text-xs px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 hover:bg-brand-50 hover:border-brand-200 hover:text-brand-600 transition-all truncate max-w-[260px]"
                   title={q}
                 >
                   {q}
@@ -541,7 +541,7 @@ ${rows}
               placeholder="Ask anything about the document..."
               rows={1}
               disabled={!isConnected}
-              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 resize-none transition-all disabled:opacity-50 leading-relaxed"
+              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20 resize-none transition-all disabled:opacity-50 leading-relaxed"
               style={{ minHeight: '44px', maxHeight: '140px' }}
             />
             <span className="absolute right-3 bottom-2.5 text-xs text-slate-300 pointer-events-none">
@@ -564,7 +564,7 @@ ${rows}
               whileTap={{ scale: 0.95 }}
               onClick={sendMessage}
               disabled={!input.trim() || !isConnected}
-              className="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:bg-indigo-700 flex-shrink-0"
+              className="w-11 h-11 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:bg-brand-700 flex-shrink-0"
             >
               <Send className="w-4 h-4" />
             </motion.button>

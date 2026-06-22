@@ -179,14 +179,19 @@ async def gather_sources(
     question: str,
     documents: list[DocumentData],
     client: AsyncOpenAI,
-    min_score: float = 0.35,
+    min_score: float = 0.2,
 ) -> list[dict]:
-    """Return the top source excerpts most relevant to the question."""
+    """Return the top source excerpts most relevant to the question.
+
+    Note: the index uses text-embedding-3-small (cosine), whose relevant-chunk
+    scores typically sit in the 0.2-0.4 range, so min_score is kept low — a higher
+    cutoff silently drops every excerpt and the UI shows no sources at all.
+    """
     sources: list[dict] = []
     for doc in documents:
         if doc.is_tabular or doc.index is None or not doc.chunks:
             continue
-        relevant = await retrieve_chunks(question, doc.index, doc.chunks, client, top_k=2)
+        relevant = await retrieve_chunks(question, doc.index, doc.chunks, client, top_k=3)
         for chunk, score in relevant:
             if score >= min_score:
                 sources.append({

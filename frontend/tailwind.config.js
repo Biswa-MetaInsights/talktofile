@@ -4,6 +4,21 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Brand red — single accent for the whole app, anchored on #E60026 (600)
+        // with #b3001e (700) as the dark shade used in the landing-page gradient.
+        // The former indigo accent now maps shade-for-shade onto this scale.
+        brand: {
+          50: '#fff1f4',
+          100: '#ffdfe6',
+          200: '#ffbecb',
+          300: '#ff8fa4',
+          400: '#fa4768',
+          500: '#f50f3e',
+          600: '#E60026',
+          700: '#b3001e',
+          800: '#8c0018',
+          900: '#730014',
+        },
         obsidian: {
           50: '#f0f0ff',
           100: '#e4e4ff',
@@ -23,9 +38,15 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Merriweather', 'Georgia', 'serif'],
         mono: ['JetBrains Mono', 'monospace'],
-        brand: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
+        brand: ['Merriweather', 'Georgia', 'serif'],
+        merriweather: ['Merriweather', 'Georgia', 'serif'],
+      },
+      fontSize: {
+        // 16px minimum across the whole site — these small steps are floored to base.
+        xs: ['1rem', { lineHeight: '1.4' }],
+        sm: ['1rem', { lineHeight: '1.5' }],
       },
       animation: {
         'fade-in': 'fadeIn 0.4s ease-out',
@@ -50,8 +71,8 @@ export default {
           '50%': { transform: 'scaleY(1.5)' },
         },
         glow: {
-          from: { boxShadow: '0 0 10px rgba(99, 102, 241, 0.4)' },
-          to: { boxShadow: '0 0 30px rgba(99, 102, 241, 0.8), 0 0 60px rgba(6, 182, 212, 0.3)' },
+          from: { boxShadow: '0 0 10px rgba(230, 0, 38, 0.4)' },
+          to: { boxShadow: '0 0 30px rgba(230, 0, 38, 0.8), 0 0 60px rgba(230, 0, 38, 0.3)' },
         },
       },
       backdropBlur: { xs: '2px' },

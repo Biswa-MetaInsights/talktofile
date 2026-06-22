@@ -23,7 +23,7 @@ function Shell({ icon, title, subtitle, onClose, children }: {
           className="relative rounded-2xl w-full max-w-md p-6 my-auto bg-white border border-slate-200 shadow-2xl shadow-slate-900/10">
           <div className="flex items-start justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-sm shadow-indigo-200">
+              <div className="w-10 h-10 rounded-xl bg-[#E60026] flex items-center justify-center shadow-sm">
                 {icon}
               </div>
               <div>
@@ -68,6 +68,7 @@ export default function AuthModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')          // verification / success notices (not errors)
+  const [success, setSuccess] = useState('')    // brief confirmation shown before the modal closes
   const [offerSignup, setOfferSignup] = useState(false)  // show "create account" CTA after a failed login
 
   useEffect(() => {
@@ -78,11 +79,13 @@ export default function AuthModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(''); setInfo(''); setOfferSignup(false)
+    setError(''); setInfo(''); setSuccess(''); setOfferSignup(false)
     setLoading(true)
     try {
       if (mode === 'login') {
         await login(username, password)
+        setSuccess('Sign in successful')
+        setTimeout(() => onClose(), 1200)
       } else {
         const profile: UserProfile = {
           full_name: fullName,
@@ -94,8 +97,8 @@ export default function AuthModal({
           industry,
         }
         await register(username, password, profile)
+        onClose()
       }
-      onClose()
     } catch (err: any) {
       // Backend errors carry response.data.detail; Supabase auth errors carry .message.
       const raw = err.response?.data?.detail || err.message || 'Something went wrong. Please try again.'
@@ -183,7 +186,7 @@ export default function AuthModal({
               placeholder="you@company.com" required autoComplete="email" className="input-field" />
           </div>
           {info && (
-            <div className="flex items-start gap-2 text-indigo-700 text-sm bg-indigo-50 rounded-lg px-3 py-2.5 border border-indigo-200">
+            <div className="flex items-start gap-2 text-[#E60026] text-sm bg-[#E60026]/10 rounded-lg px-3 py-2.5 border border-[#E60026]/30">
               <Mail className="w-4 h-4 flex-shrink-0 mt-0.5" /> <span>{info}</span>
             </div>
           )}
@@ -224,7 +227,7 @@ export default function AuthModal({
           {/* Header */}
           <div className="flex items-start justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-sm shadow-indigo-200">
+              <div className="w-10 h-10 rounded-xl bg-[#E60026] flex items-center justify-center shadow-sm">
                 {mode === 'subscribe' ? <Sparkles className="w-5 h-5 text-white" /> : <LogIn className="w-5 h-5 text-white" />}
               </div>
               <div>
@@ -248,7 +251,7 @@ export default function AuthModal({
 
           {/* Free account benefits */}
           {mode === 'subscribe' && (
-            <div className="mb-5 bg-indigo-50/60 rounded-xl p-3 border border-indigo-100">
+            <div className="mb-5 bg-[#E60026]/5 rounded-xl p-3 border border-[#E60026]/20">
               <div className="grid grid-cols-2 gap-2">
                 {[
                   'Chat with your documents',
@@ -257,12 +260,12 @@ export default function AuthModal({
                   'A saved account',
                 ].map((b) => (
                   <div key={b} className="flex items-center gap-1.5 text-xs text-slate-700">
-                    <Check className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" /> {b}
+                    <Check className="w-3.5 h-3.5 text-[#E60026] flex-shrink-0" /> {b}
                   </div>
                 ))}
               </div>
-              <p className="mt-2.5 pt-2.5 border-t border-indigo-100 flex items-center gap-1.5 text-xs text-slate-500">
-                <Crown className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+              <p className="mt-2.5 pt-2.5 border-t border-[#E60026]/20 flex items-center gap-1.5 text-xs text-slate-500">
+                <Crown className="w-3.5 h-3.5 text-[#E60026] flex-shrink-0" />
                 Pro — multi-file compare &amp; larger uploads — coming soon.
               </p>
             </div>
@@ -321,7 +324,7 @@ export default function AuthModal({
                 <button
                   type="button"
                   onClick={() => { setMode('reset'); setError(''); setInfo('') }}
-                  className="text-xs text-indigo-600 hover:text-indigo-700 transition-colors"
+                  className="text-xs text-[#E60026] hover:text-[#E60026]/80 transition-colors"
                 >
                   Forgot password?
                 </button>
@@ -331,7 +334,7 @@ export default function AuthModal({
             {mode === 'subscribe' && (
               <>
                 <div className="pt-1">
-                  <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-2">Your details</p>
+                  <p className="text-xs font-semibold text-[#E60026] uppercase tracking-wider mb-2">Your details</p>
                   <div className="grid grid-cols-2 gap-3">
                     <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" className="input-field" />
                     {SUPABASE_ENABLED ? (
@@ -346,7 +349,7 @@ export default function AuthModal({
                 </div>
 
                 <div>
-                  <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-2">
+                  <p className="text-xs font-semibold text-[#E60026] uppercase tracking-wider mb-2">
                     Company <span className="text-slate-400 normal-case font-normal">— optional</span>
                   </p>
                   <div className="grid grid-cols-2 gap-3">
@@ -365,12 +368,22 @@ export default function AuthModal({
             )}
 
             <AnimatePresence>
+              {success && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="flex items-center gap-2 text-[#E60026] text-sm bg-[#E60026]/10 rounded-lg px-3 py-2.5 border border-[#E60026]/30"
+                >
+                  <Check className="w-4 h-4 flex-shrink-0" /> {success}
+                </motion.div>
+              )}
               {info && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="flex items-start gap-2 text-indigo-700 text-sm bg-indigo-50 rounded-lg px-3 py-2.5 border border-indigo-200"
+                  className="flex items-start gap-2 text-[#E60026] text-sm bg-[#E60026]/10 rounded-lg px-3 py-2.5 border border-[#E60026]/30"
                 >
                   <Mail className="w-4 h-4 flex-shrink-0 mt-0.5" /> <span>{info}</span>
                 </motion.div>
@@ -389,7 +402,7 @@ export default function AuthModal({
                     <button
                       type="button"
                       onClick={() => { setMode('subscribe'); setError(''); setOfferSignup(false) }}
-                      className="mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 underline underline-offset-2"
+                      className="mt-2 text-xs font-semibold text-[#E60026] hover:text-[#E60026]/80 underline underline-offset-2"
                     >
                       New here? Create a free account →
                     </button>

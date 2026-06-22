@@ -10,7 +10,8 @@
   body {
     background-color: #F8FAFC;
     color: #0f172a;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Merriweather', Georgia, serif;
+    font-size: 16px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
@@ -28,7 +29,7 @@
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(99, 102, 241, 0.4);
+    background: rgba(230, 0, 38, 0.4);
   }
 }
 
@@ -38,11 +39,11 @@
   }
 
   .input-field {
-    @apply w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 transition-all;
+    @apply w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E60026] focus:ring-2 focus:ring-[#E60026]/20 transition-all;
   }
 
   .btn-primary {
-    @apply py-2.5 px-5 rounded-xl font-medium text-sm bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply py-2.5 px-5 rounded-xl font-medium text-sm bg-[#E60026] text-white hover:bg-[#E60026]/90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .prose-custom h1,
@@ -75,7 +76,7 @@
   .prose-custom em { @apply text-slate-700 italic; }
 
   .prose-custom code {
-    @apply text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded text-xs font-mono;
+    @apply text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded text-xs font-mono;
   }
 
   .prose-custom pre {
@@ -87,7 +88,7 @@
   }
 
   .prose-custom blockquote {
-    @apply border-l-2 border-indigo-400/60 pl-3 text-slate-500 italic my-2;
+    @apply border-l-2 border-brand-400/60 pl-3 text-slate-500 italic my-2;
   }
 
   .prose-custom table {
@@ -103,7 +104,7 @@
   }
 
   .prose-custom a {
-    @apply text-indigo-600 underline underline-offset-2 hover:text-indigo-700;
+    @apply text-brand-600 underline underline-offset-2 hover:text-brand-700;
   }
 
   .scrollbar-thin {
@@ -112,8 +113,19 @@
   }
 }
 
+/* Font-size floor: no text renders below 16px anywhere on the site. */
+.text-\[9px\],
+.text-\[10px\],
+.text-\[11px\],
+.text-\[12px\],
+.text-\[13px\],
+.text-\[14px\],
+.text-\[15px\] {
+  font-size: 1rem !important;
+}
+
 /* Subtle dot grid */
 .bg-grid {
-  background-image: radial-gradient(circle, rgba(99, 102, 241, 0.08) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(230, 0, 38, 0.08) 1px, transparent 1px);
   background-size: 24px 24px;
 }

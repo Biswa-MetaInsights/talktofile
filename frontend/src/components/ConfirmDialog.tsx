@@ -48,8 +48,8 @@ export default function ConfirmDialog({
             className="relative rounded-2xl w-full max-w-sm p-6 bg-white border border-slate-200 shadow-2xl shadow-slate-900/10"
           >
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="w-5 h-5 text-amber-500" />
+              <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-200 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-brand-600" />
               </div>
               <div className="min-w-0">
                 <h2 className="text-slate-900 font-semibold">{title}</h2>
@@ -66,7 +66,7 @@ export default function ConfirmDialog({
               </button>
               <button
                 onClick={onConfirm}
-                className="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-all shadow-sm"
+                className="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 transition-all shadow-sm"
               >
                 {confirmLabel}
               </button>
