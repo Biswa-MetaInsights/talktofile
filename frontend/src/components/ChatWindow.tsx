@@ -259,6 +259,7 @@ export default function ChatWindow({ session, onReset }: Props) {
     }])
     setInput('')
     setIsTyping(true)
+    setCitationSource(null)
     streamingIdRef.current = null
     stoppedRef.current = false
     wsRef.current?.send(JSON.stringify({ question: q }))

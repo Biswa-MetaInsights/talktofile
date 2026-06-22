@@ -179,7 +179,7 @@ async def gather_sources(
     question: str,
     documents: list[DocumentData],
     client: AsyncOpenAI,
-    min_score: float = 0.35,
+    min_score: float = 0.10,
 ) -> list[dict]:
     """Return the top source excerpts most relevant to the question."""
     sources: list[dict] = []
@@ -187,6 +187,7 @@ async def gather_sources(
         if doc.is_tabular or doc.index is None or not doc.chunks:
             continue
         relevant = await retrieve_chunks(question, doc.index, doc.chunks, client, top_k=2)
+        added = False
         for chunk, score, idx in relevant:
             if score >= min_score:
                 sources.append({
@@ -197,4 +198,16 @@ async def gather_sources(
                     "context_before": doc.chunks[idx - 1].strip() if idx > 0 else "",
                     "context_after": doc.chunks[idx + 1].strip() if idx + 1 < len(doc.chunks) else "",
                 })
+                added = True
+        # Always include the best chunk per document so citation panel is never empty.
+        if not added and relevant:
+            chunk, score, idx = relevant[0]
+            sources.append({
+                "filename": doc.filename,
+                "text": chunk.strip(),
+                "score": round(float(score), 2),
+                "chunk_index": idx,
+                "context_before": doc.chunks[idx - 1].strip() if idx > 0 else "",
+                "context_after": doc.chunks[idx + 1].strip() if idx + 1 < len(doc.chunks) else "",
+            })
     return sources[:3]
