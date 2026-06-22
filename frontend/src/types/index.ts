@@ -30,6 +30,9 @@ export interface Source {
   filename: string
   text: string
   score: number
+  chunk_index?: number
+  context_before?: string
+  context_after?: string
 }
 
 export interface Message {

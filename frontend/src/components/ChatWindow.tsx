@@ -4,7 +4,8 @@ import { Send, RotateCcw, FileText, Files, GitCompare, Sparkles, ChevronDown, Bo
 import MessageBubble from './MessageBubble'
 import TypingIndicator from './TypingIndicator'
 import SummaryCard from './SummaryCard'
-import type { Message, SessionInfo, User } from '../types'
+import CitationPanel from './CitationPanel'
+import type { Message, SessionInfo, User, Source } from '../types'
 import { createChatWebSocket, documentApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { track } from '../lib/analytics'
@@ -54,6 +55,7 @@ export default function ChatWindow({ session, onReset }: Props) {
   const [isTyping, setIsTyping] = useState(false)
   const [status, setStatus] = useState<ConnStatus>('connecting')
   const [showSummary, setShowSummary] = useState(false)
+  const [citationSource, setCitationSource] = useState<Source | null>(null)
   const [showScrollBtn, setShowScrollBtn] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -333,7 +335,15 @@ ${rows}
   const nonEnglishCount = docs.filter((d) => d.original_language && d.original_language !== 'en').length
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-row h-full overflow-hidden">
+      {/* Citation panel — slides in from left when a source is clicked */}
+      <AnimatePresence>
+        {citationSource && (
+          <CitationPanel source={citationSource} onClose={() => setCitationSource(null)} />
+        )}
+      </AnimatePresence>
+
+    <div className="flex flex-col flex-1 min-w-0 h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 flex-shrink-0 bg-white rounded-t-2xl">
         <div className="flex items-center gap-3 min-w-0">
@@ -433,7 +443,7 @@ ${rows}
       >
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} username={user?.username} sessionId={session.session_id} />
+            <MessageBubble key={msg.id} message={msg} username={user?.username} sessionId={session.session_id} onCiteSource={setCitationSource} />
           ))}
         </AnimatePresence>
         {isTyping && !streamingIdRef.current && <TypingIndicator />}
@@ -574,6 +584,7 @@ ${rows}
           Sage answers only from document content · Shift+Enter for new line
         </p>
       </div>
+    </div>
     </div>
   )
 }

@@ -110,7 +110,7 @@ async def _gather_context(
         if doc.index is None or not doc.chunks:
             continue
         relevant = await retrieve_chunks(question, doc.index, doc.chunks, client, top_k=per_doc)
-        for i, (chunk, score) in enumerate(relevant, 1):
+        for i, (chunk, score, _) in enumerate(relevant, 1):
             tag = f"=== FILE: {doc.filename} — Excerpt {i} (relevance {score:.2f}) ===" if multi \
                 else f"[Excerpt {i} — relevance {score:.2f}]"
             parts.append(f"{tag}\n{chunk}")
@@ -187,11 +187,14 @@ async def gather_sources(
         if doc.is_tabular or doc.index is None or not doc.chunks:
             continue
         relevant = await retrieve_chunks(question, doc.index, doc.chunks, client, top_k=2)
-        for chunk, score in relevant:
+        for chunk, score, idx in relevant:
             if score >= min_score:
                 sources.append({
                     "filename": doc.filename,
-                    "text": chunk[:280].strip(),
+                    "text": chunk.strip(),
                     "score": round(float(score), 2),
+                    "chunk_index": idx,
+                    "context_before": doc.chunks[idx - 1].strip() if idx > 0 else "",
+                    "context_after": doc.chunks[idx + 1].strip() if idx + 1 < len(doc.chunks) else "",
                 })
     return sources[:3]
