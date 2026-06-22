@@ -88,7 +88,7 @@ export default function MessageBubble({ message, username, sessionId, onCiteSour
             <Sparkles className="w-3.5 h-3.5 text-brand-500" />
             <p className="text-sm font-medium text-slate-800">How am I doing so far?</p>
           </div>
-          <p className="text-xs text-slate-500 mb-3">Your feedback helps us keep improving Sage.</p>
+          <p className="text-xs text-slate-500 mb-3">Your feedback helps us keep improving.</p>
           {periodicVote === null ? (
             <div className="flex gap-2">
               <button

@@ -1,5 +1,7 @@
 import asyncio
+import re
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, WebSocket, WebSocketDisconnect, Request
+from pydantic import BaseModel
 from core.auth import get_current_user, resolve_ws_user
 from core.session_store import session_store
 from core.config import get_settings
@@ -118,8 +120,9 @@ async def upload_documents(
 @router.websocket("/process/{session_id}")
 async def process_document_ws(websocket: WebSocket, session_id: str):
     """
-    WebSocket pipeline. Client connects after upload, then sends each file's bytes
-    (in the order returned by /upload) as binary messages. Server streams progress.
+    WebSocket pipeline. For file uploads the client sends each file's bytes as binary
+    messages. For URL sessions (created via /url) no binary data is expected — the
+    content is already stored in the session.
     """
     from core.auth import get_ws_token, ws_subprotocol, ws_origin_allowed
 
@@ -139,34 +142,39 @@ async def process_document_ws(websocket: WebSocket, session_id: str):
         await websocket.close(code=4004)
         return
 
+    # URL sessions have pre-loaded content; file sessions need binary data sent.
+    url_data: list[tuple[str, bytes]] | None = getattr(session, "_pending_url_data", None)
     expected = getattr(session, "_pending_filenames", None) or []
-    if not expected:
+    if not url_data and not expected:
         await websocket.close(code=4000)
         return
 
     await websocket.accept(subprotocol=ws_subprotocol(websocket))
 
-    # Receive each file's bytes in order, enforcing the per-file size cap so a
-    # malicious client can't stream an unbounded payload over the socket.
-    settings = get_settings()
-    _, max_mb = settings.limits_for_plan(user.get("plan", "free"))
-    max_bytes = max_mb * 1024 * 1024
-    files: list[tuple[str, bytes]] = []
-    try:
-        for name in expected:
-            data = await asyncio.wait_for(websocket.receive_bytes(), timeout=60)
-            if len(data) > max_bytes:
-                await websocket.send_json({"stage": "error", "message": f"'{name}' exceeds the {max_mb}MB limit."})
-                await websocket.close()
-                session_store.delete(session_id)
-                return
-            files.append((name, data))
-    except asyncio.TimeoutError:
-        await websocket.send_json({"stage": "error", "message": "Timeout waiting for file upload"})
-        await websocket.close()
-        return
-    except WebSocketDisconnect:
-        return
+    if url_data:
+        # URL session — content already extracted, skip binary receive.
+        files = url_data
+    else:
+        # File upload session — receive each file's bytes in order.
+        settings = get_settings()
+        _, max_mb = settings.limits_for_plan(user.get("plan", "free"))
+        max_bytes = max_mb * 1024 * 1024
+        files: list[tuple[str, bytes]] = []
+        try:
+            for name in expected:
+                data = await asyncio.wait_for(websocket.receive_bytes(), timeout=60)
+                if len(data) > max_bytes:
+                    await websocket.send_json({"stage": "error", "message": f"'{name}' exceeds the {max_mb}MB limit."})
+                    await websocket.close()
+                    session_store.delete(session_id)
+                    return
+                files.append((name, data))
+        except asyncio.TimeoutError:
+            await websocket.send_json({"stage": "error", "message": "Timeout waiting for file upload"})
+            await websocket.close()
+            return
+        except WebSocketDisconnect:
+            return
 
     async def on_progress(stage: PipelineStage, message: str):
         await websocket.send_json({"stage": stage.value, "message": message})
@@ -219,3 +227,111 @@ async def delete_session(session_id: str, current_user: dict = Depends(get_curre
         raise HTTPException(status_code=404, detail="Session not found")
     session_store.delete(session_id)
     return {"message": "Session cleared"}
+
+
+# ── URL ingestion ─────────────────────────────────────────────────────────────
+
+class URLIngestRequest(BaseModel):
+    url: str
+
+
+_YOUTUBE_RE = re.compile(
+    r"(?:youtube\.com/watch\?.*v=|youtu\.be/)([\w\-]{11})", re.IGNORECASE
+)
+
+
+def _extract_video_id(url: str) -> str | None:
+    m = _YOUTUBE_RE.search(url)
+    return m.group(1) if m else None
+
+
+async def _fetch_youtube_transcript(video_id: str) -> tuple[str, str]:
+    from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
+    try:
+        transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+        text = " ".join(entry["text"] for entry in transcript_list)
+        return text, f"youtube_{video_id}.txt"
+    except (NoTranscriptFound, TranscriptsDisabled):
+        raise HTTPException(
+            status_code=422,
+            detail="This YouTube video has no available transcript or captions. "
+                   "Only videos with captions enabled can be processed.",
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Could not fetch YouTube transcript: {exc}")
+
+
+async def _fetch_webpage_text(url: str) -> tuple[str, str]:
+    import httpx
+    from bs4 import BeautifulSoup
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=20) as client:
+            resp = await client.get(url, headers={"User-Agent": "TalkToFile/1.0 (+https://talktofile.com)"})
+            resp.raise_for_status()
+            content_type = resp.headers.get("content-type", "")
+            if "text/html" not in content_type and "text/plain" not in content_type:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Only HTML web pages can be fetched. PDFs and other file types must be uploaded directly.",
+                )
+            html = resp.text
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=422, detail=f"Could not fetch URL (HTTP {exc.response.status_code}).")
+    except httpx.RequestError:
+        raise HTTPException(status_code=422, detail="Could not reach that URL. Check the address and try again.")
+
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup(["script", "style", "noscript", "nav", "footer", "header", "aside"]):
+        tag.decompose()
+
+    # Prefer <article> or <main> for focused content
+    main = soup.find("article") or soup.find("main") or soup.find("body") or soup
+    text = main.get_text(separator="\n").strip()
+
+    # Derive a human-readable name from the page title or URL
+    title_tag = soup.find("title")
+    if title_tag and title_tag.string:
+        name = re.sub(r"[^a-zA-Z0-9 _\-]", "", title_tag.string.strip())[:60] or "webpage"
+    else:
+        name = re.sub(r"[^a-zA-Z0-9_\-]", "_", url.split("/")[-1] or "webpage")[:40]
+
+    return text, f"{name}.txt"
+
+
+@router.post("/url")
+@limiter.limit("10/minute")
+async def ingest_url(
+    request: Request,
+    body: URLIngestRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    url = body.url.strip()
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="URL must start with http:// or https://")
+
+    plan = current_user.get("plan", "free")
+    settings = get_settings()
+    from core.usage import count_today, log_usage
+    upload_limit = settings.daily_upload_limit(plan)
+    if count_today(current_user["username"], "upload") >= upload_limit:
+        raise HTTPException(status_code=429, detail="Daily upload limit reached.")
+
+    video_id = _extract_video_id(url)
+    if video_id:
+        text, filename = await _fetch_youtube_transcript(video_id)
+    else:
+        text, filename = await _fetch_webpage_text(url)
+
+    if len(text.strip()) < 100:
+        raise HTTPException(
+            status_code=422,
+            detail="Not enough readable text was found at that URL. Try a different page.",
+        )
+
+    session = session_store.create(current_user["username"])
+    # Store the pre-extracted text so the process WS skips binary receive.
+    session._pending_url_data = [(filename, text.encode("utf-8"))]  # type: ignore[attr-defined]
+    session._pending_filenames = [filename]  # type: ignore[attr-defined]
+
+    log_usage(current_user["username"], "upload", f"url={url[:80]}, plan={plan}")
+    return {"session_id": session.session_id, "filenames": [filename], "status": "processing"}

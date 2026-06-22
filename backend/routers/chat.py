@@ -100,7 +100,7 @@ async def chat_ws(websocket: WebSocket, session_id: str):
             full_response = []
             try:
                 async for token_text in get_streaming_answer(
-                    question, session.documents, session.chat_history, persona
+                    question, session.documents, session.chat_history, persona, username
                 ):
                     await websocket.send_json({"type": "token", "content": token_text})
                     full_response.append(token_text)

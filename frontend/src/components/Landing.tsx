@@ -6,11 +6,10 @@ import {
   Table2, ShieldCheck, Lock, Zap, ArrowRight, Check, ArrowUp,
 } from 'lucide-react'
 import { ACCEPT } from './UploadZone'
+import type { AppMode } from '../types'
 
 interface Props {
-  // Called to enter the app. When the user drops/picks files on the hero dropbox,
-  // they're passed through so UploadZone can validate + process them automatically.
-  onGetStarted: (accepted?: File[], rejections?: FileRejection[]) => void
+  onGetStarted: (accepted?: File[], rejections?: FileRejection[], mode?: AppMode, url?: string) => void
 }
 
 const FORMATS = ['PDF', 'Word', 'Excel', 'PowerPoint', 'HTML', 'JSON', 'CSV', 'Text']
@@ -18,30 +17,46 @@ const FORMATS = ['PDF', 'Word', 'Excel', 'PowerPoint', 'HTML', 'JSON', 'CSV', 'T
 const STEPS = [
   { icon: Upload, title: 'Upload your document', body: 'Drop in a PDF, Word, Excel, PowerPoint and more — in any language.' },
   { icon: MessageSquare, title: 'Ask anything', body: 'Chat naturally. Summaries, specific facts, comparisons, calculations — just ask.' },
-  { icon: Sparkles, title: 'Get sourced answers', body: 'Sage answers only from your document, in clear English, with the file it came from.' },
+  { icon: Sparkles, title: 'Get sourced answers', body: 'Your assistant answers only from your document, in clear English, with the file it came from.' },
 ]
 
 const FEATURES = [
-  { icon: Globe, title: 'Any language in, English out', body: 'Upload documents in Arabic, French, German, Dutch, Spanish, Chinese — virtually any language. Sage always answers in clear English.' },
-  { icon: GitCompare, title: 'Compare documents', body: 'Upload several files and surface differences, similarities and contradictions.' },
-  { icon: Table2, title: 'Spreadsheet intelligence', body: 'Real calculations on your tables — using only the numbers in your file, never made up.' },
-  { icon: ShieldCheck, title: 'No hallucinations', body: 'If the answer isn’t in your document, Sage says so. It never invents facts.' },
-  { icon: Lock, title: 'Private by design', body: 'Your documents live in memory only and vanish when your session ends. Nothing stored.' },
-  { icon: Zap, title: 'Instant & streaming', body: 'Answers stream in real time. No waiting, no friction — just drop a file and talk.' },
+  { icon: Globe, title: "Any language in, English out", body: "Upload documents in Arabic, French, German, Dutch, Spanish, Chinese — virtually any language. Your assistant always answers in clear English." },
+  { icon: GitCompare, title: "Compare documents", body: "Upload several files and surface differences, similarities and contradictions." },
+  { icon: Table2, title: "Spreadsheet intelligence", body: "Real calculations on your tables — using only the numbers in your file, never made up." },
+  { icon: ShieldCheck, title: "No hallucinations", body: "If the answer isn’t in your document, your assistant says so. It never invents facts." },
+  { icon: Lock, title: "Private by design", body: "Your documents live in memory only and vanish when your session ends. Nothing stored." },
+  { icon: Zap, title: "Instant & streaming", body: "Answers stream in real time. No waiting, no friction — just drop a file and talk." },
 ]
 
-// Mode tabs shown on the hero upload card. Selecting one only changes the active
-// tab on this page — no navigation, no backend. (Output wiring comes later.)
-const MODES = ['Chat', 'Summary', 'Flashcards', 'Slides', 'Translate', 'Podcasts']
+const MODES: { value: AppMode; label: string }[] = [
+  { value: 'chat', label: 'Chat' },
+  { value: 'summary', label: 'Summary' },
+  { value: 'flashcards', label: 'Flashcards' },
+  { value: 'slides', label: 'Slides' },
+  { value: 'translate', label: 'Translate' },
+  { value: 'podcast', label: 'Podcasts' },
+]
 
 export default function Landing({ onGetStarted }: Props) {
-  const [activeMode, setActiveMode] = useState('Chat')
+  const [activeMode, setActiveMode] = useState<AppMode>('chat')
+  const [urlInput, setUrlInput] = useState('')
+  const [urlError, setUrlError] = useState('')
 
-  // Hand any dropped/selected files to UploadZone (via onGetStarted), which runs
-  // the existing file-count/size/type validation and the upload→chat pipeline.
+  const handleAddUrl = () => {
+    const trimmed = urlInput.trim()
+    if (!trimmed) return
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      setUrlError('Please enter a full URL starting with https://')
+      return
+    }
+    setUrlError('')
+    onGetStarted(undefined, undefined, 'chat', trimmed)
+  }
+
   const onDrop = useCallback((accepted: File[], rejections: FileRejection[]) => {
-    if (accepted.length > 0 || rejections.length > 0) onGetStarted(accepted, rejections)
-  }, [onGetStarted])
+    if (accepted.length > 0 || rejections.length > 0) onGetStarted(accepted, rejections, activeMode)
+  }, [onGetStarted, activeMode])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: ACCEPT })
 
@@ -67,16 +82,14 @@ export default function Landing({ onGetStarted }: Props) {
             {/* Mode tabs — selecting changes the active tab only (no navigation) */}
             <div className="flex justify-center">
               <div className="inline-flex items-center gap-1 rounded-full border border-[#303030] bg-[#F8FAFC] p-1">
-                {MODES.map((label) => {
-                  const isActive = activeMode === label
+                {MODES.map(({ value, label }) => {
+                  const isActive = activeMode === value
                   return (
                     <button
-                      key={label}
-                      onClick={() => setActiveMode(label)}
+                      key={value}
+                      onClick={() => setActiveMode(value)}
                       className="relative text-sm font-medium px-4 py-1.5 rounded-full"
                     >
-                      {/* The "spotlight" — a single shared pill that slides
-                          laterally between tabs when the selection changes. */}
                       {isActive && (
                         <motion.span
                           layoutId="mode-spotlight"
@@ -120,20 +133,28 @@ export default function Landing({ onGetStarted }: Props) {
             </div>
 
             {/* Paste a link */}
-            <div className="flex items-stretch gap-2">
-              <div className="flex-1 flex items-center gap-2 rounded-xl border border-[#303030] bg-white px-4 hover:border-[#E60026] focus-within:border-[#E60026] focus-within:ring-2 focus-within:ring-[#E60026]/20 transition-all">
-                <input
-                  type="text"
-                  placeholder="Paste a webpage or video link"
-                  className="flex-1 bg-transparent py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none"
-                />
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-stretch gap-2">
+                <div className="flex-1 flex items-center gap-2 rounded-xl border border-[#303030] bg-white px-4 hover:border-[#E60026] focus-within:border-[#E60026] focus-within:ring-2 focus-within:ring-[#E60026]/20 transition-all">
+                  <input
+                    type="text"
+                    value={urlInput}
+                    onChange={(e) => { setUrlInput(e.target.value); setUrlError('') }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()}
+                    placeholder="Paste a webpage or YouTube video link"
+                    className="flex-1 bg-transparent py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none"
+                  />
+                </div>
+                <button
+                  onClick={handleAddUrl}
+                  className="px-6 rounded-xl bg-[#E60026] text-white font-medium text-sm hover:bg-[#E60026]/90 transition-all"
+                >
+                  Add
+                </button>
               </div>
-              <button
-                onClick={() => onGetStarted()}
-                className="px-6 rounded-xl bg-[#E60026] text-white font-medium text-sm hover:bg-[#E60026]/90 transition-all"
-              >
-                Add
-              </button>
+              {urlError && (
+                <p className="text-xs text-red-500 px-1">{urlError}</p>
+              )}
             </div>
           </div>
         </motion.div>

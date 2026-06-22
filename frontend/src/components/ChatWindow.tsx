@@ -291,7 +291,7 @@ export default function ChatWindow({ session, onReset }: Props) {
     const docTitle = session.documents.map((d) => d.filename).join(' & ')
     const pairs = messages.filter((m) => !m.isPeriodicFeedback && !m.isGuardReject && m.content.trim())
     const rows = pairs.map((m) => {
-      const role = m.role === 'user' ? 'You' : 'Sage'
+      const role = m.role === 'user' ? 'You' : 'Assistant'
       const safeContent = m.content
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/\n/g, '<br/>')
@@ -596,7 +596,7 @@ ${rows}
           )}
         </div>
         <p className="text-xs text-slate-400 mt-2 text-center">
-          Sage answers only from document content · Shift+Enter for new line
+          Answers drawn only from your document · Shift+Enter for new line
         </p>
       </div>
     </div>

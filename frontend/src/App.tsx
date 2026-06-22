@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import type { FileRejection } from 'react-dropzone'
 import { AnimatePresence, motion } from 'framer-motion'
 import { FileText, Globe, GitCompare, Files } from 'lucide-react'
@@ -11,7 +11,13 @@ import ConfirmDialog from './components/ConfirmDialog'
 import Landing from './components/Landing'
 import { useAuth } from './context/AuthContext'
 import { isProgrammaticReload } from './api/client'
-import type { SessionInfo } from './types'
+import type { SessionInfo, AppMode } from './types'
+
+const SummaryView = lazy(() => import('./components/SummaryView'))
+const FlashcardsView = lazy(() => import('./components/FlashcardsView'))
+const TranslateView = lazy(() => import('./components/TranslateView'))
+const PodcastView = lazy(() => import('./components/PodcastView'))
+const SlidesView = lazy(() => import('./components/SlidesView'))
 
 type AuthModalState = { open: boolean; mode: 'subscribe' | 'login' }
 
@@ -20,19 +26,25 @@ function AppShell() {
   const [session, setSession] = useState<SessionInfo | null>(null)
   const [authModal, setAuthModal] = useState<AuthModalState>({ open: false, mode: 'subscribe' })
   const [confirmLeave, setConfirmLeave] = useState(false)
-  // True while UploadZone is uploading/processing a file (before a chat session
-  // exists). Used so the refresh guard also covers an in-progress upload.
   const [uploading, setUploading] = useState(false)
-  // The landing page is the front door — always shown first. "Get started"
-  // (or "Sign in") moves into the app.
   const [view, setView] = useState<'landing' | 'app'>('landing')
-  // Files handed over from the landing-page dropbox, forwarded to UploadZone so
-  // it processes them automatically once the app view mounts.
   const [pendingUpload, setPendingUpload] = useState<{ accepted: File[]; rejections: FileRejection[] } | null>(null)
+  const [pendingUrl, setPendingUrl] = useState<string | null>(null)
+  // The mode selected on the Landing page — drives which view shows after upload.
+  const [selectedMode, setSelectedMode] = useState<AppMode>('chat')
+  // viewMode can be switched to 'chat' from any tool view via "Start chatting".
+  const [viewMode, setViewMode] = useState<AppMode>('chat')
 
-  const enterApp = (accepted?: File[], rejections?: FileRejection[]) => {
-    if ((accepted?.length ?? 0) > 0 || (rejections?.length ?? 0) > 0) {
+  const enterApp = (accepted?: File[], rejections?: FileRejection[], mode?: AppMode, url?: string) => {
+    const m = mode ?? 'chat'
+    setSelectedMode(m)
+    setViewMode(m)
+    if (url) {
+      setPendingUrl(url)
+      setPendingUpload(null)
+    } else if ((accepted?.length ?? 0) > 0 || (rejections?.length ?? 0) > 0) {
       setPendingUpload({ accepted: accepted ?? [], rejections: rejections ?? [] })
+      setPendingUrl(null)
     }
     setView('app')
   }
@@ -64,11 +76,12 @@ function AppShell() {
     return () => window.removeEventListener('beforeunload', handler)
   }, [session, uploading])
 
-  const handleReset = () => setSession(null)
-  // Return to the landing page, discarding any files staged from its dropbox so a
-  // later re-entry without a fresh pick doesn't re-upload stale files.
+  const handleReset = () => { setSession(null); setViewMode('chat') }
   const goLanding = () => {
     setPendingUpload(null)
+    setPendingUrl(null)
+    setSelectedMode('chat')
+    setViewMode('chat')
     setView('landing')
   }
   // The logo returns to the landing page. Mid-chat it confirms first (the
@@ -114,7 +127,15 @@ function AppShell() {
               transition={{ duration: 0.4 }}
               className="flex-1 flex flex-col"
             >
-              <UploadZone onReady={setSession} onRequireUpgrade={() => openAuth('subscribe')} onBusyChange={setUploading} initialFiles={pendingUpload?.accepted} initialRejections={pendingUpload?.rejections} />
+              <UploadZone
+                onReady={(s) => { setSession(s); setViewMode(selectedMode) }}
+                onRequireUpgrade={() => openAuth('subscribe')}
+                onBusyChange={setUploading}
+                initialFiles={pendingUpload?.accepted}
+                initialRejections={pendingUpload?.rejections}
+                initialUrl={pendingUrl ?? undefined}
+                selectedMode={selectedMode}
+              />
             </motion.div>
           ) : (
             <motion.div
@@ -165,10 +186,24 @@ function AppShell() {
                 ))}
               </div>
 
-              {/* Chat panel */}
+              {/* Main panel — switches between chat and tool views */}
               <div className="flex-1 min-w-0 flex flex-col min-h-0 relative bg-slate-50">
                 <div className="flex-1 glass-card m-3 lg:m-4 rounded-2xl flex flex-col min-h-0 overflow-hidden" style={{ height: 'calc(100dvh - 5rem)' }}>
-                  <ChatWindow session={session} onReset={handleReset} />
+                  <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-brand-200 border-t-brand-600 rounded-full animate-spin" /></div>}>
+                    {viewMode === 'summary' ? (
+                      <SummaryView session={session} onStartChat={() => setViewMode('chat')} />
+                    ) : viewMode === 'flashcards' ? (
+                      <FlashcardsView session={session} onStartChat={() => setViewMode('chat')} />
+                    ) : viewMode === 'translate' ? (
+                      <TranslateView session={session} onStartChat={() => setViewMode('chat')} />
+                    ) : viewMode === 'podcast' ? (
+                      <PodcastView session={session} onStartChat={() => setViewMode('chat')} />
+                    ) : viewMode === 'slides' ? (
+                      <SlidesView session={session} onStartChat={() => setViewMode('chat')} />
+                    ) : (
+                      <ChatWindow session={session} onReset={handleReset} />
+                    )}
+                  </Suspense>
                 </div>
               </div>
             </motion.div>

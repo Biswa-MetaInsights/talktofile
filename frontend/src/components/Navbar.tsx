@@ -13,6 +13,7 @@ export default function Navbar({ onOpenAuth, onHome }: { onOpenAuth: (mode: 'sub
   const [profileOpen, setProfileOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const isGuest = user?.is_guest ?? true
+  const isPro = user?.plan === 'pro'
 
   return (
     <motion.nav
@@ -58,14 +59,14 @@ export default function Navbar({ onOpenAuth, onHome }: { onOpenAuth: (mode: 'sub
           <span className="hidden md:block">Feedback</span>
         </button>
 
-        {/* Personalise Sage — Pro feature, also a plain nav link */}
+        {/* Personalise — Pro-only feature */}
         <button
-          onClick={() => (isGuest ? onOpenAuth('subscribe') : setPersonaOpen(true))}
+          onClick={() => (!isPro ? onOpenAuth('subscribe') : setPersonaOpen(true))}
           className="flex items-center gap-1.5 text-lg font-medium text-[#303030] hover:text-[#E60026] transition-colors"
-          title={isGuest ? 'Personalise Sage — sign up to unlock' : 'Personalise Sage for your domain'}
+          title={!isPro ? 'Personalise your assistant — Pro feature' : 'Personalise your assistant'}
         >
-          {isGuest ? <Lock className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
-          <span className="hidden sm:block">{user?.persona ? 'Persona active' : 'Personalise Sage'}</span>
+          {!isPro ? <Lock className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+          <span className="hidden sm:block">{user?.persona ? 'Persona active' : 'Personalise'}</span>
         </button>
 
         {isGuest ? (

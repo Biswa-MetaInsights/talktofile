@@ -1,4 +1,5 @@
 export type Plan = 'free' | 'pro'
+export type AppMode = 'chat' | 'summary' | 'flashcards' | 'slides' | 'translate' | 'podcast'
 
 export interface UserProfile {
   full_name?: string
