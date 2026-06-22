@@ -3,16 +3,17 @@ import { motion, AnimatePresence } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ShieldAlert, User, Copy, Check, ThumbsUp, ThumbsDown, Sparkles, Quote, ChevronDown } from 'lucide-react'
-import type { Message } from '../types'
+import type { Message, Source } from '../types'
 import { feedbackApi } from '../api/client'
 
 interface Props {
   message: Message
   username?: string
   sessionId?: string
+  onCiteSource?: (source: Source) => void
 }
 
-export default function MessageBubble({ message, username, sessionId }: Props) {
+export default function MessageBubble({ message, username, sessionId, onCiteSource }: Props) {
   const isUser = message.role === 'user'
   const isGuard = message.isGuardReject
   const isPeriodicFeedback = message.isPeriodicFeedback
@@ -217,7 +218,12 @@ export default function MessageBubble({ message, username, sessionId }: Props) {
                 className="overflow-hidden mt-1.5 space-y-1.5"
               >
                 {message.sources!.map((src, i) => (
-                  <div key={i} className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+                  <button
+                    key={i}
+                    onClick={() => onCiteSource?.(src)}
+                    className="w-full text-left bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 hover:border-indigo-300 hover:bg-indigo-50/50 transition-colors"
+                    title="View in document"
+                  >
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-[10px] font-semibold text-indigo-600 uppercase tracking-wider truncate max-w-[200px]" title={src.filename}>
                         {src.filename}
@@ -227,7 +233,7 @@ export default function MessageBubble({ message, username, sessionId }: Props) {
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">{src.text}</p>
-                  </div>
+                  </button>
                 ))}
               </motion.div>
             )}
