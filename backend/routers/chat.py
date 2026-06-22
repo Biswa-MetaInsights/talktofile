@@ -116,19 +116,20 @@ async def chat_ws(websocket: WebSocket, session_id: str):
                 await websocket.send_json({"type": "done"})
 
                 # Post-answer enrichment: sources + follow-up questions (concurrent).
+                oai = AsyncOpenAI(api_key=get_settings().openai_api_key)
                 try:
-                    oai = AsyncOpenAI(api_key=get_settings().openai_api_key)
-                    sources, followups = await asyncio.gather(
-                        gather_sources(question, session.documents, oai),
-                        generate_followup_questions(question, complete_answer, oai),
-                        return_exceptions=True,
-                    )
-                    if isinstance(sources, list) and sources:
+                    sources = await gather_sources(question, session.documents, oai)
+                    print(f"[sources] gathered {len(sources)} source(s) for question: {question[:60]!r}")
+                    if sources:
                         await websocket.send_json({"type": "sources", "excerpts": sources})
+                except Exception as exc:
+                    print(f"[sources] gather_sources failed: {exc!r}")
+                try:
+                    followups = await generate_followup_questions(question, complete_answer, oai)
                     if isinstance(followups, list) and followups:
                         await websocket.send_json({"type": "followups", "questions": followups})
                 except Exception:
-                    pass  # enrichment is best-effort — never break the chat
+                    pass
 
                 # Every 5 completed Q&A exchanges, ask for session feedback.
                 q_count = len(session.chat_history) // 2

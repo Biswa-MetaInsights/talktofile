@@ -196,11 +196,13 @@ async def gather_sources(
     sources: list[dict] = []
     q_lower = question.lower()
     for doc in documents:
+        print(f"[gather_sources] doc={doc.filename!r} is_tabular={doc.is_tabular} chunks={len(doc.chunks)} has_index={doc.index is not None}")
         if doc.is_tabular or not doc.chunks:
             continue
         try:
             if doc.index is not None:
                 relevant = await retrieve_chunks(question, doc.index, doc.chunks, client, top_k=2)
+                print(f"[gather_sources] {doc.filename!r}: scores={[round(s,3) for _,s,_ in relevant]}")
                 # Use highest-scoring chunk above threshold; always fall back to top-1.
                 above = [(c, s, i) for c, s, i in relevant if s >= min_score]
                 picked = above or (relevant[:1] if relevant else [])
@@ -216,8 +218,10 @@ async def gather_sources(
                         best_hits, best_idx = hits, i
                 chunk = doc.chunks[best_idx]
                 sources.append(_make_source(doc, chunk, 0.0, best_idx))
-        except Exception:
+        except Exception as exc:
+            print(f"[gather_sources] {doc.filename!r}: exception {exc!r} — falling back to first chunk")
             # Embedding failed — fall back to the first chunk of the document.
             if doc.chunks:
                 sources.append(_make_source(doc, doc.chunks[0], 0.0, 0))
+    print(f"[gather_sources] returning {len(sources)} source(s)")
     return sources[:3]
