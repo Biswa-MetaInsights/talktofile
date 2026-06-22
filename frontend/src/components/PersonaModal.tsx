@@ -133,7 +133,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
                 {user?.persona ? (
                   <><span className="w-1.5 h-1.5 rounded-full bg-green-500" /><span className="text-green-600">Active persona</span></>
                 ) : (
-                  <><span className="w-1.5 h-1.5 rounded-full bg-slate-400" /><span className="text-slate-500">Default your assistant</span></>
+                  <><span className="w-1.5 h-1.5 rounded-full bg-slate-400" /><span className="text-slate-500">Default</span></>
                 )}
               </span>
               {user?.persona && (
@@ -145,7 +145,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
                 <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{user.persona}</p>
               ) : (
                 <p className="text-sm text-slate-500 leading-relaxed">
-                  your assistant answers as a neutral expert document assistant. Personalise it below to match your role, domain, and tone.
+                  Your assistant answers as a neutral expert document assistant. Personalise it below to match your role, domain, and tone.
                 </p>
               )}
             </div>
@@ -235,7 +235,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
           ) : (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">your assistant's persona</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Your assistant's persona</label>
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
@@ -294,7 +294,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
           </AnimatePresence>
 
           <p className="text-center text-slate-400 text-xs mt-5">
-            your assistant still answers only from your document — the persona only changes how it speaks.
+            Your assistant still answers only from your document — the persona only changes how it speaks.
           </p>
         </motion.div>
       </motion.div>

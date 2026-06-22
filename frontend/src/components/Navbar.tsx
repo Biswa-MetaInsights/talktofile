@@ -41,10 +41,9 @@ export default function Navbar({ onOpenAuth, onHome }: { onOpenAuth: (mode: 'sub
           )}
         </button>
 
-        {/* Primary nav links. Anchors to home-page sections (FAQ added later). */}
+        {/* Primary nav links */}
         <nav className="hidden md:flex items-center gap-5">
-          <a href="#how-it-works" className="text-lg font-medium text-[#303030] hover:text-[#E60026] transition-colors">How it works</a>
-          <a href="#faq" className="text-lg font-medium text-[#303030] hover:text-[#E60026] transition-colors">FAQ</a>
+          <button onClick={onHome} className="text-lg font-medium text-[#303030] hover:text-[#E60026] transition-colors">How it works</button>
         </nav>
       </div>
 

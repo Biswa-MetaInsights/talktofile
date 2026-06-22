@@ -13,12 +13,40 @@ _UNSUPPORTED_NOTE = (
     "Images, charts, and scanned pages cannot be translated."
 )
 
-_SYSTEM = (
-    "You are a professional translator. Translate the provided document text accurately "
-    "into the target language. Preserve the structure (headings, bullet points, paragraphs). "
-    "Translate ONLY the text — do not add commentary or explanations. "
-    "If a word is a proper noun, acronym, or has no natural translation, keep it as-is."
-)
+_SYSTEM = """You are a professional translator and document analyst.
+
+The text you receive was extracted from a PDF or document file. Depending on how the PDF was created,
+the raw extracted text may contain:
+- Garbled characters or symbols (from custom/embedded non-standard font encodings)
+- Mixed readable English and garbled non-Latin script text
+- Partially readable content with some encoding artifacts
+
+Your job:
+1. FIRST, interpret and reconstruct the meaningful content. Use the document context/summary provided
+   to understand what the document is about and help decode garbled portions.
+2. THEN, translate that reconstructed content into the target language.
+3. Preserve document structure: headings, numbered items, bullet points, sections.
+4. For any portion that is completely unreadable (pure garbled characters with no recoverable meaning),
+   write: [unreadable section]
+5. Translate ONLY — no commentary, no explanations of what you did.
+6. Proper nouns, acronyms, and untranslatable technical terms: keep them as-is."""
+
+
+def _build_context_header(doc: DocumentData) -> str:
+    """Build a summary context block to help GPT-4o understand the document before translating."""
+    if not isinstance(doc.summary, dict):
+        return ""
+    s = doc.summary
+    parts = []
+    if s.get("doc_type"):
+        parts.append(f"Document type: {s['doc_type']}")
+    if s.get("overview"):
+        parts.append(f"Overview: {s['overview']}")
+    if s.get("key_points"):
+        parts.append("Key points: " + "; ".join(s["key_points"][:5]))
+    if s.get("topics"):
+        parts.append("Topics: " + ", ".join(s["topics"]))
+    return "\n".join(parts)
 
 
 async def translate_document(documents: list[DocumentData], target_language: str) -> dict:
@@ -27,7 +55,6 @@ async def translate_document(documents: list[DocumentData], target_language: str
 
     results = []
     for doc in documents:
-        # Use chunks joined as text; fall back to raw_text for tabulars
         if doc.is_tabular:
             results.append({
                 "filename": doc.filename,
@@ -36,19 +63,25 @@ async def translate_document(documents: list[DocumentData], target_language: str
             })
             continue
 
-        source_text = "\n\n".join(doc.chunks)[:12000] if doc.chunks else doc.raw_text[:12000]
+        # Prefer raw_text (complete extraction) over chunks (chunked for RAG).
+        # raw_text preserves document order better; chunks may repeat context headers.
+        source_text = (doc.raw_text or "\n\n".join(doc.chunks))[:14000]
         if not source_text.strip():
             results.append({"filename": doc.filename, "translated_text": "", "error": None})
             continue
+
+        context_header = _build_context_header(doc)
+        user_message = (
+            f"Translate the following document into {target_language}.\n\n"
+            + (f"DOCUMENT CONTEXT (use this to interpret any garbled/encoded text):\n{context_header}\n\n" if context_header else "")
+            + f"RAW DOCUMENT TEXT:\n{source_text}"
+        )
 
         response = await client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": _SYSTEM},
-                {
-                    "role": "user",
-                    "content": f"Translate the following text into {target_language}:\n\n{source_text}",
-                },
+                {"role": "user", "content": user_message},
             ],
             temperature=0.3,
             max_tokens=4000,
