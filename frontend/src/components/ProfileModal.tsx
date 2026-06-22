@@ -68,14 +68,14 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
           {/* Header */}
           <div className="flex items-start justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-sm shadow-indigo-200">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-sm shadow-brand-200">
                 <User className="w-5 h-5 text-white" />
               </div>
               <div>
                 <h2 className="text-slate-900 font-semibold flex items-center gap-2">
                   Your profile
                   {user?.plan === 'pro' && (
-                    <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-600">
+                    <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-brand-50 border border-brand-200 text-brand-600">
                       <Crown className="w-2.5 h-2.5" /> PRO
                     </span>
                   )}
@@ -103,7 +103,7 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
 
           <form onSubmit={handleSave} className="space-y-4">
             <div>
-              <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-2">Your details</p>
+              <p className="text-xs font-semibold text-brand-600 uppercase tracking-wider mb-2">Your details</p>
               <div className="grid grid-cols-2 gap-3">
                 <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" className="input-field" />
                 <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" className="input-field" />
@@ -111,7 +111,7 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
             </div>
 
             <div>
-              <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-2">Company</p>
+              <p className="text-xs font-semibold text-brand-600 uppercase tracking-wider mb-2">Company</p>
               <div className="grid grid-cols-2 gap-3">
                 <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Company name" className="input-field" />
                 <input value={companyRole} onChange={(e) => setCompanyRole(e.target.value)} placeholder="Your role" className="input-field" />

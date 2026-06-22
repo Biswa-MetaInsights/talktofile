@@ -13,6 +13,12 @@ export function setAuthToken(token: string | null) {
   authToken = token
 }
 
+// True once the app itself triggers a full-page reload (e.g. recovering from an
+// expired session on a 401). The refresh guard checks this so it doesn't show a
+// "Leave site?" prompt for a reload the app intentionally started.
+let _programmaticReload = false
+export const isProgrammaticReload = () => _programmaticReload
+
 api.interceptors.request.use((config) => {
   const token = authToken || localStorage.getItem('ttf_token')
   if (token) config.headers.Authorization = `Bearer ${token}`
@@ -28,6 +34,7 @@ api.interceptors.response.use(
     // token mid-session, clear it and reload so the app re-bootstraps a guest.
     if (err.response?.status === 401 && !isAuthAttempt) {
       localStorage.removeItem('ttf_token')
+      _programmaticReload = true
       window.location.reload()
     }
     return Promise.reject(err)

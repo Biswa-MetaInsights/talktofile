@@ -80,12 +80,12 @@ export default function MessageBubble({ message, username, sessionId, onCiteSour
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
         className="flex items-end gap-2.5"
       >
-        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center flex-shrink-0 text-xs font-bold text-white shadow-sm shadow-indigo-200">
+        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center flex-shrink-0 text-xs font-bold text-white shadow-sm shadow-brand-200">
           S
         </div>
-        <div className="max-w-[78%] bg-indigo-50 border border-indigo-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
+        <div className="max-w-[78%] bg-brand-50 border border-brand-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
           <div className="flex items-center gap-1.5 mb-2">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+            <Sparkles className="w-3.5 h-3.5 text-brand-500" />
             <p className="text-sm font-medium text-slate-800">How am I doing so far?</p>
           </div>
           <p className="text-xs text-slate-500 mb-3">Your feedback helps us keep improving Sage.</p>
@@ -126,10 +126,10 @@ export default function MessageBubble({ message, username, sessionId, onCiteSour
       <div
         className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold shadow-sm ${
           isUser
-            ? 'bg-gradient-to-br from-indigo-500 to-indigo-700 text-white'
+            ? 'bg-gradient-to-br from-brand-500 to-brand-700 text-white'
             : isGuard
-            ? 'bg-amber-100 border border-amber-300 text-amber-600'
-            : 'bg-gradient-to-br from-indigo-500 to-indigo-700 text-white'
+            ? 'bg-brand-100 border border-brand-300 text-brand-600'
+            : 'bg-gradient-to-br from-brand-500 to-brand-700 text-white'
         }`}
       >
         {isUser ? (
@@ -146,21 +146,21 @@ export default function MessageBubble({ message, username, sessionId, onCiteSour
       <div
         className={`min-w-0 ${
           isUser
-            ? 'bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-2xl rounded-br-sm shadow-sm shadow-indigo-200'
+            ? 'bg-gradient-to-br from-brand-600 to-brand-700 text-white rounded-2xl rounded-br-sm shadow-sm shadow-brand-200'
             : isGuard
-            ? 'bg-amber-50 border border-amber-200 rounded-2xl rounded-bl-sm shadow-sm'
+            ? 'bg-brand-50 border border-brand-200 rounded-2xl rounded-bl-sm shadow-sm'
             : 'bg-white border border-slate-200 rounded-2xl rounded-bl-sm shadow-sm'
         } px-4 py-3`}
       >
         {isUser ? (
           <p className="text-sm leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</p>
         ) : (
-          <div className={`prose-custom text-sm leading-relaxed break-words [overflow-wrap:anywhere] ${isGuard ? 'text-amber-700' : ''}`}>
+          <div className={`prose-custom text-sm leading-relaxed break-words [overflow-wrap:anywhere] ${isGuard ? 'text-brand-700' : ''}`}>
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {message.content}
             </ReactMarkdown>
             {message.isStreaming && (
-              <span className="inline-block w-0.5 h-4 bg-indigo-500 animate-pulse ml-0.5 align-middle" />
+              <span className="inline-block w-0.5 h-4 bg-brand-500 animate-pulse ml-0.5 align-middle" />
             )}
           </div>
         )}
@@ -170,7 +170,7 @@ export default function MessageBubble({ message, username, sessionId, onCiteSour
               <button
                 onClick={handleCopy}
                 title={copied ? 'Copied!' : 'Copy'}
-                className="flex items-center gap-1 text-xs text-slate-400 hover:text-indigo-600 transition-colors"
+                className="flex items-center gap-1 text-xs text-slate-400 hover:text-brand-600 transition-colors"
               >
                 {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
                 {copied ? 'Copied' : 'Copy'}
@@ -193,7 +193,7 @@ export default function MessageBubble({ message, username, sessionId, onCiteSour
               </button>
             </div>
           )}
-          <p className={`text-xs ${isUser ? 'text-indigo-200' : 'text-slate-400'} text-right`}>
+          <p className={`text-xs ${isUser ? 'text-brand-200' : 'text-slate-400'} text-right`}>
             {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
@@ -204,7 +204,7 @@ export default function MessageBubble({ message, username, sessionId, onCiteSour
         <div className="min-w-0">
           <button
             onClick={() => setSourcesOpen((o) => !o)}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600 transition-colors px-1"
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-brand-600 transition-colors px-1"
           >
             <Quote className="w-3 h-3" />
             {sourcesOpen ? 'Hide sources' : `View sources (${message.sources!.length})`}
@@ -227,7 +227,7 @@ export default function MessageBubble({ message, username, sessionId, onCiteSour
                     title="View in document"
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-semibold text-indigo-600 uppercase tracking-wider truncate max-w-[200px]" title={src.filename}>
+                      <span className="text-[10px] font-semibold text-brand-600 uppercase tracking-wider truncate max-w-[200px]" title={src.filename}>
                         {src.filename}
                       </span>
                       <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">

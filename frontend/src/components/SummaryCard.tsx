@@ -18,7 +18,7 @@ export default function SummaryCard({ summary, compact = false }: Props) {
       {/* Doc type + overview */}
       <div>
         {summary.doc_type && (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-md px-1.5 py-0.5 mb-2">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-brand-600 bg-brand-50 border border-brand-100 rounded-md px-1.5 py-0.5 mb-2">
             <FileText className="w-2.5 h-2.5" /> {summary.doc_type}
           </span>
         )}
@@ -33,13 +33,13 @@ export default function SummaryCard({ summary, compact = false }: Props) {
       {summary.key_points.length > 0 && (
         <div>
           <div className="flex items-center gap-1.5 mb-1.5">
-            <Sparkles className="w-3 h-3 text-indigo-500" />
+            <Sparkles className="w-3 h-3 text-brand-500" />
             <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Key points</span>
           </div>
           <ul className="space-y-1.5">
             {summary.key_points.map((p, i) => (
               <li key={i} className={`flex gap-2 text-slate-700 leading-relaxed ${compact ? 'text-xs' : 'text-sm'}`}>
-                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex-shrink-0" />
+                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 flex-shrink-0" />
                 <span>{p}</span>
               </li>
             ))}

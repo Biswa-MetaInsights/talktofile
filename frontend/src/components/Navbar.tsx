@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { FileText, LogOut, User, Sparkles, Crown, LogIn, Lock, MessageSquare, UserPlus } from 'lucide-react'
+import { FileText, LogOut, User, Sparkles, Crown, LogIn, Lock, MessageSquare, ChevronDown } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import PersonaModal from './PersonaModal'
 import FeedbackModal from './FeedbackModal'
@@ -11,6 +11,7 @@ export default function Navbar({ onOpenAuth, onHome }: { onOpenAuth: (mode: 'sub
   const [personaOpen, setPersonaOpen] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const isGuest = user?.is_guest ?? true
 
   return (
@@ -18,91 +19,98 @@ export default function Navbar({ onOpenAuth, onHome }: { onOpenAuth: (mode: 'sub
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.4 }}
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 h-14 border-b border-slate-200 bg-white"
+      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-6 h-14 border-b border-[#303030] bg-[#F8FAFC]"
     >
-      <button
-        onClick={onHome}
-        className="flex items-center gap-2.5 group"
-        title="Back to home"
-      >
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center transition-transform group-hover:scale-105 shadow-sm shadow-indigo-200">
-          <FileText className="w-3.5 h-3.5 text-white" />
-        </div>
-        <span className="font-brand font-bold text-[15px] tracking-[-0.02em] text-slate-900 group-hover:text-indigo-600 transition-colors">
-          TalkToFile
-        </span>
-        {user?.plan === 'pro' && (
-          <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-600">
-            <Crown className="w-2.5 h-2.5" /> PRO
+      <div className="flex items-center gap-5 sm:gap-7">
+        <button
+          onClick={onHome}
+          className="flex items-center gap-2.5 group"
+          title="Back to home"
+        >
+          <div className="w-7 h-7 rounded-lg bg-[#E60026] flex items-center justify-center transition-transform group-hover:scale-105 shadow-sm">
+            <FileText className="w-3.5 h-3.5 text-white" />
+          </div>
+          <span className="font-brand font-bold text-lg tracking-[-0.02em] text-[#E60026]">
+            TalkToFile
           </span>
-        )}
-      </button>
+          {user?.plan === 'pro' && (
+            <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-neutral-100 border border-neutral-300 text-neutral-900">
+              <Crown className="w-2.5 h-2.5" /> PRO
+            </span>
+          )}
+        </button>
 
-      <div className="flex items-center gap-3">
-        {/* Feedback */}
+        {/* Primary nav links. Anchors to home-page sections (FAQ added later). */}
+        <nav className="hidden md:flex items-center gap-5">
+          <a href="#how-it-works" className="text-lg font-medium text-[#303030] hover:text-[#E60026] transition-colors">How it works</a>
+          <a href="#faq" className="text-lg font-medium text-[#303030] hover:text-[#E60026] transition-colors">FAQ</a>
+        </nav>
+      </div>
+
+      <div className="flex items-center gap-4 sm:gap-6">
+        {/* Feedback — plain nav link, matching How it works / FAQ */}
         <button
           onClick={() => setFeedbackOpen(true)}
-          className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50 transition-all"
+          className="flex items-center gap-1.5 text-lg font-medium text-[#303030] hover:text-[#E60026] transition-colors"
           title="Send feedback"
         >
-          <MessageSquare className="w-3.5 h-3.5" />
+          <MessageSquare className="w-4 h-4" />
           <span className="hidden md:block">Feedback</span>
         </button>
 
-        {/* Persona — Pro-only feature */}
+        {/* Personalise Sage — Pro feature, also a plain nav link */}
         <button
           onClick={() => (isGuest ? onOpenAuth('subscribe') : setPersonaOpen(true))}
-          className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${
-            user?.persona
-              ? 'border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
-              : isGuest
-              ? 'border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300'
-              : 'border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50'
-          }`}
+          className="flex items-center gap-1.5 text-lg font-medium text-[#303030] hover:text-[#E60026] transition-colors"
           title={isGuest ? 'Personalise Sage — sign up to unlock' : 'Personalise Sage for your domain'}
         >
-          {isGuest ? <Lock className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
+          {isGuest ? <Lock className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
           <span className="hidden sm:block">{user?.persona ? 'Persona active' : 'Personalise Sage'}</span>
         </button>
 
         {isGuest ? (
-          <>
-            <button
-              onClick={() => onOpenAuth('subscribe')}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-medium shadow-sm hover:bg-indigo-700 transition-all"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span className="hidden sm:block">Sign up</span>
-            </button>
-            <button
-              onClick={() => onOpenAuth('login')}
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-900 transition-colors px-2 py-1.5"
-              title="Sign in"
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span className="hidden sm:block">Sign in</span>
-            </button>
-          </>
+          <button
+            onClick={() => onOpenAuth('login')}
+            className="flex items-center gap-1.5 text-lg font-medium text-[#303030] hover:text-[#E60026] transition-colors"
+            title="Sign in"
+          >
+            <LogIn className="w-4 h-4" />
+            <span className="hidden sm:block">Sign in</span>
+          </button>
         ) : (
-          <>
+          <div className="relative">
             <button
-              onClick={() => setProfileOpen(true)}
-              title="View profile"
-              className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 rounded-lg px-1.5 py-1 hover:bg-slate-50 transition-all"
+              onClick={() => setMenuOpen((o) => !o)}
+              title="Account"
+              className="flex items-center gap-2 text-lg font-medium text-[#303030] hover:text-[#E60026] rounded-lg px-1 py-1 transition-colors"
             >
-              <div className="w-6 h-6 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center">
-                <User className="w-3 h-3 text-indigo-600" />
+              <div className="w-7 h-7 rounded-full bg-[#E60026] flex items-center justify-center">
+                <User className="w-3.5 h-3.5 text-white" />
               </div>
-              <span className="hidden sm:block max-w-[160px] truncate">{user?.username}</span>
+              <span className="hidden sm:block max-w-[140px] truncate">{user?.username}</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
             </button>
-            <button
-              onClick={logout}
-              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-500 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-red-50"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:block">Sign out</span>
-            </button>
-          </>
+            {menuOpen && (
+              <>
+                {/* click-away backdrop */}
+                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 mt-2 w-44 z-50 rounded-xl border border-slate-200 bg-white shadow-lg py-1">
+                  <button
+                    onClick={() => { setMenuOpen(false); setProfileOpen(true) }}
+                    className="flex items-center gap-2 w-full text-left text-sm text-slate-700 hover:bg-slate-50 px-3 py-2 transition-colors"
+                  >
+                    <User className="w-4 h-4 text-slate-400" /> View profile
+                  </button>
+                  <button
+                    onClick={() => { setMenuOpen(false); logout() }}
+                    className="flex items-center gap-2 w-full text-left text-sm text-[#E60026] hover:bg-slate-50 px-3 py-2 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" /> Sign out
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         )}
       </div>
 
