@@ -175,6 +175,17 @@ async def get_streaming_answer(
         yield token
 
 
+def _make_source(doc: "DocumentData", chunk: str, score: float, idx: int) -> dict:
+    return {
+        "filename": doc.filename,
+        "text": chunk.strip(),
+        "score": round(float(score), 2),
+        "chunk_index": idx,
+        "context_before": doc.chunks[idx - 1].strip() if idx > 0 else "",
+        "context_after": doc.chunks[idx + 1].strip() if idx + 1 < len(doc.chunks) else "",
+    }
+
+
 async def gather_sources(
     question: str,
     documents: list[DocumentData],
@@ -183,31 +194,30 @@ async def gather_sources(
 ) -> list[dict]:
     """Return the top source excerpts most relevant to the question."""
     sources: list[dict] = []
+    q_lower = question.lower()
     for doc in documents:
-        if doc.is_tabular or doc.index is None or not doc.chunks:
+        if doc.is_tabular or not doc.chunks:
             continue
-        relevant = await retrieve_chunks(question, doc.index, doc.chunks, client, top_k=2)
-        added = False
-        for chunk, score, idx in relevant:
-            if score >= min_score:
-                sources.append({
-                    "filename": doc.filename,
-                    "text": chunk.strip(),
-                    "score": round(float(score), 2),
-                    "chunk_index": idx,
-                    "context_before": doc.chunks[idx - 1].strip() if idx > 0 else "",
-                    "context_after": doc.chunks[idx + 1].strip() if idx + 1 < len(doc.chunks) else "",
-                })
-                added = True
-        # Always include the best chunk per document so citation panel is never empty.
-        if not added and relevant:
-            chunk, score, idx = relevant[0]
-            sources.append({
-                "filename": doc.filename,
-                "text": chunk.strip(),
-                "score": round(float(score), 2),
-                "chunk_index": idx,
-                "context_before": doc.chunks[idx - 1].strip() if idx > 0 else "",
-                "context_after": doc.chunks[idx + 1].strip() if idx + 1 < len(doc.chunks) else "",
-            })
+        try:
+            if doc.index is not None:
+                relevant = await retrieve_chunks(question, doc.index, doc.chunks, client, top_k=2)
+                # Use highest-scoring chunk above threshold; always fall back to top-1.
+                above = [(c, s, i) for c, s, i in relevant if s >= min_score]
+                picked = above or (relevant[:1] if relevant else [])
+                for chunk, score, idx in picked:
+                    sources.append(_make_source(doc, chunk, score, idx))
+            else:
+                # No FAISS index — keyword search across chunks as last resort.
+                words = [w for w in q_lower.split() if len(w) > 3]
+                best_idx, best_hits = 0, 0
+                for i, chunk in enumerate(doc.chunks):
+                    hits = sum(w in chunk.lower() for w in words)
+                    if hits > best_hits:
+                        best_hits, best_idx = hits, i
+                chunk = doc.chunks[best_idx]
+                sources.append(_make_source(doc, chunk, 0.0, best_idx))
+        except Exception:
+            # Embedding failed — fall back to the first chunk of the document.
+            if doc.chunks:
+                sources.append(_make_source(doc, doc.chunks[0], 0.0, 0))
     return sources[:3]
