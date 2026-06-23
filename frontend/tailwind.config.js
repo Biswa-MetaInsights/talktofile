@@ -4,20 +4,20 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Brand red — single accent for the whole app, anchored on #E60026 (600)
-        // with #b3001e (700) as the dark shade used in the landing-page gradient.
-        // The former indigo accent now maps shade-for-shade onto this scale.
+        // Brand pumpkin-orange — single accent for the whole app, anchored on #E2611B (600)
+        // with #bc4d14 (700) as the dark shade used in the landing-page gradient.
+        // The accent maps shade-for-shade onto this scale.
         brand: {
-          50: '#fff1f4',
-          100: '#ffdfe6',
-          200: '#ffbecb',
-          300: '#ff8fa4',
-          400: '#fa4768',
-          500: '#f50f3e',
-          600: '#E60026',
-          700: '#b3001e',
-          800: '#8c0018',
-          900: '#730014',
+          50: '#fdf4ee',
+          100: '#fbe6d6',
+          200: '#f6cbab',
+          300: '#efa878',
+          400: '#e9854a',
+          500: '#e56f2d',
+          600: '#E2611B',
+          700: '#bc4d14',
+          800: '#963d14',
+          900: '#793314',
         },
         obsidian: {
           50: '#f0f0ff',
@@ -71,8 +71,8 @@ export default {
           '50%': { transform: 'scaleY(1.5)' },
         },
         glow: {
-          from: { boxShadow: '0 0 10px rgba(230, 0, 38, 0.4)' },
-          to: { boxShadow: '0 0 30px rgba(230, 0, 38, 0.8), 0 0 60px rgba(230, 0, 38, 0.3)' },
+          from: { boxShadow: '0 0 10px rgba(226, 97, 27, 0.4)' },
+          to: { boxShadow: '0 0 30px rgba(226, 97, 27, 0.8), 0 0 60px rgba(226, 97, 27, 0.3)' },
         },
       },
       backdropBlur: { xs: '2px' },

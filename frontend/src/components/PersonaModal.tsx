@@ -108,7 +108,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
           {/* Header */}
           <div className="flex items-start justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E60026] to-[#b3001e] flex items-center justify-center shadow-sm shadow-[#E60026]/20">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E2611B] to-[#bc4d14] flex items-center justify-center shadow-sm shadow-[#E2611B]/20">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -137,7 +137,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
                 )}
               </span>
               {user?.persona && (
-                <span className="text-[10px] text-[#E60026] bg-[#E60026]/10 border border-[#E60026]/20 rounded px-1.5 py-0.5">Custom</span>
+                <span className="text-[10px] text-[#E2611B] bg-[#E2611B]/10 border border-[#E2611B]/20 rounded px-1.5 py-0.5">Custom</span>
               )}
             </div>
             <div className="px-4 py-3">
@@ -180,7 +180,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
                       onClick={() => { setRole(p.role); setSpecialty(p.specialty) }}
                       className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
                         role === p.role
-                          ? 'bg-[#E60026]/10 border-[#E60026]/20 text-[#E60026]'
+                          ? 'bg-[#E2611B]/10 border-[#E2611B]/20 text-[#E2611B]'
                           : 'border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50'
                       }`}
                     >

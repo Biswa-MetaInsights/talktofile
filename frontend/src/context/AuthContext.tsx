@@ -118,7 +118,7 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       // Email confirmation is enabled — no session yet. Stash the profile so it's
       // saved once the user clicks the verification link and signs in.
       localStorage.setItem('ttf_pending_profile', JSON.stringify({ ...profile, email }))
-      throw new Error('Account created — check your email to confirm, then sign in.')
+      throw new Error('Account created. Check your email to confirm, then sign in.')
     }
     await hydrate(data.session.access_token, false)
     await authApi.updateProfile({ ...profile, email })

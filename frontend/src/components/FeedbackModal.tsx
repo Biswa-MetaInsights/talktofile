@@ -56,7 +56,7 @@ export default function FeedbackModal({ onClose }: { onClose: () => void }) {
         >
           <div className="flex items-start justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E60026] to-[#b3001e] flex items-center justify-center shadow-sm shadow-[#E60026]/20">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E2611B] to-[#bc4d14] flex items-center justify-center shadow-sm shadow-[#E2611B]/20">
                 <MessageSquare className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -83,7 +83,7 @@ export default function FeedbackModal({ onClose }: { onClose: () => void }) {
                 {CATEGORIES.map((c) => (
                   <button key={c.key} onClick={() => setCategory(c.key)}
                     className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                      category === c.key ? 'bg-[#E60026]/10 border-[#E60026]/20 text-[#E60026]' : 'border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50'
+                      category === c.key ? 'bg-[#E2611B]/10 border-[#E2611B]/20 text-[#E2611B]' : 'border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50'
                     }`}>
                     {c.label}
                   </button>
