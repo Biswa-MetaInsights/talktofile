@@ -8,7 +8,7 @@ from slowapi import _rate_limit_exceeded_handler
 from core.config import get_settings
 from core.db import init_db
 from core.ratelimit import limiter
-from routers import auth, document, chat, feedback
+from routers import auth, document, chat, feedback, tools
 
 
 @asynccontextmanager
@@ -60,6 +60,7 @@ def create_app() -> FastAPI:
     app.include_router(document.router, prefix="/api")
     app.include_router(chat.router, prefix="/api")
     app.include_router(feedback.router, prefix="/api")
+    app.include_router(tools.router, prefix="/api")
 
     @app.get("/api/health")
     async def health():

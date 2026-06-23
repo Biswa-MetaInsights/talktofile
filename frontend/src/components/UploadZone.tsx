@@ -2,7 +2,7 @@ import { useCallback, useRef, useState, useEffect } from 'react'
 import { useDropzone, FileRejection } from 'react-dropzone'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Upload, FileText, CheckCircle, AlertCircle, Loader2, Crown, X, GitCompare, Files } from 'lucide-react'
-import type { PipelineUpdate, SessionInfo } from '../types'
+import type { PipelineUpdate, SessionInfo, AppMode } from '../types'
 import { PLAN_LIMITS } from '../types'
 import { documentApi, createProcessWebSocket } from '../api/client'
 import { useAuth } from '../context/AuthContext'
@@ -11,14 +11,13 @@ import { track } from '../lib/analytics'
 interface Props {
   onReady: (session: SessionInfo) => void
   onRequireUpgrade: () => void
-  // Reports whether an upload/processing is in flight, so the parent can guard
-  // against an accidental refresh while a file is being uploaded.
   onBusyChange?: (busy: boolean) => void
-  // Files handed over from the landing-page dropbox. When present, they're run
-  // through the same onDrop validation + processing path as a direct drop here,
-  // so the upload starts automatically without the user dropping again.
   initialFiles?: File[]
   initialRejections?: FileRejection[]
+  // URL passed from the landing page for web/YouTube ingestion.
+  initialUrl?: string
+  // Mode selected on the landing page — shown in the heading.
+  selectedMode?: AppMode
 }
 
 export const ACCEPT = {
@@ -40,7 +39,16 @@ export const ACCEPT = {
   ],
 }
 
-export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, initialFiles, initialRejections }: Props) {
+const MODE_LABELS: Record<string, string> = {
+  chat: 'Chat with your document',
+  summary: 'Generate a document summary',
+  flashcards: 'Create flashcards',
+  slides: 'Build a slide deck',
+  translate: 'Translate your document',
+  podcast: 'Create a podcast script',
+}
+
+export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, initialFiles, initialRejections, initialUrl, selectedMode }: Props) {
   const { token, user } = useAuth()
   const plan = user?.plan ?? 'free'
   const limits = PLAN_LIMITS[plan]
@@ -136,6 +144,63 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
     }
   }, [token, onReady])
 
+  const processUrl = useCallback(async (url: string) => {
+    setError('')
+    setStage('uploading')
+    setStageMsg('Fetching content from URL...')
+    setProgress(10)
+
+    try {
+      const res = await documentApi.uploadUrl(url)
+      const { session_id, filenames } = res.data
+
+      setStage('extracting')
+      setProgress(25)
+
+      const ws = createProcessWebSocket(session_id, token!)
+      wsRef.current = ws
+      let sessionInfo: SessionInfo | null = null
+
+      await new Promise<void>((resolve, reject) => {
+        // URL sessions: just open the WS and wait — no binary data to send.
+        ws.onopen = () => {}
+
+        ws.onmessage = (evt) => {
+          const data: PipelineUpdate = JSON.parse(evt.data)
+          setStage(data.stage)
+          setStageMsg(data.message)
+
+          const progressMap: Record<string, number> = { extracting: 50, analysing: 85, ready: 100 }
+          setProgress(progressMap[data.stage] ?? 50)
+
+          if (data.stage === 'ready') {
+            sessionInfo = {
+              session_id,
+              documents: data.documents ?? [],
+              mode: data.mode ?? 'single',
+              suggested_questions: data.suggested_questions ?? [],
+              ready: true,
+            }
+            resolve()
+          } else if (data.stage === 'error') {
+            reject(new Error(data.message))
+          }
+        }
+
+        ws.onerror = () => reject(new Error('Connection error'))
+        ws.onclose = () => { if (!sessionInfo) reject(new Error('Connection closed unexpectedly')) }
+      })
+
+      if (sessionInfo) setTimeout(() => onReady(sessionInfo!), 500)
+    } catch (err: any) {
+      wsRef.current?.close()
+      const detail = err.response?.data?.detail
+      setError(detail || err.message || 'Could not process that URL. Please try again.')
+      setStage('')
+      setProgress(0)
+    }
+  }, [token, onReady])
+
   const onDrop = useCallback((accepted: File[], rejections: FileRejection[]) => {
     setError('')
     setUpgradeHint('')
@@ -166,16 +231,17 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
     if (accepted.length > 0) processFiles(accepted)
   }, [limits, plan, processFiles])
 
-  // If the user dropped/selected a file on the landing-page dropbox, kick off the
-  // exact same flow once on mount — same validation, same upload, same chat hand-off.
   const consumedInitial = useRef(false)
   useEffect(() => {
     if (consumedInitial.current) return
     if ((initialFiles?.length ?? 0) > 0 || (initialRejections?.length ?? 0) > 0) {
       consumedInitial.current = true
       onDrop(initialFiles ?? [], initialRejections ?? [])
+    } else if (initialUrl) {
+      consumedInitial.current = true
+      processUrl(initialUrl)
     }
-  }, [initialFiles, initialRejections, onDrop])
+  }, [initialFiles, initialRejections, initialUrl, onDrop, processUrl])
 
   const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
     onDrop,
@@ -198,7 +264,9 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
       >
         <div className="text-center mb-8">
           <h2 className="text-2xl font-bold text-slate-900 mb-2">
-            {plan === 'pro' ? 'Upload Your Documents' : 'Upload Your Document'}
+            {selectedMode && selectedMode !== 'chat'
+              ? MODE_LABELS[selectedMode]
+              : plan === 'pro' ? 'Upload Your Documents' : 'Upload Your Document'}
           </h2>
           <p className="text-slate-500 text-sm">
             PDF, Word, Excel, PowerPoint, HTML, JSON, CSV, text, any language

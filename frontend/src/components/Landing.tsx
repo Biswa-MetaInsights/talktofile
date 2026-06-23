@@ -7,11 +7,10 @@ import {
   GraduationCap, Scale, LineChart, HeartPulse, Briefcase, ScrollText,
 } from 'lucide-react'
 import { ACCEPT } from './UploadZone'
+import type { AppMode } from '../types'
 
 interface Props {
-  // Called to enter the app. When the user drops/picks files on the hero dropbox,
-  // they're passed through so UploadZone can validate + process them automatically.
-  onGetStarted: (accepted?: File[], rejections?: FileRejection[]) => void
+  onGetStarted: (accepted?: File[], rejections?: FileRejection[], mode?: AppMode, url?: string) => void
 }
 
 const FORMATS = ['PDF', 'Word', 'Excel', 'PowerPoint', 'HTML', 'JSON', 'CSV', 'Text']
@@ -19,7 +18,7 @@ const FORMATS = ['PDF', 'Word', 'Excel', 'PowerPoint', 'HTML', 'JSON', 'CSV', 'T
 const STEPS = [
   { icon: Upload, title: 'Upload your document', body: 'Drop in a PDF, Word, Excel, PowerPoint and more, in any language.' },
   { icon: MessageSquare, title: 'Ask anything', body: 'Chat naturally. Summaries, specific facts, comparisons, calculations. Just ask.' },
-  { icon: Sparkles, title: 'Get sourced answers', body: 'Sage answers only from your document, in clear English, with the file it came from.' },
+  { icon: Sparkles, title: 'Get sourced answers', body: 'Your assistant answers only from your document, in clear English, with the file it came from.' },
 ]
 
 const FEATURES = [
@@ -42,27 +41,43 @@ const AUDIENCES = [
   { icon: ScrollText, title: 'Anyone reading the fine print', body: 'Terms of service, warranties, rental agreements. Find out what you are actually agreeing to in seconds.' },
 ]
 
-// Mode tabs shown on the hero upload card. Selecting one only changes the active
-// tab on this page — no navigation, no backend. (Output wiring comes later.)
-// The blurb shows below the tabs, above the drop zone, for the active mode.
-const MODES = [
-  { label: 'Chat', blurb: 'Ask anything in plain language and get answers pulled straight from your file. Follow-up questions remember what you already asked.' },
-  { label: 'Summary', blurb: 'Turn a long document into a clear, structured summary. The key points, without reading every page.' },
-  { label: 'Flashcards', blurb: 'Generate study-ready flashcards from any document. Useful for revision, onboarding, or learning something new fast.' },
-  { label: 'Slides', blurb: 'Turn a report or dense document into a clean slide deck you can present or share.' },
-  { label: 'Translate', blurb: 'Read documents in any language. Upload in one, get clear results in another.' },
-  { label: 'Podcasts', blurb: 'Turn your document into a natural, listenable audio rundown for when you’d rather listen than read.' },
-  { label: 'Charts', blurb: 'Turn the tables in your file into bar, line, or pie charts, and more. See the numbers, don’t just read them.' },
+// Mode tabs shown on the hero upload card. Selecting one switches the active mode,
+// which the upload pipeline then uses. The blurb shows below the tabs, above the
+// drop zone, for the active mode. ('charts' has no backend mode yet — it falls
+// back to chat on upload.)
+const MODES: { value: AppMode | 'charts'; label: string; blurb: string }[] = [
+  { value: 'chat', label: 'Chat', blurb: 'Ask anything in plain language and get answers pulled straight from your file. Follow-up questions remember what you already asked.' },
+  { value: 'summary', label: 'Summary', blurb: 'Turn a long document into a clear, structured summary. The key points, without reading every page.' },
+  { value: 'flashcards', label: 'Flashcards', blurb: 'Generate study-ready flashcards from any document. Useful for revision, onboarding, or learning something new fast.' },
+  { value: 'slides', label: 'Slides', blurb: 'Turn a report or dense document into a clean slide deck you can present or share.' },
+  { value: 'translate', label: 'Translate', blurb: 'Read documents in any language. Upload in one, get clear results in another.' },
+  { value: 'podcast', label: 'Podcasts', blurb: 'Turn your document into a natural, listenable audio rundown for when you’d rather listen than read.' },
+  { value: 'charts', label: 'Charts', blurb: 'Turn the tables in your file into bar, line, or pie charts, and more. See the numbers, don’t just read them.' },
 ]
 
 export default function Landing({ onGetStarted }: Props) {
-  const [activeMode, setActiveMode] = useState('Chat')
+  const [activeMode, setActiveMode] = useState<AppMode | 'charts'>('chat')
+  const [urlInput, setUrlInput] = useState('')
+  const [urlError, setUrlError] = useState('')
 
-  // Hand any dropped/selected files to UploadZone (via onGetStarted), which runs
-  // the existing file-count/size/type validation and the upload→chat pipeline.
+  const handleAddUrl = () => {
+    const trimmed = urlInput.trim()
+    if (!trimmed) return
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      setUrlError('Please enter a full URL starting with https://')
+      return
+    }
+    setUrlError('')
+    onGetStarted(undefined, undefined, 'chat', trimmed)
+  }
+
   const onDrop = useCallback((accepted: File[], rejections: FileRejection[]) => {
-    if (accepted.length > 0 || rejections.length > 0) onGetStarted(accepted, rejections)
-  }, [onGetStarted])
+    if (accepted.length > 0 || rejections.length > 0) {
+      // 'charts' has no backend mode yet — fall back to chat.
+      const mode: AppMode = activeMode === 'charts' ? 'chat' : activeMode
+      onGetStarted(accepted, rejections, mode)
+    }
+  }, [onGetStarted, activeMode])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: ACCEPT })
 
@@ -88,16 +103,14 @@ export default function Landing({ onGetStarted }: Props) {
             {/* Mode tabs — selecting changes the active tab only (no navigation) */}
             <div className="flex justify-center">
               <div className="inline-flex items-center gap-1 rounded-full border border-[#303030] bg-[#F8FAFC] p-1">
-                {MODES.map(({ label }) => {
-                  const isActive = activeMode === label
+                {MODES.map(({ value, label }) => {
+                  const isActive = activeMode === value
                   return (
                     <button
-                      key={label}
-                      onClick={() => setActiveMode(label)}
+                      key={value}
+                      onClick={() => setActiveMode(value)}
                       className="relative text-sm font-medium px-4 py-1.5 rounded-full"
                     >
-                      {/* The "spotlight" — a single shared pill that slides
-                          laterally between tabs when the selection changes. */}
                       {isActive && (
                         <motion.span
                           layoutId="mode-spotlight"
@@ -122,7 +135,7 @@ export default function Landing({ onGetStarted }: Props) {
               transition={{ duration: 0.25 }}
               className="mt-4 text-center text-sm text-slate-500"
             >
-              {MODES.find((m) => m.label === activeMode)?.blurb}
+              {MODES.find((m) => m.value === activeMode)?.blurb}
             </motion.p>
 
             {/* Drop zone — accepts a real file and hands it to the upload pipeline */}
@@ -152,20 +165,28 @@ export default function Landing({ onGetStarted }: Props) {
             </div>
 
             {/* Paste a link */}
-            <div className="flex items-stretch gap-2">
-              <div className="flex-1 flex items-center gap-2 rounded-xl border border-[#303030] bg-white px-4 hover:border-[#E2611B] focus-within:border-[#E2611B] focus-within:ring-2 focus-within:ring-[#E2611B]/20 transition-all">
-                <input
-                  type="text"
-                  placeholder="Paste a webpage or video link"
-                  className="flex-1 bg-transparent py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none"
-                />
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-stretch gap-2">
+                <div className="flex-1 flex items-center gap-2 rounded-xl border border-[#303030] bg-white px-4 hover:border-[#E2611B] focus-within:border-[#E2611B] focus-within:ring-2 focus-within:ring-[#E2611B]/20 transition-all">
+                  <input
+                    type="text"
+                    value={urlInput}
+                    onChange={(e) => { setUrlInput(e.target.value); setUrlError('') }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()}
+                    placeholder="Paste a webpage or video link"
+                    className="flex-1 bg-transparent py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none"
+                  />
+                </div>
+                <button
+                  onClick={handleAddUrl}
+                  className="px-6 rounded-xl bg-[#E2611B] text-white font-medium text-sm hover:bg-[#E2611B]/90 transition-all"
+                >
+                  Add
+                </button>
               </div>
-              <button
-                onClick={() => onGetStarted()}
-                className="px-6 rounded-xl bg-[#E2611B] text-white font-medium text-sm hover:bg-[#E2611B]/90 transition-all"
-              >
-                Add
-              </button>
+              {urlError && (
+                <p className="text-xs text-red-500 px-1">{urlError}</p>
+              )}
             </div>
           </div>
         </motion.div>

@@ -40,7 +40,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
 
   const handleGenerate = async () => {
     if (!role && !specialty && !addressAs) {
-      setError('Add at least one detail so Sage knows your domain.')
+      setError('Add at least one detail so your assistant knows your domain.')
       return
     }
     setError('')
@@ -112,8 +112,8 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-slate-900 font-semibold">Personalise</h2>
-                <p className="text-xs text-slate-500">Teach Sage to speak your domain's language</p>
+                <h2 className="text-slate-900 font-semibold">Personalise your assistant</h2>
+                <p className="text-xs text-slate-500">Teach your assistant to speak your domain's language</p>
               </div>
             </div>
             <button
@@ -133,7 +133,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
                 {user?.persona ? (
                   <><span className="w-1.5 h-1.5 rounded-full bg-green-500" /><span className="text-green-600">Active persona</span></>
                 ) : (
-                  <><span className="w-1.5 h-1.5 rounded-full bg-slate-400" /><span className="text-slate-500">Default Sage</span></>
+                  <><span className="w-1.5 h-1.5 rounded-full bg-slate-400" /><span className="text-slate-500">Default</span></>
                 )}
               </span>
               {user?.persona && (
@@ -145,7 +145,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
                 <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{user.persona}</p>
               ) : (
                 <p className="text-sm text-slate-500 leading-relaxed">
-                  Sage answers as a neutral expert document assistant. Personalise it below to match your role, domain, and tone.
+                  Your assistant answers as a neutral expert document assistant. Personalise it below to match your role, domain, and tone.
                 </p>
               )}
             </div>
@@ -211,7 +211,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">What should Sage call you? <span className="text-slate-400">(optional)</span></label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">What should your assistant call you? <span className="text-slate-400">(optional)</span></label>
                 <input
                   value={addressAs}
                   onChange={(e) => setAddressAs(e.target.value)}
@@ -235,7 +235,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
           ) : (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Sage's persona</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Your assistant's persona</label>
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
@@ -288,13 +288,13 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
                 exit={{ opacity: 0, height: 0 }}
                 className="flex items-center gap-2 text-green-700 text-sm bg-green-50 rounded-lg px-3 py-2 border border-green-200 mt-4"
               >
-                <Check className="w-4 h-4 flex-shrink-0" /> Saved. Sage will use this on your next question.
+                <Check className="w-4 h-4 flex-shrink-0" /> Saved — your assistant will use this on your next question.
               </motion.div>
             )}
           </AnimatePresence>
 
           <p className="text-center text-slate-400 text-xs mt-5">
-            Sage still answers only from your document. The persona only changes how it speaks.
+            Your assistant still answers only from your document — the persona only changes how it speaks.
           </p>
         </motion.div>
       </motion.div>

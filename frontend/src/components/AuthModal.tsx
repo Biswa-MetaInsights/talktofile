@@ -256,7 +256,7 @@ export default function AuthModal({
                 {[
                   'Chat with your documents',
                   '1 document · up to 5MB',
-                  'Personalise',
+                  'Personalise your assistant',
                   'A saved account',
                 ].map((b) => (
                   <div key={b} className="flex items-center gap-1.5 text-xs text-slate-700">

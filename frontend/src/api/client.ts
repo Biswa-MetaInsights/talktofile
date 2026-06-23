@@ -78,10 +78,43 @@ export const documentApi = {
     files.forEach((f) => form.append('files', f))
     return api.post<{ session_id: string; filenames: string[] }>('/document/upload', form)
   },
+  uploadUrl: (url: string) =>
+    api.post<{ session_id: string; filenames: string[] }>('/document/url', { url }),
   getSession: (sessionId: string) =>
     api.get(`/document/${sessionId}`),
   deleteSession: (sessionId: string) =>
     api.delete(`/document/${sessionId}`),
+}
+
+export interface Flashcard {
+  question: string
+  answer: string
+  hint?: string
+  difficulty?: 'easy' | 'medium' | 'hard'
+}
+
+export interface TranslateDoc {
+  filename: string
+  translated_text: string | null
+  error: string | null
+}
+
+export interface PodcastLine {
+  speaker: string
+  text: string
+}
+
+export const toolsApi = {
+  flashcards: (sessionId: string) =>
+    api.post<{ flashcards: Flashcard[] }>(`/tools/flashcards/${sessionId}`),
+  translate: (sessionId: string, targetLanguage: string) =>
+    api.post<{ target_language: string; documents: TranslateDoc[]; note: string }>(
+      `/tools/translate/${sessionId}`,
+      { target_language: targetLanguage }
+    ),
+  podcast: (sessionId: string) =>
+    api.post<{ script: PodcastLine[] }>(`/tools/podcast/${sessionId}`),
+  slidesDownloadUrl: (sessionId: string) => `/api/tools/slides/${sessionId}`,
 }
 
 // The token is sent via the WebSocket subprotocol header (["bearer", <jwt>])
