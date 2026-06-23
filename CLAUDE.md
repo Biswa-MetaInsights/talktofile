@@ -247,6 +247,14 @@ Clean, minimal, premium. **Simplicity is the priority — do not add unnecessary
   Tailwind `slate` scale. Surfaces are white / a `glass-card` utility; corners are `rounded-2xl`.
 - **Fonts** (loaded in `frontend/index.html`): **Inter** (body), **Plus Jakarta Sans** (the
   `font-brand` wordmark/headings), **JetBrains Mono** (mono accents). Don't add fonts without asking.
+- **Wordmark — keep it consistent everywhere.** The "Talktofile" wordmark must always render the
+  same way it does in the Navbar (`src/components/Navbar.tsx`): the `FileText` icon in a
+  `w-7 h-7 rounded-lg bg-[#E2611B]` chip, next to the text
+  `font-brand italic font-bold text-[34px] tracking-[-0.02em] text-[#E2611B]`. Reuse this exact
+  treatment anywhere the wordmark appears on a light surface — don't restyle it per-location.
+  **On orange/dark surfaces** (e.g. the footer, which is `bg-[#E2611B]`) use the inverted variant
+  for contrast — same form and size, but a `bg-slate-50` chip with an `text-[#E2611B]` icon and
+  `text-slate-50` wordmark text.
 - **Responsiveness:** standard patterns are already in place — `hidden sm:block` / `hidden lg:flex`
   to progressively reveal chrome, responsive grids, `100dvh` (not `100vh`) for full-height panels so
   the chat input isn't hidden behind mobile browser chrome.

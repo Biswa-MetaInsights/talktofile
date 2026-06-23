@@ -108,11 +108,11 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
           {/* Header */}
           <div className="flex items-start justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E60026] to-[#b3001e] flex items-center justify-center shadow-sm shadow-[#E60026]/20">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E2611B] to-[#bc4d14] flex items-center justify-center shadow-sm shadow-[#E2611B]/20">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-slate-900 font-semibold">Personalise Sage</h2>
+                <h2 className="text-slate-900 font-semibold">Personalise</h2>
                 <p className="text-xs text-slate-500">Teach Sage to speak your domain's language</p>
               </div>
             </div>
@@ -137,7 +137,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
                 )}
               </span>
               {user?.persona && (
-                <span className="text-[10px] text-[#E60026] bg-[#E60026]/10 border border-[#E60026]/20 rounded px-1.5 py-0.5">Custom</span>
+                <span className="text-[10px] text-[#E2611B] bg-[#E2611B]/10 border border-[#E2611B]/20 rounded px-1.5 py-0.5">Custom</span>
               )}
             </div>
             <div className="px-4 py-3">
@@ -180,7 +180,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
                       onClick={() => { setRole(p.role); setSpecialty(p.specialty) }}
                       className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
                         role === p.role
-                          ? 'bg-[#E60026]/10 border-[#E60026]/20 text-[#E60026]'
+                          ? 'bg-[#E2611B]/10 border-[#E2611B]/20 text-[#E2611B]'
                           : 'border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50'
                       }`}
                     >
@@ -288,13 +288,13 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
                 exit={{ opacity: 0, height: 0 }}
                 className="flex items-center gap-2 text-green-700 text-sm bg-green-50 rounded-lg px-3 py-2 border border-green-200 mt-4"
               >
-                <Check className="w-4 h-4 flex-shrink-0" /> Saved — Sage will use this on your next question.
+                <Check className="w-4 h-4 flex-shrink-0" /> Saved. Sage will use this on your next question.
               </motion.div>
             )}
           </AnimatePresence>
 
           <p className="text-center text-slate-400 text-xs mt-5">
-            Sage still answers only from your document — the persona only changes how it speaks.
+            Sage still answers only from your document. The persona only changes how it speaks.
           </p>
         </motion.div>
       </motion.div>

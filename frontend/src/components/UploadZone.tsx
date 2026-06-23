@@ -201,7 +201,7 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
             {plan === 'pro' ? 'Upload Your Documents' : 'Upload Your Document'}
           </h2>
           <p className="text-slate-500 text-sm">
-            PDF, Word, Excel, PowerPoint, HTML, JSON, CSV, text — any language
+            PDF, Word, Excel, PowerPoint, HTML, JSON, CSV, text, any language
           </p>
           <p className="text-slate-400 text-xs mt-1">
             {plan === 'pro'

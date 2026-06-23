@@ -27,11 +27,11 @@ export default function Navbar({ onOpenAuth, onHome }: { onOpenAuth: (mode: 'sub
           className="flex items-center gap-2.5 group"
           title="Back to home"
         >
-          <div className="w-7 h-7 rounded-lg bg-[#E60026] flex items-center justify-center transition-transform group-hover:scale-105 shadow-sm">
+          <div className="w-7 h-7 rounded-lg bg-[#E2611B] flex items-center justify-center transition-transform group-hover:scale-105 shadow-sm">
             <FileText className="w-3.5 h-3.5 text-white" />
           </div>
-          <span className="font-brand font-bold text-lg tracking-[-0.02em] text-[#E60026]">
-            TalkToFile
+          <span className="font-brand italic font-bold text-[34px] tracking-[-0.02em] text-[#E2611B]">
+            Talktofile
           </span>
           {user?.plan === 'pro' && (
             <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-neutral-100 border border-neutral-300 text-neutral-900">
@@ -42,8 +42,7 @@ export default function Navbar({ onOpenAuth, onHome }: { onOpenAuth: (mode: 'sub
 
         {/* Primary nav links. Anchors to home-page sections (FAQ added later). */}
         <nav className="hidden md:flex items-center gap-5">
-          <a href="#how-it-works" className="text-lg font-medium text-[#303030] hover:text-[#E60026] transition-colors">How it works</a>
-          <a href="#faq" className="text-lg font-medium text-[#303030] hover:text-[#E60026] transition-colors">FAQ</a>
+          <a href="#how-it-works" className="text-lg font-medium text-[#303030] hover:text-[#E2611B] transition-colors">How it works</a>
         </nav>
       </div>
 
@@ -51,27 +50,27 @@ export default function Navbar({ onOpenAuth, onHome }: { onOpenAuth: (mode: 'sub
         {/* Feedback — plain nav link, matching How it works / FAQ */}
         <button
           onClick={() => setFeedbackOpen(true)}
-          className="flex items-center gap-1.5 text-lg font-medium text-[#303030] hover:text-[#E60026] transition-colors"
+          className="flex items-center gap-1.5 text-lg font-medium text-[#303030] hover:text-[#E2611B] transition-colors"
           title="Send feedback"
         >
           <MessageSquare className="w-4 h-4" />
           <span className="hidden md:block">Feedback</span>
         </button>
 
-        {/* Personalise Sage — Pro feature, also a plain nav link */}
+        {/* Personalise — Pro feature, also a plain nav link */}
         <button
           onClick={() => (isGuest ? onOpenAuth('subscribe') : setPersonaOpen(true))}
-          className="flex items-center gap-1.5 text-lg font-medium text-[#303030] hover:text-[#E60026] transition-colors"
-          title={isGuest ? 'Personalise Sage — sign up to unlock' : 'Personalise Sage for your domain'}
+          className="flex items-center gap-1.5 text-lg font-medium text-[#303030] hover:text-[#E2611B] transition-colors"
+          title={isGuest ? 'Personalise: sign up to unlock' : 'Personalise Sage for your domain'}
         >
           {isGuest ? <Lock className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
-          <span className="hidden sm:block">{user?.persona ? 'Persona active' : 'Personalise Sage'}</span>
+          <span className="hidden sm:block">{user?.persona ? 'Persona active' : 'Personalise'}</span>
         </button>
 
         {isGuest ? (
           <button
             onClick={() => onOpenAuth('login')}
-            className="flex items-center gap-1.5 text-lg font-medium text-[#303030] hover:text-[#E60026] transition-colors"
+            className="flex items-center gap-1.5 text-lg font-medium text-[#303030] hover:text-[#E2611B] transition-colors"
             title="Sign in"
           >
             <LogIn className="w-4 h-4" />
@@ -82,9 +81,9 @@ export default function Navbar({ onOpenAuth, onHome }: { onOpenAuth: (mode: 'sub
             <button
               onClick={() => setMenuOpen((o) => !o)}
               title="Account"
-              className="flex items-center gap-2 text-lg font-medium text-[#303030] hover:text-[#E60026] rounded-lg px-1 py-1 transition-colors"
+              className="flex items-center gap-2 text-lg font-medium text-[#303030] hover:text-[#E2611B] rounded-lg px-1 py-1 transition-colors"
             >
-              <div className="w-7 h-7 rounded-full bg-[#E60026] flex items-center justify-center">
+              <div className="w-7 h-7 rounded-full bg-[#E2611B] flex items-center justify-center">
                 <User className="w-3.5 h-3.5 text-white" />
               </div>
               <span className="hidden sm:block max-w-[140px] truncate">{user?.username}</span>
@@ -103,7 +102,7 @@ export default function Navbar({ onOpenAuth, onHome }: { onOpenAuth: (mode: 'sub
                   </button>
                   <button
                     onClick={() => { setMenuOpen(false); logout() }}
-                    className="flex items-center gap-2 w-full text-left text-sm text-[#E60026] hover:bg-slate-50 px-3 py-2 transition-colors"
+                    className="flex items-center gap-2 w-full text-left text-sm text-[#E2611B] hover:bg-slate-50 px-3 py-2 transition-colors"
                   >
                     <LogOut className="w-4 h-4" /> Sign out
                   </button>
