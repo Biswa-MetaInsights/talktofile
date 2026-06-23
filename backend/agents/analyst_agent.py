@@ -235,14 +235,14 @@ async def retrieve_chunks(
     chunks: list[str],
     client: AsyncOpenAI,
     top_k: int = 5,
-) -> list[tuple[str, float]]:
+) -> list[tuple[str, float, int]]:
     q_embed = await embed_texts([query], client)
     faiss.normalize_L2(q_embed)
     scores, indices = index.search(q_embed, top_k)
     results = []
     for score, idx in zip(scores[0], indices[0]):
         if idx != -1:
-            results.append((chunks[idx], float(score)))
+            results.append((chunks[idx], float(score), int(idx)))
     return results
 
 
