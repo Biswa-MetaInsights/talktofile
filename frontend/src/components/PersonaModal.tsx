@@ -288,13 +288,13 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
                 exit={{ opacity: 0, height: 0 }}
                 className="flex items-center gap-2 text-green-700 text-sm bg-green-50 rounded-lg px-3 py-2 border border-green-200 mt-4"
               >
-                <Check className="w-4 h-4 flex-shrink-0" /> Saved — your assistant will use this on your next question.
+                <Check className="w-4 h-4 flex-shrink-0" /> Saved. Your assistant will use this on your next question.
               </motion.div>
             )}
           </AnimatePresence>
 
           <p className="text-center text-slate-400 text-xs mt-5">
-            Your assistant still answers only from your document — the persona only changes how it speaks.
+            Your assistant still answers only from your document. The persona only changes how it speaks.
           </p>
         </motion.div>
       </motion.div>

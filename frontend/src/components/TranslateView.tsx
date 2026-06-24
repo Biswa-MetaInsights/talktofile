@@ -54,12 +54,12 @@ export default function TranslateView({ session, onStartChat }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Globe className="w-5 h-5 text-[#E60026]" />
+          <Globe className="w-5 h-5 text-[#E2611B]" />
           <h2 className="font-brand font-bold text-xl text-slate-900">Translate</h2>
         </div>
         <button
           onClick={onStartChat}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E60026] hover:text-[#E60026] transition-all"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all"
         >
           <MessageSquare className="w-4 h-4" /> Chat instead
         </button>
@@ -68,7 +68,7 @@ export default function TranslateView({ session, onStartChat }: Props) {
       {/* Note about images */}
       <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700">
         <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-        <span>Translation covers text only — images, charts, and scanned pages cannot be translated.</span>
+        <span>Translation covers text only. Images, charts, and scanned pages cannot be translated.</span>
       </div>
 
       {/* Language picker */}
@@ -81,8 +81,8 @@ export default function TranslateView({ session, onStartChat }: Props) {
               onClick={() => { setTargetLang(lang); setCustomLang('') }}
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all border ${
                 targetLang === lang && !customLang
-                  ? 'bg-[#E60026] text-white border-[#E60026]'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-[#E60026] hover:text-[#E60026]'
+                  ? 'bg-[#E2611B] text-white border-[#E2611B]'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-[#E2611B] hover:text-[#E2611B]'
               }`}
             >
               {lang}
@@ -95,13 +95,13 @@ export default function TranslateView({ session, onStartChat }: Props) {
             value={customLang}
             onChange={(e) => setCustomLang(e.target.value)}
             placeholder="Or type any language…"
-            className="flex-1 text-sm border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-[#E60026] focus:ring-2 focus:ring-[#E60026]/20 transition-all"
+            className="flex-1 text-sm border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-[#E2611B] focus:ring-2 focus:ring-[#E2611B]/20 transition-all"
           />
         </div>
         <button
           onClick={handleTranslate}
           disabled={loading}
-          className="self-start flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#E60026] text-white text-sm font-medium hover:bg-[#E60026]/90 disabled:opacity-50 transition-all"
+          className="self-start flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 disabled:opacity-50 transition-all"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
           {loading ? 'Translating…' : `Translate to ${customLang.trim() || targetLang}`}
@@ -122,7 +122,7 @@ export default function TranslateView({ session, onStartChat }: Props) {
             {doc.translated_text && (
               <button
                 onClick={() => downloadDoc(doc)}
-                className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-[#E60026] font-medium transition-colors"
+                className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-[#E2611B] font-medium transition-colors"
               >
                 <Download className="w-3.5 h-3.5" /> Download .txt
               </button>
@@ -144,7 +144,7 @@ export default function TranslateView({ session, onStartChat }: Props) {
 
       <button
         onClick={onStartChat}
-        className="self-center flex items-center gap-2 px-6 py-3 rounded-xl bg-[#E60026] text-white font-medium text-sm hover:bg-[#E60026]/90 transition-all shadow-md shadow-[#E60026]/20"
+        className="self-center flex items-center gap-2 px-6 py-3 rounded-xl bg-[#E2611B] text-white font-medium text-sm hover:bg-[#E2611B]/90 transition-all shadow-md shadow-[#E2611B]/20"
       >
         <MessageSquare className="w-4 h-4" />
         Chat with your document

@@ -2,11 +2,10 @@ import { useCallback, useRef, useState, useEffect } from 'react'
 import { useDropzone, FileRejection } from 'react-dropzone'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Upload, FileText, CheckCircle, AlertCircle, Loader2, Crown, X, GitCompare, Files } from 'lucide-react'
-import type { PipelineUpdate, SessionInfo, AppMode } from '../types'
+import type { SessionInfo, AppMode } from '../types'
 import { PLAN_LIMITS } from '../types'
-import { documentApi, createProcessWebSocket } from '../api/client'
 import { useAuth } from '../context/AuthContext'
-import { track } from '../lib/analytics'
+import { useDocumentProcessor } from '../hooks/useDocumentProcessor'
 
 interface Props {
   onReady: (session: SessionInfo) => void
@@ -53,15 +52,11 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
   const plan = user?.plan ?? 'free'
   const limits = PLAN_LIMITS[plan]
 
-  const [stage, setStage] = useState<string>('')
-  const [stageMsg, setStageMsg] = useState<string>('')
-  const [files, setFiles] = useState<File[]>([])
-  const [error, setError] = useState<string>('')
+  const { stage, stageMsg, progress, files, session, error: pipelineError, processFiles, processUrl } = useDocumentProcessor(token, plan)
+  // Local (pre-pipeline) validation messages — plan/file-type limits.
+  const [limitError, setLimitError] = useState<string>('')
   const [upgradeHint, setUpgradeHint] = useState<string>('')
-  const [progress, setProgress] = useState(0)
-  const wsRef = useRef<WebSocket | null>(null)
-
-  useEffect(() => () => wsRef.current?.close(), [])
+  const error = limitError || pipelineError
 
   // Mirror upload/processing state up to the parent (drives the refresh guard).
   // 'ready' still counts as busy until the session takes over a moment later.
@@ -70,139 +65,15 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
     return () => onBusyChange?.(false)
   }, [stage, onBusyChange])
 
-  const processFiles = useCallback(async (selected: File[]) => {
-    setError('')
-    setUpgradeHint('')
-    setFiles(selected)
-    setStage('uploading')
-    setStageMsg(selected.length > 1 ? `Uploading ${selected.length} files...` : 'Uploading file...')
-    setProgress(8)
-
-    try {
-      const res = await documentApi.upload(selected)
-      const { session_id, filenames } = res.data
-
-      setStage('extracting')
-      setProgress(20)
-
-      const ws = createProcessWebSocket(session_id, token!)
-      wsRef.current = ws
-      let sessionInfo: SessionInfo | null = null
-
-      await new Promise<void>((resolve, reject) => {
-        ws.onopen = async () => {
-          try {
-            for (let i = 0; i < filenames.length; i++) {
-              ws.send(await selected[i].arrayBuffer())
-            }
-          } catch {
-            reject(new Error('Failed to read file for upload'))
-          }
-        }
-
-        ws.onmessage = (evt) => {
-          const data: PipelineUpdate = JSON.parse(evt.data)
-          setStage(data.stage)
-          setStageMsg(data.message)
-
-          const progressMap: Record<string, number> = {
-            extracting: 45,
-            analysing: 80,
-            ready: 100,
-          }
-          setProgress(progressMap[data.stage] ?? 50)
-
-          if (data.stage === 'ready') {
-            sessionInfo = {
-              session_id,
-              documents: data.documents ?? [],
-              mode: data.mode ?? 'single',
-              suggested_questions: data.suggested_questions ?? [],
-              ready: true,
-            }
-            track('document_uploaded', { count: selected.length, mode: sessionInfo.mode, plan })
-            resolve()
-          } else if (data.stage === 'error') {
-            reject(new Error(data.message))
-          }
-        }
-
-        ws.onerror = () => reject(new Error('Connection error'))
-        ws.onclose = () => {
-          if (!sessionInfo) reject(new Error('Connection closed unexpectedly'))
-        }
-      })
-
-      if (sessionInfo) setTimeout(() => onReady(sessionInfo!), 500)
-    } catch (err: any) {
-      wsRef.current?.close()
-      const detail = err.response?.data?.detail
-      setError(detail || err.message || 'Upload failed. Please try again.')
-      setStage('')
-      setFiles([])
-      setProgress(0)
-    }
-  }, [token, onReady])
-
-  const processUrl = useCallback(async (url: string) => {
-    setError('')
-    setStage('uploading')
-    setStageMsg('Fetching content from URL...')
-    setProgress(10)
-
-    try {
-      const res = await documentApi.uploadUrl(url)
-      const { session_id, filenames } = res.data
-
-      setStage('extracting')
-      setProgress(25)
-
-      const ws = createProcessWebSocket(session_id, token!)
-      wsRef.current = ws
-      let sessionInfo: SessionInfo | null = null
-
-      await new Promise<void>((resolve, reject) => {
-        // URL sessions: just open the WS and wait — no binary data to send.
-        ws.onopen = () => {}
-
-        ws.onmessage = (evt) => {
-          const data: PipelineUpdate = JSON.parse(evt.data)
-          setStage(data.stage)
-          setStageMsg(data.message)
-
-          const progressMap: Record<string, number> = { extracting: 50, analysing: 85, ready: 100 }
-          setProgress(progressMap[data.stage] ?? 50)
-
-          if (data.stage === 'ready') {
-            sessionInfo = {
-              session_id,
-              documents: data.documents ?? [],
-              mode: data.mode ?? 'single',
-              suggested_questions: data.suggested_questions ?? [],
-              ready: true,
-            }
-            resolve()
-          } else if (data.stage === 'error') {
-            reject(new Error(data.message))
-          }
-        }
-
-        ws.onerror = () => reject(new Error('Connection error'))
-        ws.onclose = () => { if (!sessionInfo) reject(new Error('Connection closed unexpectedly')) }
-      })
-
-      if (sessionInfo) setTimeout(() => onReady(sessionInfo!), 500)
-    } catch (err: any) {
-      wsRef.current?.close()
-      const detail = err.response?.data?.detail
-      setError(detail || err.message || 'Could not process that URL. Please try again.')
-      setStage('')
-      setProgress(0)
-    }
-  }, [token, onReady])
+  // Once the pipeline produces a ready session, hand it to the parent.
+  useEffect(() => {
+    if (!session) return
+    const t = setTimeout(() => onReady(session), 500)
+    return () => clearTimeout(t)
+  }, [session, onReady])
 
   const onDrop = useCallback((accepted: File[], rejections: FileRejection[]) => {
-    setError('')
+    setLimitError('')
     setUpgradeHint('')
 
     if (accepted.length + rejections.length > limits.maxFiles) {
@@ -210,7 +81,7 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
         setUpgradeHint(`The free plan handles ${limits.maxFiles} file at a time. Multi-file compare & analysis is coming soon with Pro.`)
         return
       }
-      setError(`You can upload at most ${limits.maxFiles} files.`)
+      setLimitError(`You can upload at most ${limits.maxFiles} files.`)
       return
     }
 
@@ -220,12 +91,12 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
         setUpgradeHint(`'${tooBig.name}' is over the ${limits.maxSizeMb}MB free limit. Larger uploads are coming soon with Pro.`)
         return
       }
-      setError(`'${tooBig.name}' exceeds the ${limits.maxSizeMb}MB limit.`)
+      setLimitError(`'${tooBig.name}' exceeds the ${limits.maxSizeMb}MB limit.`)
       return
     }
 
     if (rejections.length > 0) {
-      setError('Some files have an unsupported type. Allowed: PDF, DOCX, XLSX, PPTX, HTML, JSON, TXT, CSV, MD.')
+      setLimitError('Some files have an unsupported type. Allowed: PDF, DOCX, XLSX, PPTX, HTML, JSON, TXT, CSV, MD.')
       return
     }
     if (accepted.length > 0) processFiles(accepted)
@@ -248,7 +119,7 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
     accept: ACCEPT,
     maxFiles: limits.maxFiles,
     multiple: limits.maxFiles > 1,
-    disabled: !!stage,
+    disabled: !!stage && stage !== 'error',
     maxSize: PLAN_LIMITS.pro.maxSizeMb * 1024 * 1024,
   })
 

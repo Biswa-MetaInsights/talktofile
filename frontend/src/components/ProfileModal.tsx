@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, User, Check, AlertCircle, Lock, Crown } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import AvatarUpload from './AvatarUpload'
 import type { UserProfile } from '../types'
 
 const COMPANY_SIZES = ['1–10', '11–50', '51–200', '201–1000', '1000+']
@@ -10,6 +11,7 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
   const { user, saveProfile } = useAuth()
   const p = user?.profile ?? {}
 
+  const [avatar, setAvatar] = useState('')   // data URL — frontend only, not yet persisted
   const [fullName, setFullName] = useState(p.full_name ?? '')
   const [phone, setPhone] = useState(p.phone ?? '')
   const [companyName, setCompanyName] = useState(p.company_name ?? '')
@@ -103,8 +105,13 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
 
           <form onSubmit={handleSave} className="space-y-4">
             <div>
+              <p className="text-xs font-semibold text-brand-600 uppercase tracking-wider mb-2">Profile photo</p>
+              <AvatarUpload value={avatar} onChange={setAvatar} name={fullName} />
+            </div>
+
+            <div>
               <p className="text-xs font-semibold text-brand-600 uppercase tracking-wider mb-2">Your details</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" className="input-field" />
                 <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" className="input-field" />
               </div>
@@ -112,7 +119,7 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
 
             <div>
               <p className="text-xs font-semibold text-brand-600 uppercase tracking-wider mb-2">Company</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Company name" className="input-field" />
                 <input value={companyRole} onChange={(e) => setCompanyRole(e.target.value)} placeholder="Your role" className="input-field" />
               </div>

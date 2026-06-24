@@ -9,14 +9,23 @@ interface Props {
 
 export default function CitationPanel({ source, onClose }: Props) {
   return (
-    <motion.div
-      initial={{ width: 0, opacity: 0 }}
-      animate={{ width: 320, opacity: 1 }}
-      exit={{ width: 0, opacity: 0 }}
-      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-      className="flex-shrink-0 border-r border-slate-200 bg-white overflow-hidden flex flex-col"
-      style={{ minWidth: 0 }}
-    >
+    <>
+      {/* Mobile backdrop — tap to dismiss the overlay panel (hidden on desktop) */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        onClick={onClose}
+        className="fixed inset-0 z-30 bg-slate-900/30 lg:hidden"
+      />
+      <motion.div
+        initial={{ x: '-100%', opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: '-100%', opacity: 0 }}
+        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+        className="fixed lg:relative inset-y-0 left-0 z-40 w-[85%] max-w-xs lg:w-80 lg:max-w-none flex-shrink-0 border-r border-slate-200 bg-white overflow-hidden flex flex-col shadow-xl lg:shadow-none"
+      >
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <FileText className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
@@ -54,6 +63,7 @@ export default function CitationPanel({ source, onClose }: Props) {
           </p>
         )}
       </div>
-    </motion.div>
+      </motion.div>
+    </>
   )
 }

@@ -67,7 +67,7 @@ export default function SlidesView({ session, onStartChat }: Props) {
         </div>
         <button
           onClick={onStartChat}
-          className="text-sm text-slate-500 hover:text-[#E60026] flex items-center gap-1.5"
+          className="text-sm text-slate-500 hover:text-[#E2611B] flex items-center gap-1.5"
         >
           <MessageSquare className="w-4 h-4" /> Start chatting instead
         </button>
@@ -77,8 +77,8 @@ export default function SlidesView({ session, onStartChat }: Props) {
 
   return (
     <div className="flex flex-col items-center justify-center h-full gap-6 p-8 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-[#E60026]/10 flex items-center justify-center">
-        <Presentation className="w-8 h-8 text-[#E60026]" />
+      <div className="w-16 h-16 rounded-2xl bg-[#E2611B]/10 flex items-center justify-center">
+        <Presentation className="w-8 h-8 text-[#E2611B]" />
       </div>
       <div>
         <h2 className="font-brand font-bold text-xl text-slate-900 mb-2">Create Slide Deck</h2>
@@ -104,14 +104,14 @@ export default function SlidesView({ session, onStartChat }: Props) {
         <button
           onClick={generate}
           disabled={loading}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[#E60026] text-white font-medium text-sm hover:bg-[#E60026]/90 disabled:opacity-50 transition-all shadow-md shadow-[#E60026]/20"
+          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[#E2611B] text-white font-medium text-sm hover:bg-[#E2611B]/90 disabled:opacity-50 transition-all shadow-md shadow-[#E2611B]/20"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
           {loading ? 'Generating…' : generated ? 'Download again' : 'Generate & Download .pptx'}
         </button>
         <button
           onClick={onStartChat}
-          className="flex items-center gap-2 px-5 py-3 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:border-[#E60026] hover:text-[#E60026] transition-all"
+          className="flex items-center gap-2 px-5 py-3 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:border-[#E2611B] hover:text-[#E2611B] transition-all"
         >
           <MessageSquare className="w-4 h-4" /> Chat with your document
         </button>

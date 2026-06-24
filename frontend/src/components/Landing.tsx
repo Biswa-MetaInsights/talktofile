@@ -1,24 +1,36 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDropzone, FileRejection } from 'react-dropzone'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   FileText, Upload, MessageSquare, Sparkles, Globe, Files, BookOpen, Link2,
-  ShieldCheck, Lock, Zap, ArrowUp,
-  GraduationCap, Scale, LineChart, HeartPulse, Briefcase, ScrollText,
+  ShieldCheck, Lock, Zap, ArrowUp, Loader2, CheckCircle, AlertCircle, RotateCcw, X, Plus,
+  GraduationCap, Scale, LineChart, HeartPulse, Briefcase, ScrollText, Check, Crown,
 } from 'lucide-react'
 import { ACCEPT } from './UploadZone'
-import type { AppMode } from '../types'
+import Tooltip from './Tooltip'
+import { smoothScrollTo } from '../lib/smoothScroll'
+import { useAuth } from '../context/AuthContext'
+import { useDocumentProcessor } from '../hooks/useDocumentProcessor'
+import { PLAN_LIMITS } from '../types'
+import type { AppMode, SessionInfo } from '../types'
 
 interface Props {
-  onGetStarted: (accepted?: File[], rejections?: FileRejection[], mode?: AppMode, url?: string) => void
+  // Called once the upload has finished AND the user has picked what to do.
+  // The session is already processed and ready; `prompt` is the user's first
+  // chat message (auto-sent in chat mode, carried along otherwise).
+  onEnter: (session: SessionInfo, mode: AppMode, prompt: string) => void
+  // Mirrors upload-in-progress up to the app shell (drives the refresh guard).
+  onBusyChange?: (busy: boolean) => void
 }
 
 const FORMATS = ['PDF', 'Word', 'Excel', 'PowerPoint', 'HTML', 'JSON', 'CSV', 'Text']
 
+// The first step's body is rendered specially (it contains in-page links to the
+// hero drop zone and URL box), so its `body` is filled in at render time.
 const STEPS = [
-  { icon: Upload, title: 'Upload your document', body: 'Drop in a PDF, Word, Excel, PowerPoint and more, in any language.' },
-  { icon: MessageSquare, title: 'Ask anything', body: 'Chat naturally. Summaries, specific facts, comparisons, calculations. Just ask.' },
-  { icon: Sparkles, title: 'Get sourced answers', body: 'Your assistant answers only from your document, in clear English, with the file it came from.' },
+  { icon: Upload, title: 'Upload your documents and URLs', body: '' },
+  { icon: MessageSquare, title: 'Ask the assistant', body: "Pick how you want to use the document, then ask away. Chat by typing a question, get a summary in a click, choose what goes into your flashcards or slides, and more. You're in control of what comes back." },
+  { icon: Sparkles, title: 'Get the response', body: "The assistant answers within seconds, using only what you added. The answer also cites the exact page it's taken from." },
 ]
 
 const FEATURES = [
@@ -26,7 +38,7 @@ const FEATURES = [
   { icon: ShieldCheck, title: 'It says “I don’t know”', body: 'If the answer isn’t in your file, you’ll be told. No guessing, no filling the gap.' },
   { icon: Lock, title: 'Nothing is stored', body: 'Your file lives in memory for one session and disappears on refresh. Never written to disk, never trained on.' },
   { icon: Zap, title: 'No account, no setup', body: 'Drop a file and start asking. No sign-up, no email, no paywall to read your document. Sign in only when you want to chat with several files at once.' },
-  { icon: Globe, title: 'Any language in, English out', body: 'Supports more than 15+ languages, including Arabic, Chinese, Hindi and Spanish. Upload in any of them and get clear answers in English.' },
+  { icon: Globe, title: 'Any language in, any language out', body: 'Supports more than 15+ languages, including Arabic, Chinese, Hindi and Spanish. Upload in any of them and get clear answers in the language you choose.' },
   { icon: Files, title: 'Works with any file', body: 'PDF, Word, Excel, PowerPoint and more. If it’s a document, you can talk to it.' },
   { icon: BookOpen, title: 'Handles long documents', body: 'Drop in a 200 page report or a whole textbook. Ask about any part of it, including tables and figures, without scrolling to find it.' },
   { icon: Link2, title: 'Talk to links too', body: 'Paste a web page or video link and ask about it, the same way you would a document.' },
@@ -39,6 +51,22 @@ const AUDIENCES = [
   { icon: HeartPulse, title: 'Healthcare and personal docs', body: 'Make sense of lab results, medical letters, and insurance documents in plain English, privately, with no account.' },
   { icon: Briefcase, title: 'Professionals and consultants', body: 'Get through long reports, manuals, and meeting notes fast, and ask exactly what you need to know.' },
   { icon: ScrollText, title: 'Anyone reading the fine print', body: 'Terms of service, warranties, rental agreements. Find out what you are actually agreeing to in seconds.' },
+]
+
+// Plan comparison rows. `basic` / `pro` mark whether the feature is included on each
+// plan (tick vs cross). Kept in sync with the plan tiers in CLAUDE.md / core/config.py.
+const PLAN_FEATURES: { name: string; basic: boolean; pro: boolean }[] = [
+  { name: 'Chat with your documents', basic: true, pro: true },
+  { name: 'Summaries, flashcards and slides', basic: true, pro: true },
+  { name: 'Translation and podcasts', basic: true, pro: true },
+  { name: 'Source-cited answers', basic: true, pro: true },
+  { name: 'Talk to web and video links', basic: true, pro: true },
+  { name: 'Private, nothing stored', basic: true, pro: true },
+  { name: 'Upload several files at once', basic: false, pro: true },
+  { name: 'Larger file uploads (up to 8MB)', basic: false, pro: true },
+  { name: 'Compare documents side by side', basic: false, pro: true },
+  { name: 'Multi-file analysis', basic: false, pro: true },
+  { name: 'Personalised assistant', basic: false, pro: true },
 ]
 
 // Mode tabs shown on the hero upload card. Selecting one switches the active mode,
@@ -55,10 +83,78 @@ const MODES: { value: AppMode | 'charts'; label: string; blurb: string }[] = [
   { value: 'charts', label: 'Charts', blurb: 'Turn the tables in your file into bar, line, or pie charts, and more. See the numbers, don’t just read them.' },
 ]
 
-export default function Landing({ onGetStarted }: Props) {
-  const [activeMode, setActiveMode] = useState<AppMode | 'charts'>('chat')
+export default function Landing({ onEnter, onBusyChange }: Props) {
+  const { token, user } = useAuth()
+  const plan = user?.plan ?? 'free'
+  const limits = PLAN_LIMITS[plan]
+
+  const { stage, stageMsg, progress, error, session, processing, processFiles, processUrl, reset } =
+    useDocumentProcessor(token, plan)
+
+  // Mode chosen inside the chat box that appears once an upload starts.
+  const [selectedMode, setSelectedMode] = useState<AppMode | 'charts'>('chat')
+  // What the user wants to do with the document — becomes the first chat message.
+  const [prompt, setPrompt] = useState('')
   const [urlInput, setUrlInput] = useState('')
   const [urlError, setUrlError] = useState('')
+  const [heroError, setHeroError] = useState('')
+  // Friendly label of what's being processed (filename(s) or the URL).
+  const [sourceLabel, setSourceLabel] = useState('')
+  // When a "How it works" link points at the hero drop zone, briefly highlight it
+  // (same active styling as a drag) so it's obvious where to go.
+  const [dropHighlight, setDropHighlight] = useState(false)
+
+  // Multi-source add (Pro only, front-end scaffold for now): extra files/URLs the
+  // user adds inside the chat box. These are display-only at the moment — they are
+  // NOT yet uploaded or merged into the session (the backend builds a session from a
+  // single batch; wiring this up is a follow-up). See CLAUDE.md.
+  const [extraSources, setExtraSources] = useState<{ id: number; type: 'file' | 'url'; label: string }[]>([])
+  const [addingUrl, setAddingUrl] = useState(false)
+  const [extraUrl, setExtraUrl] = useState('')
+  // Shown to non-Pro users who try to add a source — the controls are visible to
+  // everyone, but only Pro can actually add more.
+  const [multiHint, setMultiHint] = useState('')
+  const extraFileInputRef = useRef<HTMLInputElement>(null)
+  const extraIdRef = useRef(0)
+  const isPro = plan === 'pro'
+
+  // The upload has begun (or finished/failed) — the chat box takes over the card.
+  const started = stage !== ''
+  // 'charts' has no backend mode yet — fall back to chat.
+  const effectiveMode: AppMode = selectedMode === 'charts' ? 'chat' : selectedMode
+  // Proceed lights up once the document is ready. Chat needs a typed prompt first;
+  // the other modes generate from the document, so they only need the upload done.
+  const canProceed = !!session && (effectiveMode !== 'chat' || prompt.trim().length > 0)
+
+  // While an upload/processing is in flight, mark the app busy so an accidental
+  // refresh is guarded ('error' doesn't count — nothing is being lost).
+  useEffect(() => {
+    onBusyChange?.(!!stage && stage !== 'error')
+    return () => onBusyChange?.(false)
+  }, [stage, onBusyChange])
+
+  // Auto-dismiss the "Pro feature" upgrade hint 5s after it appears.
+  useEffect(() => {
+    if (!multiHint) return
+    const t = window.setTimeout(() => setMultiHint(''), 5_000)
+    return () => window.clearTimeout(t)
+  }, [multiHint])
+
+  // Scroll the hero drop zone into view, focus it, and flash the active highlight.
+  const focusDropZone = () => {
+    const el = document.getElementById('hero-dropzone')
+    el?.focus({ preventScroll: true })
+    smoothScrollTo(el, { block: 'center' })
+    setDropHighlight(true)
+    window.setTimeout(() => setDropHighlight(false), 2500)
+  }
+
+  // Scroll the hero URL input into view and place the cursor inside it.
+  const focusUrlInput = () => {
+    const el = document.getElementById('hero-url-input') as HTMLInputElement | null
+    el?.focus({ preventScroll: true })
+    smoothScrollTo(el, { block: 'center' })
+  }
 
   const handleAddUrl = () => {
     const trimmed = urlInput.trim()
@@ -68,18 +164,132 @@ export default function Landing({ onGetStarted }: Props) {
       return
     }
     setUrlError('')
-    onGetStarted(undefined, undefined, 'chat', trimmed)
+    setSourceLabel(trimmed)
+    processUrl(trimmed)
   }
 
   const onDrop = useCallback((accepted: File[], rejections: FileRejection[]) => {
-    if (accepted.length > 0 || rejections.length > 0) {
-      // 'charts' has no backend mode yet — fall back to chat.
-      const mode: AppMode = activeMode === 'charts' ? 'chat' : activeMode
-      onGetStarted(accepted, rejections, mode)
-    }
-  }, [onGetStarted, activeMode])
+    setHeroError('')
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: ACCEPT })
+    if (accepted.length + rejections.length > limits.maxFiles) {
+      setHeroError(plan === 'free'
+        ? `The free plan handles ${limits.maxFiles} file at a time. Multi-file is coming soon with Pro.`
+        : `You can upload at most ${limits.maxFiles} files.`)
+      return
+    }
+    const tooBig = [...accepted, ...rejections.map((r) => r.file)].find((f) => f.size > limits.maxSizeMb * 1024 * 1024)
+    if (tooBig) {
+      setHeroError(plan === 'free'
+        ? `'${tooBig.name}' is over the ${limits.maxSizeMb}MB free limit. Larger uploads are coming soon with Pro.`
+        : `'${tooBig.name}' exceeds the ${limits.maxSizeMb}MB limit.`)
+      return
+    }
+    if (rejections.length > 0) {
+      setHeroError('Some files have an unsupported type. Allowed: PDF, DOCX, XLSX, PPTX, HTML, JSON, TXT, CSV, MD.')
+      return
+    }
+    if (accepted.length > 0) {
+      setSourceLabel(accepted.length > 1 ? `${accepted.length} files` : accepted[0].name)
+      processFiles(accepted)
+    }
+  }, [limits, plan, processFiles])
+
+  const handleProceed = () => {
+    if (!canProceed || !session) return
+    onEnter(session, effectiveMode, prompt.trim())
+  }
+
+  // ── Multi-source add (controls visible to all; only Pro can add — front-end only) ──
+  const openExtraFilePicker = () => {
+    if (!isPro) { setMultiHint('Adding more files is a Pro feature. Upgrade to add several sources.'); return }
+    extraFileInputRef.current?.click()
+  }
+
+  const startAddUrl = () => {
+    if (!isPro) { setMultiHint('Adding more URLs is a Pro feature. Upgrade to add several sources.'); return }
+    setAddingUrl(true)
+  }
+
+  const handleExtraFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files ?? [])
+    if (picked.length) {
+      setExtraSources((prev) => [
+        ...prev,
+        ...picked.map((f) => ({ id: ++extraIdRef.current, type: 'file' as const, label: f.name })),
+      ])
+    }
+    e.target.value = '' // allow re-picking the same file
+  }
+
+  const saveExtraUrl = () => {
+    const u = extraUrl.trim()
+    if (!u) return
+    setExtraSources((prev) => [...prev, { id: ++extraIdRef.current, type: 'url', label: u }])
+    setExtraUrl('')
+    setAddingUrl(false)
+  }
+
+  const removeExtraSource = (id: number) => setExtraSources((prev) => prev.filter((s) => s.id !== id))
+
+  // Start over after an error (or to pick a different file).
+  const startOver = () => {
+    reset()
+    setPrompt('')
+    setSourceLabel('')
+    setHeroError('')
+    setExtraSources([])
+    setAddingUrl(false)
+    setExtraUrl('')
+    setMultiHint('')
+  }
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: ACCEPT,
+    multiple: limits.maxFiles > 1,
+    disabled: started,
+  })
+
+  // Mode selection (chat / summary / flashcards / …) + the blurb for the active
+  // mode. Rendered identically in two places — below the drop zone before an upload
+  // and inside the white chat box once it appears — differing only in the pill's
+  // background colour (so it blends with whatever surface it sits on).
+  const renderModeTabs = (pillBg: string) => (
+    <>
+      <div className={`flex flex-wrap items-center justify-center gap-1 rounded-3xl border border-[#303030] p-1 ${pillBg}`}>
+        {MODES.map(({ value, label }) => {
+          const isActive = selectedMode === value
+          return (
+            <button
+              key={value}
+              onClick={() => setSelectedMode(value)}
+              className="relative text-sm font-medium px-3 py-1.5 rounded-full whitespace-nowrap"
+            >
+              {isActive && (
+                <motion.span
+                  layoutId="mode-spotlight"
+                  className="absolute inset-0 rounded-full bg-[#E2611B] shadow-sm"
+                  transition={{ type: 'spring', stiffness: 500, damping: 34 }}
+                />
+              )}
+              <span className={`relative z-10 transition-colors ${isActive ? 'text-white' : 'text-slate-700 hover:text-[#E2611B]'}`}>
+                {label}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      <motion.p
+        key={selectedMode}
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="mt-4 text-center text-sm text-[#E2611B]"
+      >
+        {MODES.find((m) => m.value === selectedMode)?.blurb}
+      </motion.p>
+    </>
+  )
 
   return (
     <div className="min-h-screen bg-slate-50 bg-grid">
@@ -90,148 +300,306 @@ export default function Landing({ onGetStarted }: Props) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         >
-          <h1 className="font-merriweather font-extrabold tracking-[-0.03em] text-[#303030] text-4xl sm:text-5xl md:text-6xl leading-[1.05]">
-            Upload files. Paste Website links.<br />
-            <span className="italic text-[#E2611B]">Ask anything.</span>
+          {/* Hero headline — always exactly 2 lines, with the break controlled
+              explicitly (not left to auto-wrap) so the second line's content is
+              consistent as the window scales. Discrete, breakpoint-stepped sizes keep
+              it larger than the 18px body at every width.
+
+              The break is a single, monotonic transition:
+                • lg and up  → line 1 "Upload files. Paste Website links." / line 2 "Ask anything."
+                • below lg   → line 1 "Upload files. Paste Website" / line 2 "links. Ask anything."
+              Because the break below lg is forced (the mobile <br/>), narrowing the
+              window never moves "links." back up to line 1 — it stays on line 2 the
+              whole way down. Font steps are sized to keep each forced line on one row. */}
+          <h1 className="font-merriweather font-extrabold tracking-[-0.03em] text-[#303030] leading-[1.1] text-[20px] min-[360px]:text-[23px] min-[420px]:text-[27px] min-[520px]:text-[34px] sm:text-[44px] md:text-[56px]">
+            {'Upload files. Paste Website'}
+            <br className="lg:hidden" />
+            {' links.'}
+            <br className="hidden lg:block" />
+            {' '}
+            <span className="italic text-[#E2611B] whitespace-nowrap">Ask anything.</span>
           </h1>
-          <p className="mt-6 font-merriweather text-lg text-[#303030] mx-auto leading-relaxed md:whitespace-nowrap">
+          <p className="mt-6 font-merriweather text-lg text-[#303030] mx-auto leading-relaxed lg:whitespace-nowrap">
             Upload anything in any language. Get answers in seconds, drawn only from your file.
           </p>
 
-          {/* Upload card — drop a file, paste a link, pick a mode. */}
-          <div className="mt-10 max-w-2xl mx-auto text-left">
-            {/* Mode tabs — selecting changes the active tab only (no navigation) */}
-            <div className="flex justify-center">
-              <div className="inline-flex items-center gap-1 rounded-full border border-[#303030] bg-[#F8FAFC] p-1">
-                {MODES.map(({ value, label }) => {
-                  const isActive = activeMode === value
-                  return (
-                    <button
-                      key={value}
-                      onClick={() => setActiveMode(value)}
-                      className="relative text-sm font-medium px-4 py-1.5 rounded-full"
-                    >
-                      {isActive && (
-                        <motion.span
-                          layoutId="mode-spotlight"
-                          className="absolute inset-0 rounded-full bg-[#E2611B] shadow-sm"
-                          transition={{ type: 'spring', stiffness: 500, damping: 34 }}
-                        />
-                      )}
-                      <span className={`relative z-10 transition-colors ${isActive ? 'text-white' : 'text-slate-700 hover:text-[#E2611B]'}`}>
-                        {label}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* One-line blurb for the selected mode */}
-            <motion.p
-              key={activeMode}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25 }}
-              className="mt-4 text-center text-sm text-slate-500"
-            >
-              {MODES.find((m) => m.value === activeMode)?.blurb}
-            </motion.p>
-
-            {/* Drop zone — accepts a real file and hands it to the upload pipeline */}
-            <div
-              {...getRootProps()}
-              className={`mt-6 rounded-2xl border-2 border-dashed px-6 py-12 text-center cursor-pointer transition-all ${
-                isDragActive ? 'border-[#E2611B] bg-[#E2611B]/5' : 'border-[#303030] bg-white hover:border-[#E2611B] hover:bg-[#E2611B]/5'
-              }`}
-            >
-              <input {...getInputProps()} />
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#E2611B]/10 mb-4">
-                <ArrowUp className="w-6 h-6 text-[#E2611B]" />
-              </div>
-              <p className="text-slate-800 font-medium">
-                {isDragActive
-                  ? 'Drop your document here'
-                  : <>Drop a document, or <span className="text-[#E2611B] underline underline-offset-2">browse to upload</span></>}
-              </p>
-              <p className="mt-1.5 text-sm text-slate-400">PDF · Word · Excel · PowerPoint</p>
-            </div>
-
-            {/* OR divider */}
-            <div className="my-5 flex items-center gap-3">
-              <div className="flex-1 h-px bg-slate-200" />
-              <span className="text-xs font-medium text-slate-400 tracking-wider">OR</span>
-              <div className="flex-1 h-px bg-slate-200" />
-            </div>
-
-            {/* Paste a link */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-stretch gap-2">
-                <div className="flex-1 flex items-center gap-2 rounded-xl border border-[#303030] bg-white px-4 hover:border-[#E2611B] focus-within:border-[#E2611B] focus-within:ring-2 focus-within:ring-[#E2611B]/20 transition-all">
-                  <input
-                    type="text"
-                    value={urlInput}
-                    onChange={(e) => { setUrlInput(e.target.value); setUrlError('') }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()}
-                    placeholder="Paste a webpage or video link"
-                    className="flex-1 bg-transparent py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none"
-                  />
-                </div>
-                <button
-                  onClick={handleAddUrl}
-                  className="px-6 rounded-xl bg-[#E2611B] text-white font-medium text-sm hover:bg-[#E2611B]/90 transition-all"
+          {/* Upload card — before an upload starts: drop a file or paste a link.
+              Once an upload begins, this morphs into the chat box (below). Widened to
+              max-w-3xl so the mode tabs sit on one line at full width (they still wrap
+              on narrow screens via flex-wrap). */}
+          <div className="mt-10 max-w-3xl mx-auto text-left">
+            <AnimatePresence mode="wait">
+              {!started ? (
+                <motion.div
+                  key="uploader"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.3 }}
                 >
-                  Add
-                </button>
-              </div>
-              {urlError && (
-                <p className="text-xs text-red-500 px-1">{urlError}</p>
+                  {/* Drop zone — accepts a real file and starts the upload right here */}
+                  <div
+                    {...getRootProps()}
+                    id="hero-dropzone"
+                    className={`scroll-mt-24 rounded-2xl border-2 border-dashed px-6 py-12 text-center cursor-pointer transition-all ${
+                      isDragActive || dropHighlight ? 'border-[#E2611B] bg-[#E2611B]/5 ring-2 ring-[#E2611B]/30' : 'border-[#303030] bg-white hover:border-[#E2611B] hover:bg-[#E2611B]/5'
+                    }`}
+                  >
+                    <input {...getInputProps()} />
+                    <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#E2611B]/10 mb-4">
+                      <ArrowUp className="w-6 h-6 text-[#E2611B]" />
+                    </div>
+                    <p className="text-slate-800 font-medium">
+                      {isDragActive
+                        ? 'Drop your document here'
+                        : <>Drop a document, or <span className="text-[#E2611B] underline underline-offset-2">browse to upload</span></>}
+                    </p>
+                    <p className="mt-1.5 text-sm text-slate-400">PDF · Word · Excel · PowerPoint</p>
+                  </div>
+
+                  {heroError && (
+                    <p className="mt-3 flex items-center gap-1.5 text-sm text-red-500 px-1">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" /> {heroError}
+                    </p>
+                  )}
+
+                  {/* OR divider */}
+                  <div className="my-5 flex items-center gap-3">
+                    <div className="flex-1 h-px bg-slate-200" />
+                    <span className="text-xs font-medium text-slate-400 tracking-wider">OR</span>
+                    <div className="flex-1 h-px bg-slate-200" />
+                  </div>
+
+                  {/* Paste a link */}
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-stretch gap-2">
+                      <div className="flex-1 min-w-0 flex items-center gap-2 rounded-xl border border-[#303030] bg-white px-4 hover:border-[#E2611B] focus-within:border-[#E2611B] focus-within:ring-2 focus-within:ring-[#E2611B]/20 transition-all">
+                        <input
+                          id="hero-url-input"
+                          type="text"
+                          value={urlInput}
+                          onChange={(e) => { setUrlInput(e.target.value); setUrlError('') }}
+                          onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()}
+                          placeholder="Paste a webpage or video link"
+                          className="flex-1 min-w-0 bg-transparent py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none"
+                        />
+                      </div>
+                      <button
+                        onClick={handleAddUrl}
+                        className="px-6 rounded-xl bg-[#E2611B] text-white font-medium text-sm hover:bg-[#E2611B]/90 transition-all flex-shrink-0"
+                      >
+                        Add
+                      </button>
+                    </div>
+                    {urlError && (
+                      <p className="text-xs text-red-500 px-1">{urlError}</p>
+                    )}
+                  </div>
+
+                  {/* Mode selection — sits below the drop zone / URL box before upload */}
+                  <div className="mt-8">
+                    {renderModeTabs('bg-[#F8FAFC]')}
+                  </div>
+                </motion.div>
+              ) : (
+                // The chat box — appears the moment an upload starts. The user picks
+                // what they want to do and types their first request; the Proceed
+                // button lights up once the document is ready.
+                <motion.div
+                  key="chatbox"
+                  initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                  className="rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/60 p-5 sm:p-6"
+                >
+                  {/* Source + processing status */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#E2611B]/10 flex items-center justify-center flex-shrink-0">
+                      {error ? <AlertCircle className="w-4 h-4 text-red-500" />
+                        : session ? <CheckCircle className="w-4 h-4 text-[#E2611B]" />
+                        : <FileText className="w-4 h-4 text-[#E2611B]" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-slate-800 truncate" title={sourceLabel}>{sourceLabel}</p>
+                      <p className={`text-xs ${error ? 'text-red-500' : 'text-[#E2611B]'}`}>
+                        {error ? 'Upload failed' : session ? 'Ready. Choose what to do below' : (stageMsg || 'Processing…')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {!session && processing && <Loader2 className="w-4 h-4 text-[#E2611B] animate-spin" />}
+                      {!error && (
+                        <Tooltip label="Remove" side="right">
+                          <button
+                            onClick={startOver}
+                            aria-label="Remove file"
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Progress bar (while still working) */}
+                  {!session && !error && (
+                    <div className="mt-3 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                      <motion.div
+                        className="h-full bg-gradient-to-r from-[#E2611B]/70 to-[#E2611B] rounded-full"
+                        animate={{ width: `${progress}%` }}
+                        transition={{ duration: 0.5, ease: 'easeOut' }}
+                      />
+                    </div>
+                  )}
+
+                  {error ? (
+                    <div className="mt-4 flex flex-col items-start gap-3">
+                      <p className="flex items-center gap-1.5 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5 w-full">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
+                      </p>
+                      <button
+                        onClick={startOver}
+                        className="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-xl bg-[#E2611B] text-white hover:bg-[#E2611B]/90 transition-all"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" /> Try another file
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Add more sources. Controls show for everyone, but only Pro
+                          can actually add (non-Pro gets an upgrade hint). Front-end
+                          scaffold: added files/URLs show as rows but aren't uploaded
+                          or merged into the session yet (see CLAUDE.md). */}
+                      <div className="mt-3 space-y-2">
+                          {/* Rows for each added source */}
+                          {extraSources.map((s) => (
+                            <div key={s.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                              {s.type === 'url'
+                                ? <Link2 className="w-4 h-4 text-[#E2611B] flex-shrink-0" />
+                                : <FileText className="w-4 h-4 text-[#E2611B] flex-shrink-0" />}
+                              <span className="text-sm text-slate-700 truncate flex-1" title={s.label}>{s.label}</span>
+                              <button
+                                onClick={() => removeExtraSource(s.id)}
+                                aria-label="Remove"
+                                className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+
+                          {/* Add controls: two "+" buttons, or the URL input box */}
+                          {addingUrl ? (
+                            <div className="flex items-stretch gap-2">
+                              <div className="flex-1 min-w-0 flex items-center rounded-xl border border-[#303030] bg-white px-3 focus-within:border-[#E2611B] focus-within:ring-2 focus-within:ring-[#E2611B]/20 transition-all">
+                                <input
+                                  type="text"
+                                  value={extraUrl}
+                                  onChange={(e) => setExtraUrl(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveExtraUrl() } }}
+                                  placeholder="Paste a webpage or video link"
+                                  autoFocus
+                                  className="flex-1 min-w-0 bg-transparent py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none"
+                                />
+                              </div>
+                              <button
+                                onClick={saveExtraUrl}
+                                className="px-4 rounded-xl bg-[#E2611B] text-white font-medium text-sm hover:bg-[#E2611B]/90 transition-all flex-shrink-0"
+                              >
+                                Add
+                              </button>
+                              <button
+                                onClick={() => { setAddingUrl(false); setExtraUrl('') }}
+                                aria-label="Cancel"
+                                className="w-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={openExtraFilePicker}
+                                className="inline-flex items-center gap-1.5 text-sm font-medium text-[#E2611B] hover:text-[#E2611B]/80 transition-colors"
+                              >
+                                <Plus className="w-4 h-4" /> Add more files
+                              </button>
+                              <button
+                                onClick={startAddUrl}
+                                className="inline-flex items-center gap-1.5 text-sm font-medium text-[#E2611B] hover:text-[#E2611B]/80 transition-colors"
+                              >
+                                <Plus className="w-4 h-4" /> Add more URLs
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Upgrade hint for non-Pro users */}
+                          {multiHint && (
+                            <p className="text-xs text-[#E2611B] bg-[#E2611B]/5 border border-[#E2611B]/20 rounded-lg px-3 py-2">
+                              {multiHint}
+                            </p>
+                          )}
+
+                          <input
+                            ref={extraFileInputRef}
+                            type="file"
+                            multiple
+                            onChange={handleExtraFilesSelected}
+                            accept=".pdf,.docx,.xlsx,.pptx,.html,.htm,.json,.csv,.md,.txt"
+                            className="hidden"
+                          />
+                      </div>
+
+                      {/* Chat input + the orange "proceed" button. All guidance lives
+                          in the input placeholder (mode-dependent). */}
+                      <div className="mt-4 flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 focus-within:border-[#E2611B] focus-within:ring-2 focus-within:ring-[#E2611B]/20 transition-all">
+                        <textarea
+                          value={prompt}
+                          onChange={(e) => setPrompt(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault()
+                              handleProceed()
+                            }
+                          }}
+                          rows={1}
+                          placeholder={effectiveMode === 'chat'
+                            ? 'Type your first question here.'
+                            : 'Add specific instructions here (optional).'}
+                          className="flex-1 min-w-0 bg-transparent px-2 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none resize-none leading-relaxed"
+                          style={{ maxHeight: '120px' }}
+                        />
+                        <Tooltip
+                          label={canProceed ? 'Proceed' : !session ? 'Hang on, still reading your document' : 'Type what you want to do first'}
+                          side="right"
+                        >
+                          <motion.button
+                            whileHover={canProceed ? { scale: 1.05 } : undefined}
+                            whileTap={canProceed ? { scale: 0.95 } : undefined}
+                            onClick={handleProceed}
+                            disabled={!canProceed}
+                            aria-label="Proceed"
+                            className="w-10 h-10 rounded-full bg-[#E2611B] text-white flex items-center justify-center flex-shrink-0 shadow-sm transition-all hover:bg-[#E2611B]/90 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {!session && processing
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : <ArrowUp className="w-4 h-4" />}
+                          </motion.button>
+                        </Tooltip>
+                      </div>
+
+                      {/* Mode selection — now lives inside the white box (white pill
+                          background so it blends with the card) */}
+                      <div className="mt-5">
+                        {renderModeTabs('bg-white')}
+                      </div>
+                    </>
+                  )}
+                </motion.div>
               )}
-            </div>
+            </AnimatePresence>
           </div>
         </motion.div>
-      </section>
-
-      {/* How it works */}
-      <section id="how-it-works" className="scroll-mt-20 px-6 py-16 max-w-5xl mx-auto">
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <span className="h-px w-8 bg-[#E2611B]/40" />
-            <span className="text-xs font-semibold tracking-[0.25em] text-[#E2611B] uppercase">How it works</span>
-            <span className="h-px w-8 bg-[#E2611B]/40" />
-          </div>
-          <h2 className="font-merriweather font-bold text-3xl sm:text-4xl md:text-5xl text-[#303030] tracking-[-0.02em]">
-            Three steps. <span className="italic text-[#E2611B]">No setup.</span>
-          </h2>
-          <div className="mt-5 flex items-center justify-center gap-3">
-            <span className="h-px w-10 bg-[#E2611B]/30" />
-            <span className="w-1.5 h-1.5 rotate-45 bg-[#E2611B]" />
-            <span className="h-px w-10 bg-[#E2611B]/30" />
-          </div>
-          <p className="mt-3 text-slate-500 italic">No learning curve, no account, no waiting.</p>
-        </div>
-        <div className="grid md:grid-cols-3 gap-5">
-          {STEPS.map((s, i) => (
-            <motion.div
-              key={s.title}
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: i * 0.1 }}
-              className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:bg-[#E2611B] hover:border-[#E2611B] hover:shadow-md transition-all"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                {/* Step number to the left of the icon */}
-                <span className="w-8 h-8 rounded-full bg-[#E2611B] text-white group-hover:bg-white group-hover:text-[#E2611B] text-sm font-bold flex items-center justify-center transition-colors">{i + 1}</span>
-                <div className="w-10 h-10 rounded-xl bg-[#E2611B]/10 border border-[#E2611B]/20 group-hover:bg-white/15 group-hover:border-white/30 flex items-center justify-center transition-colors">
-                  <s.icon className="w-5 h-5 text-[#E2611B] group-hover:text-white transition-colors" />
-                </div>
-              </div>
-              <h3 className="font-semibold text-slate-900 group-hover:text-white mb-1.5 transition-colors">{s.title}</h3>
-              <p className="text-sm text-slate-600 group-hover:text-white leading-relaxed transition-colors">{s.body}</p>
-            </motion.div>
-          ))}
-        </div>
       </section>
 
       {/* Features */}
@@ -262,11 +630,89 @@ export default function Landing({ onGetStarted }: Props) {
               transition={{ duration: 0.4, delay: (i % 4) * 0.08 }}
               className="group font-merriweather bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:bg-[#E2611B] hover:border-[#E2611B] hover:shadow-md transition-all"
             >
-              <div className="w-10 h-10 rounded-xl bg-[#E2611B]/10 border border-[#E2611B]/20 group-hover:bg-white/15 group-hover:border-white/30 flex items-center justify-center mb-4 transition-colors">
-                <f.icon className="w-5 h-5 text-[#E2611B] group-hover:text-white transition-colors" />
+              {/* Mobile (single column): icon + title sit side by side. From sm up
+                  (multi-column) they stack, icon on top. */}
+              <div className="flex items-center gap-3 mb-1.5 sm:block sm:mb-0">
+                <div className="w-10 h-10 shrink-0 rounded-xl bg-[#E2611B]/10 border border-[#E2611B]/20 group-hover:bg-white/15 group-hover:border-white/30 flex items-center justify-center sm:mb-4 transition-colors">
+                  <f.icon className="w-5 h-5 text-[#E2611B] group-hover:text-white transition-colors" />
+                </div>
+                <h3 className="font-semibold text-slate-900 group-hover:text-white sm:mb-1.5 transition-colors">{f.title}</h3>
               </div>
-              <h3 className="font-semibold text-slate-900 group-hover:text-white mb-1.5 transition-colors">{f.title}</h3>
               <p className="text-sm text-slate-600 group-hover:text-white leading-relaxed transition-colors">{f.body}</p>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section id="how-it-works" className="scroll-mt-20 px-6 py-16 max-w-5xl mx-auto">
+        <div className="text-center mb-12">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <span className="h-px w-8 bg-[#E2611B]/40" />
+            <span className="text-xs font-semibold tracking-[0.25em] text-[#E2611B] uppercase">How it works</span>
+            <span className="h-px w-8 bg-[#E2611B]/40" />
+          </div>
+          <h2 className="font-merriweather font-bold text-3xl sm:text-4xl md:text-5xl text-[#303030] tracking-[-0.02em]">
+            Three steps. <span className="italic text-[#E2611B]">No setup.</span>
+          </h2>
+          <div className="mt-5 flex items-center justify-center gap-3">
+            <span className="h-px w-10 bg-[#E2611B]/30" />
+            <span className="w-1.5 h-1.5 rotate-45 bg-[#E2611B]" />
+            <span className="h-px w-10 bg-[#E2611B]/30" />
+          </div>
+          <p className="mt-3 text-slate-500 italic">No learning curve, no account, no waiting.</p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-5">
+          {STEPS.map((s, i) => (
+            <motion.div
+              key={s.title}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: i * 0.1 }}
+              className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:bg-[#E2611B] hover:border-[#E2611B] hover:shadow-md transition-all"
+            >
+              {/* Mobile (single column): the number+icon pair and the title sit side
+                  by side. From md up (multi-column) the title drops below. */}
+              <div className="flex items-center gap-3 mb-1.5 md:block md:mb-0">
+                <div className="flex items-center gap-3 shrink-0 md:mb-4">
+                  {/* Step number to the left of the icon */}
+                  <span className="w-8 h-8 rounded-full bg-[#E2611B] text-white group-hover:bg-white group-hover:text-[#E2611B] text-sm font-bold flex items-center justify-center transition-colors">{i + 1}</span>
+                  <div className="w-10 h-10 rounded-xl bg-[#E2611B]/10 border border-[#E2611B]/20 group-hover:bg-white/15 group-hover:border-white/30 flex items-center justify-center transition-colors">
+                    <s.icon className="w-5 h-5 text-[#E2611B] group-hover:text-white transition-colors" />
+                  </div>
+                </div>
+                <h3 className="font-semibold text-slate-900 group-hover:text-white md:mb-1.5 transition-colors">{s.title}</h3>
+              </div>
+              <p className="text-sm text-slate-600 group-hover:text-white leading-relaxed transition-colors">
+                {i === 0 ? (
+                  <>
+                    Have a file? Drop it into the{' '}
+                    <Tooltip label="Click here to see where the file needs to be uploaded." side="right">
+                      <button
+                        type="button"
+                        onClick={focusDropZone}
+                        className="font-medium text-[#E2611B] underline underline-offset-2 transition-colors group-hover:text-white hover:!text-black"
+                      >
+                        upload box
+                      </button>
+                    </Tooltip>{' '}
+                    and please wait till the upload is finished. Got a link instead? Paste it into the{' '}
+                    <Tooltip label="Click here to see where the link needs to be pasted." side="right">
+                      <button
+                        type="button"
+                        onClick={focusUrlInput}
+                        className="font-medium text-[#E2611B] underline underline-offset-2 transition-colors group-hover:text-white hover:!text-black"
+                      >
+                        URL box
+                      </button>
+                    </Tooltip>
+                    . Works with PDF, Word, Excel, PowerPoint, web pages and videos, in any language.
+                  </>
+                ) : (
+                  s.body
+                )}
+              </p>
             </motion.div>
           ))}
         </div>
@@ -300,41 +746,102 @@ export default function Landing({ onGetStarted }: Props) {
               transition={{ duration: 0.4, delay: (i % 3) * 0.08 }}
               className="group font-merriweather bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:bg-[#E2611B] hover:border-[#E2611B] hover:shadow-md transition-all"
             >
-              <div className="w-10 h-10 rounded-xl bg-[#E2611B]/10 border border-[#E2611B]/20 group-hover:bg-white/15 group-hover:border-white/30 flex items-center justify-center mb-4 transition-colors">
-                <a.icon className="w-5 h-5 text-[#E2611B] group-hover:text-white transition-colors" />
+              {/* Mobile (single column): icon + title sit side by side. From sm up
+                  (multi-column) they stack, icon on top. */}
+              <div className="flex items-center gap-3 mb-1.5 sm:block sm:mb-0">
+                <div className="w-10 h-10 shrink-0 rounded-xl bg-[#E2611B]/10 border border-[#E2611B]/20 group-hover:bg-white/15 group-hover:border-white/30 flex items-center justify-center sm:mb-4 transition-colors">
+                  <a.icon className="w-5 h-5 text-[#E2611B] group-hover:text-white transition-colors" />
+                </div>
+                <h3 className="font-semibold text-slate-900 group-hover:text-white sm:mb-1.5 transition-colors">{a.title}</h3>
               </div>
-              <h3 className="font-semibold text-slate-900 group-hover:text-white mb-1.5 transition-colors">{a.title}</h3>
               <p className="text-sm text-slate-600 group-hover:text-white leading-relaxed transition-colors">{a.body}</p>
             </motion.div>
           ))}
         </div>
       </section>
 
+      {/* Plans — Basic vs Pro feature comparison */}
+      <section id="plans" className="scroll-mt-20 px-6 py-16 max-w-4xl mx-auto">
+        <div className="text-center mb-12">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <span className="h-px w-8 bg-[#E2611B]/40" />
+            <span className="text-xs font-semibold tracking-[0.25em] text-[#E2611B] uppercase">Plans</span>
+            <span className="h-px w-8 bg-[#E2611B]/40" />
+          </div>
+          <h2 className="font-merriweather font-bold text-3xl sm:text-4xl md:text-5xl text-[#303030] tracking-[-0.02em]">
+            Start free, <span className="italic text-[#E2611B]">upgrade anytime.</span>
+          </h2>
+          <div className="mt-5 flex items-center justify-center gap-3">
+            <span className="h-px w-10 bg-[#E2611B]/30" />
+            <span className="w-1.5 h-1.5 rotate-45 bg-[#E2611B]" />
+            <span className="h-px w-10 bg-[#E2611B]/30" />
+          </div>
+          <p className="mt-3 text-slate-500 italic">Explore the core features for free. Go Pro for more files, bigger uploads, and file comparisons.</p>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {/* Header row */}
+          <div className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-3 items-center bg-white border-b border-slate-200">
+            <div className="px-4 sm:px-6 py-4 text-sm font-bold text-[#303030]">Feature</div>
+            <div className="px-3 sm:px-6 py-4 text-center text-sm font-bold text-[#303030]">Basic plan</div>
+            <div className="px-3 sm:px-6 py-4 text-center text-sm font-bold text-[#E2611B] flex items-center justify-center gap-1.5">
+              <Crown className="w-4 h-4 flex-shrink-0" /> Pro plan
+            </div>
+          </div>
+
+          {/* Feature rows */}
+          {PLAN_FEATURES.map((f) => (
+            <div
+              key={f.name}
+              className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-3 items-center bg-white"
+            >
+              <div className="px-4 sm:px-6 py-3.5 text-sm font-normal text-slate-700">{f.name}</div>
+              <div className="px-3 sm:px-6 py-3.5 flex justify-center">
+                {f.basic
+                  ? <Check className="w-5 h-5 text-[#E2611B]" aria-label="Included" />
+                  : <X className="w-5 h-5 text-[#E2611B]" aria-label="Not included" />}
+              </div>
+              <div className="px-3 sm:px-6 py-3.5 flex justify-center">
+                {f.pro
+                  ? <Check className="w-5 h-5 text-[#E2611B]" aria-label="Included" />
+                  : <X className="w-5 h-5 text-[#E2611B]" aria-label="Not included" />}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Footer */}
-      <footer className="bg-[#E2611B] text-slate-50 px-6 py-12">
+      <footer className="bg-[#E2611B] text-slate-50 px-6 py-8 sm:py-12">
         <div className="max-w-5xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5 sm:gap-8">
             {/* Brand — inverted wordmark for the orange surface (see CLAUDE.md) */}
             <div className="max-w-sm">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center shadow-sm">
-                  <FileText className="w-3.5 h-3.5 text-[#E2611B]" />
+                <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-slate-50 flex items-center justify-center shadow-sm">
+                  <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#E2611B]" />
                 </div>
-                <span className="font-brand italic font-bold text-[34px] tracking-[-0.02em] text-slate-50">
+                <span className="font-brand italic font-bold text-[26px] sm:text-[34px] tracking-[-0.02em] text-slate-50">
                   Talktofile
                 </span>
               </div>
             </div>
 
             {/* Quick links */}
-            <nav className="flex flex-col gap-2.5 text-sm">
+            <nav className="flex flex-col gap-2 sm:gap-2.5 text-sm">
               <span className="font-semibold text-slate-50">Product</span>
-              <a href="#how-it-works" className="text-slate-50/80 hover:text-slate-50 transition-colors">How it works</a>
+              <a
+                href="#how-it-works"
+                onClick={(e) => { e.preventDefault(); smoothScrollTo('how-it-works', { offset: 80 }) }}
+                className="text-slate-50/80 hover:text-slate-50 transition-colors"
+              >
+                How it works
+              </a>
             </nav>
           </div>
 
           {/* Bottom bar */}
-          <div className="mt-10 pt-6 border-t border-slate-50/20 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-slate-50/80">
+          <div className="mt-6 pt-5 sm:mt-10 sm:pt-6 border-t border-slate-50/20 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 text-sm text-slate-50/80">
             <span>© {new Date().getFullYear()} MetaInsights. All rights reserved.</span>
             <span>Private by default · No file storage · Answers only from your document</span>
           </div>
