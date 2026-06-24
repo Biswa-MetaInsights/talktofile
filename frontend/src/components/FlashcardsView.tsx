@@ -70,8 +70,8 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
   if (!cards.length && !loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-5 p-8 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-[#E60026]/10 flex items-center justify-center">
-          <Trophy className="w-8 h-8 text-[#E60026]" />
+        <div className="w-16 h-16 rounded-2xl bg-[#E2611B]/10 flex items-center justify-center">
+          <Trophy className="w-8 h-8 text-[#E2611B]" />
         </div>
         <div>
           <h2 className="font-brand font-bold text-xl text-slate-900 mb-2">Flashcards</h2>
@@ -83,11 +83,11 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
         <div className="flex flex-col items-center gap-3">
           <button
             onClick={generate}
-            className="px-6 py-3 rounded-xl bg-[#E60026] text-white font-medium text-sm hover:bg-[#E60026]/90 transition-all shadow-md shadow-[#E60026]/20"
+            className="px-6 py-3 rounded-xl bg-[#E2611B] text-white font-medium text-sm hover:bg-[#E2611B]/90 transition-all shadow-md shadow-[#E2611B]/20"
           >
             Generate flashcards
           </button>
-          <button onClick={onStartChat} className="text-sm text-slate-500 hover:text-[#E60026] flex items-center gap-1.5">
+          <button onClick={onStartChat} className="text-sm text-slate-500 hover:text-[#E2611B] flex items-center gap-1.5">
             <MessageSquare className="w-4 h-4" /> Start chatting instead
           </button>
         </div>
@@ -98,7 +98,7 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
-        <Loader2 className="w-8 h-8 text-[#E60026] animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#E2611B] animate-spin" />
         <p className="text-slate-600 text-sm">Generating flashcards from your document…</p>
       </div>
     )
@@ -108,24 +108,24 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
     const pct = Math.round((correctCount / totalCards) * 100)
     return (
       <div className="flex flex-col items-center justify-center h-full gap-6 p-8 text-center">
-        <div className="w-20 h-20 rounded-full bg-[#E60026]/10 flex items-center justify-center">
-          <Trophy className="w-10 h-10 text-[#E60026]" />
+        <div className="w-20 h-20 rounded-full bg-[#E2611B]/10 flex items-center justify-center">
+          <Trophy className="w-10 h-10 text-[#E2611B]" />
         </div>
         <div>
           <h2 className="font-brand font-bold text-2xl text-slate-900 mb-1">Session Complete!</h2>
-          <p className="text-4xl font-bold text-[#E60026] my-3">{correctCount}/{totalCards}</p>
+          <p className="text-4xl font-bold text-[#E2611B] my-3">{correctCount}/{totalCards}</p>
           <p className="text-slate-500 text-sm">
-            {pct >= 80 ? 'Excellent work! 🎉' : pct >= 60 ? 'Good job! Keep practising.' : 'Keep going — you\'ll get there!'}
+            {pct >= 80 ? 'Excellent work! 🎉' : pct >= 60 ? 'Good job! Keep practising.' : 'Keep going. You\'ll get there!'}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
-          <button onClick={restart} className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:border-[#E60026] hover:text-[#E60026] transition-all">
+          <button onClick={restart} className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:border-[#E2611B] hover:text-[#E2611B] transition-all">
             <RotateCcw className="w-4 h-4" /> Try again
           </button>
-          <button onClick={generate} className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:border-[#E60026] hover:text-[#E60026] transition-all">
+          <button onClick={generate} className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:border-[#E2611B] hover:text-[#E2611B] transition-all">
             New set
           </button>
-          <button onClick={onStartChat} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#E60026] text-white text-sm font-medium hover:bg-[#E60026]/90 transition-all">
+          <button onClick={onStartChat} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 transition-all">
             <MessageSquare className="w-4 h-4" /> Start chatting
           </button>
         </div>
@@ -142,7 +142,7 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
       </div>
       <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
         <motion.div
-          className="h-full bg-[#E60026] rounded-full"
+          className="h-full bg-[#E2611B] rounded-full"
           animate={{ width: `${((currentIdx) / totalCards) * 100}%` }}
           transition={{ duration: 0.3 }}
         />
@@ -200,7 +200,7 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
             {card?.hint && (
               <button
                 onClick={() => setShowHint((s) => !s)}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E60026] hover:text-[#E60026] transition-all"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all"
               >
                 {showHint ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 {showHint ? 'Hide hint' : 'Show hint'}
@@ -231,7 +231,7 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
         )}
 
         <div className="flex justify-between items-center text-xs text-slate-400">
-          <button onClick={onStartChat} className="flex items-center gap-1 hover:text-[#E60026] transition-colors">
+          <button onClick={onStartChat} className="flex items-center gap-1 hover:text-[#E2611B] transition-colors">
             <MessageSquare className="w-3.5 h-3.5" /> Chat
           </button>
           <div className="flex gap-1">
