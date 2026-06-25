@@ -13,6 +13,8 @@ import { track } from '../lib/analytics'
 interface Props {
   session: SessionInfo
   onReset: () => void
+  // First message the user typed on the landing chat box. Auto-sent once connected.
+  initialPrompt?: string
 }
 
 let msgIdCounter = 0
@@ -48,7 +50,7 @@ type ConnStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
 
 const MAX_RECONNECT_ATTEMPTS = 6
 
-export default function ChatWindow({ session, onReset }: Props) {
+export default function ChatWindow({ session, onReset, initialPrompt }: Props) {
   const { token, user } = useAuth()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -216,6 +218,29 @@ export default function ChatWindow({ session, onReset }: Props) {
       wsRef.current?.close()
     }
   }, [connect])
+
+  // Auto-send the first message the user typed on the landing page, once the chat
+  // socket is connected (so it lands right after Sage's welcome). Guarded so a
+  // reconnect never re-sends it.
+  const sentInitialRef = useRef(false)
+  useEffect(() => {
+    if (status !== 'connected' || sentInitialRef.current) return
+    const q = (initialPrompt ?? '').trim()
+    if (!q) return
+    sentInitialRef.current = true
+    setMessages((prev) => [...prev, {
+      id: nextId(),
+      role: 'user',
+      content: q,
+      timestamp: new Date(),
+    }])
+    setIsTyping(true)
+    setCitationSource(null)
+    streamingIdRef.current = null
+    stoppedRef.current = false
+    wsRef.current?.send(JSON.stringify({ question: q }))
+    track('question_asked', { mode: session.mode })
+  }, [status, initialPrompt, session.mode])
 
   const retryNow = useCallback(() => {
     if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current)
@@ -566,10 +591,10 @@ ${rows}
               placeholder="Ask anything about the document..."
               rows={1}
               disabled={!isConnected}
-              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20 resize-none transition-all disabled:opacity-50 leading-relaxed"
+              className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-4 sm:pr-16 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20 resize-none transition-all disabled:opacity-50 leading-relaxed"
               style={{ minHeight: '44px', maxHeight: '140px' }}
             />
-            <span className="absolute right-3 bottom-2.5 text-xs text-slate-300 pointer-events-none">
+            <span className="hidden sm:block absolute right-3 bottom-2.5 text-xs text-slate-300 pointer-events-none">
               ↵ send
             </span>
           </div>

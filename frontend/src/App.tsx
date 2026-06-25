@@ -1,7 +1,8 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
+import type { ReactNode } from 'react'
 import type { FileRejection } from 'react-dropzone'
 import { AnimatePresence, motion } from 'framer-motion'
-import { FileText, Globe, GitCompare, Files } from 'lucide-react'
+import { FileText, Globe, GitCompare, Files, Check } from 'lucide-react'
 import Navbar from './components/Navbar'
 import UploadZone from './components/UploadZone'
 import ChatWindow from './components/ChatWindow'
@@ -11,6 +12,7 @@ import ConfirmDialog from './components/ConfirmDialog'
 import Landing from './components/Landing'
 import { useAuth } from './context/AuthContext'
 import { isProgrammaticReload } from './api/client'
+import { smoothScrollTo } from './lib/smoothScroll'
 import type { SessionInfo, AppMode } from './types'
 
 const SummaryView = lazy(() => import('./components/SummaryView'))
@@ -21,7 +23,7 @@ const SlidesView = lazy(() => import('./components/SlidesView'))
 
 type AuthModalState = { open: boolean; mode: 'subscribe' | 'login' }
 
-function AppShell() {
+function AppShell({ showToast }: { showToast: (message: string) => void }) {
   const { recoveryMode } = useAuth()
   const [session, setSession] = useState<SessionInfo | null>(null)
   const [authModal, setAuthModal] = useState<AuthModalState>({ open: false, mode: 'subscribe' })
@@ -34,18 +36,19 @@ function AppShell() {
   const [selectedMode, setSelectedMode] = useState<AppMode>('chat')
   // viewMode can be switched to 'chat' from any tool view via "Start chatting".
   const [viewMode, setViewMode] = useState<AppMode>('chat')
+  // The user's first request, typed on the landing chat box — auto-sent by ChatWindow.
+  const [initialPrompt, setInitialPrompt] = useState('')
 
-  const enterApp = (accepted?: File[], rejections?: FileRejection[], mode?: AppMode, url?: string) => {
-    const m = mode ?? 'chat'
-    setSelectedMode(m)
-    setViewMode(m)
-    if (url) {
-      setPendingUrl(url)
-      setPendingUpload(null)
-    } else if ((accepted?.length ?? 0) > 0 || (rejections?.length ?? 0) > 0) {
-      setPendingUpload({ accepted: accepted ?? [], rejections: rejections ?? [] })
-      setPendingUrl(null)
-    }
+  // The landing page now uploads + processes the document itself, then hands us a
+  // ready session along with the chosen mode and the user's first message. We drop
+  // straight into the workspace — no separate upload step.
+  const enterWorkspace = (s: SessionInfo, mode: AppMode, prompt: string) => {
+    setSelectedMode(mode)
+    setViewMode(mode)
+    setInitialPrompt(prompt)
+    setPendingUpload(null)
+    setPendingUrl(null)
+    setSession(s)
     setView('app')
   }
 
@@ -82,6 +85,7 @@ function AppShell() {
     setPendingUrl(null)
     setSelectedMode('chat')
     setViewMode('chat')
+    setInitialPrompt('')
     setView('landing')
   }
   // The logo returns to the landing page. Mid-chat it confirms first (the
@@ -89,6 +93,15 @@ function AppShell() {
   const handleHome = () => {
     if (session) setConfirmLeave(true)
     else goLanding()
+  }
+  // "How it works" nav link: land on the home page and scroll to that section.
+  // Mid-chat we confirm first (same as Home), since leaving loses the conversation.
+  const handleHowItWorks = () => {
+    if (session) { setConfirmLeave(true); return }
+    goLanding()
+    setTimeout(() => {
+      smoothScrollTo('how-it-works', { offset: 80 })
+    }, 50)
   }
   const openAuth = (mode: 'subscribe' | 'login' = 'subscribe') => setAuthModal({ open: true, mode })
 
@@ -103,10 +116,14 @@ function AppShell() {
   if (view === 'landing' && !session) {
     return (
       <>
-        <Navbar onOpenAuth={openAuth} onHome={goLanding} />
-        <Landing onGetStarted={enterApp} />
+        <Navbar onOpenAuth={openAuth} onHome={goLanding} onHowItWorks={handleHowItWorks} onSignedOut={() => showToast('Sign out successful')} />
+        <Landing onEnter={enterWorkspace} onBusyChange={setUploading} />
         {authModal.open && (
-          <AuthModal initialMode={authModal.mode} onClose={() => setAuthModal((s) => ({ ...s, open: false }))} />
+          <AuthModal
+            initialMode={authModal.mode}
+            onClose={() => setAuthModal((s) => ({ ...s, open: false }))}
+            onAuthSuccess={showToast}
+          />
         )}
       </>
     )
@@ -114,7 +131,7 @@ function AppShell() {
 
   return (
     <div className="min-h-screen bg-slate-50 bg-grid relative overflow-x-hidden">
-      <Navbar onOpenAuth={openAuth} onHome={handleHome} />
+      <Navbar onOpenAuth={openAuth} onHome={handleHome} onHowItWorks={handleHowItWorks} onSignedOut={() => showToast('Sign out successful')} />
 
       <main className="relative z-10 pt-14 min-h-screen flex overflow-x-hidden">
         <AnimatePresence mode="wait">
@@ -201,7 +218,7 @@ function AppShell() {
                     ) : viewMode === 'slides' ? (
                       <SlidesView session={session} onStartChat={() => setViewMode('chat')} />
                     ) : (
-                      <ChatWindow session={session} onReset={handleReset} />
+                      <ChatWindow session={session} onReset={handleReset} initialPrompt={initialPrompt} />
                     )}
                   </Suspense>
                 </div>
@@ -212,7 +229,11 @@ function AppShell() {
       </main>
 
       {authModal.open && (
-        <AuthModal initialMode={authModal.mode} onClose={() => setAuthModal((s) => ({ ...s, open: false }))} />
+        <AuthModal
+          initialMode={authModal.mode}
+          onClose={() => setAuthModal((s) => ({ ...s, open: false }))}
+          onAuthSuccess={showToast}
+        />
       )}
 
       <ConfirmDialog
@@ -230,17 +251,47 @@ function AppShell() {
 
 export default function App() {
   const { isLoading, user } = useAuth()
+  // Transient confirmation toast (e.g. "Sign in successful" / "Sign out successful").
+  // Lives here, above AppShell, so it survives the brief user→null→guest remount that
+  // signing out triggers (AppShell unmounts during that window).
+  const [toast, setToast] = useState('')
 
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(''), 2500)
+    return () => clearTimeout(t)
+  }, [toast])
+
+  // Centered confirmation toast, sitting on top of the navbar. Centering is done by the
+  // flex wrapper, not a Tailwind translate — framer-motion sets an inline `transform`
+  // for the entrance, which would otherwise clobber a `-translate-x-1/2`.
+  const toastEl = (
+    <div className="fixed top-3 inset-x-0 z-[60] flex justify-center pointer-events-none">
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="pointer-events-auto flex items-center gap-2 rounded-full bg-[#E2611B] text-white text-sm font-medium px-4 py-2 shadow-lg shadow-[#E2611B]/30"
+          >
+            <Check className="w-4 h-4 flex-shrink-0" /> {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+
+  let content: ReactNode
   if (isLoading) {
-    return (
+    content = (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
       </div>
     )
-  }
-
-  if (!user) {
-    return (
+  } else if (!user) {
+    content = (
       <div className="min-h-screen bg-slate-50 bg-grid relative flex items-center justify-center px-4">
         <div className="relative z-10 glass-card rounded-2xl p-8 max-w-md text-center">
           <div className="w-12 h-12 rounded-xl bg-brand-50 border border-brand-200 flex items-center justify-center mx-auto mb-4">
@@ -259,7 +310,14 @@ export default function App() {
         </div>
       </div>
     )
+  } else {
+    content = <AppShell showToast={setToast} />
   }
 
-  return <AppShell />
+  return (
+    <>
+      {content}
+      {toastEl}
+    </>
+  )
 }
