@@ -3,11 +3,40 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, LogIn, Crown, Eye, EyeOff, AlertCircle, Check, Sparkles, Mail, KeyRound } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { SUPABASE_ENABLED } from '../lib/supabase'
+import AvatarUpload from './AvatarUpload'
 import type { UserProfile } from '../types'
 
 type Mode = 'subscribe' | 'login' | 'reset'
 
-const COMPANY_SIZES = ['1–10', '11–50', '51–200', '201–1000', '1000+']
+/* Brand marks for the social sign-in buttons (lucide ships no brand icons).
+   Frontend only — these buttons don't wire up real OAuth yet. */
+const GoogleIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" aria-hidden="true">
+    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+    <path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.07H2.18A10.97 10.97 0 0 0 1 12c0 1.77.43 3.45 1.18 4.93l3.66-2.83z" />
+    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.46 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.83C6.71 7.31 9.14 5.38 12 5.38z" />
+  </svg>
+)
+const AppleIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0 text-slate-900" fill="currentColor" aria-hidden="true">
+    <path d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43zm4.565 15.71c-.03.08-.46 1.58-1.518 3.12-.911 1.33-1.86 2.66-3.36 2.69-1.474.03-1.948-.87-3.63-.87-1.68 0-2.2.84-3.61.9-1.45.06-2.55-1.43-3.47-2.75-1.88-2.72-3.32-7.69-1.39-11.05.96-1.67 2.67-2.72 4.53-2.75 1.42-.03 2.75.96 3.63.96.87 0 2.49-1.18 4.2-1.01.71.03 2.72.29 4.01 2.18-.1.06-2.39 1.4-2.37 4.16.03 3.3 2.91 4.4 2.94 4.41z" />
+  </svg>
+)
+const MicrosoftIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" aria-hidden="true">
+    <path fill="#F25022" d="M1 1h10v10H1z" />
+    <path fill="#7FBA00" d="M13 1h10v10H13z" />
+    <path fill="#00A4EF" d="M1 13h10v10H1z" />
+    <path fill="#FFB900" d="M13 13h10v10H13z" />
+  </svg>
+)
+
+const SOCIAL_PROVIDERS = [
+  { name: 'Google', Icon: GoogleIcon },
+  { name: 'Apple', Icon: AppleIcon },
+  { name: 'Microsoft', Icon: MicrosoftIcon },
+] as const
 
 /** Shared modal shell so the reset / recovery sub-views match the main modal. */
 function Shell({ icon, title, subtitle, onClose, children }: {
@@ -46,9 +75,12 @@ function Shell({ icon, title, subtitle, onClose, children }: {
 export default function AuthModal({
   initialMode = 'subscribe',
   onClose,
+  onAuthSuccess,
 }: {
   initialMode?: Mode
   onClose: () => void
+  /** Called on a successful sign in so the host can show a confirmation (e.g. a navbar toast). */
+  onAuthSuccess?: (message: string) => void
 }) {
   const { login, register, resetPassword, updatePassword, recoveryMode, clearRecovery } = useAuth()
   const [mode, setMode] = useState<Mode>(initialMode)
@@ -58,17 +90,15 @@ export default function AuthModal({
   const [showPassword, setShowPassword] = useState(false)
 
   const [fullName, setFullName] = useState('')
+  const [avatar, setAvatar] = useState('')   // data URL — frontend only, not yet uploaded
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [companyName, setCompanyName] = useState('')
-  const [companyRole, setCompanyRole] = useState('')
-  const [companySize, setCompanySize] = useState('')
   const [industry, setIndustry] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')          // verification / success notices (not errors)
-  const [success, setSuccess] = useState('')    // brief confirmation shown before the modal closes
   const [offerSignup, setOfferSignup] = useState(false)  // show "create account" CTA after a failed login
 
   useEffect(() => {
@@ -77,23 +107,29 @@ export default function AuthModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  // Social sign-in/up. Frontend only for now — no real OAuth — so we just confirm
+  // the same way a successful email sign in does (close box + navbar toast).
+  const handleSocial = (_provider: string) => {
+    onAuthSuccess?.('Sign in successful')
+    onClose()
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(''); setInfo(''); setSuccess(''); setOfferSignup(false)
+    setError(''); setInfo(''); setOfferSignup(false)
     setLoading(true)
     try {
       if (mode === 'login') {
         await login(username, password)
-        setSuccess('Sign in successful')
-        setTimeout(() => onClose(), 1200)
+        // Close the box immediately; the host shows a confirmation toast on the navbar.
+        onAuthSuccess?.('Sign in successful')
+        onClose()
       } else {
         const profile: UserProfile = {
           full_name: fullName,
           email: SUPABASE_ENABLED ? username : email,
           phone,
           company_name: companyName,
-          company_role: companyRole,
-          company_size: companySize,
           industry,
         }
         await register(username, password, profile)
@@ -149,7 +185,7 @@ export default function AuthModal({
         subtitle="Choose a new password for your account" onClose={() => { clearRecovery(); onClose() }}>
         <form onSubmit={handleSetNewPassword} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">New password</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">New password <span className="text-red-500">*</span></label>
             <div className="relative">
               <input type={showPassword ? 'text' : 'password'} value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)} placeholder="Min 8 characters" required
@@ -181,7 +217,7 @@ export default function AuthModal({
         subtitle="We'll email you a link to set a new password" onClose={onClose}>
         <form onSubmit={handleSendReset} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Email <span className="text-red-500">*</span></label>
             <input value={username} onChange={(e) => setUsername(e.target.value)} type="email"
               placeholder="you@company.com" required autoComplete="email" className="input-field" />
           </div>
@@ -222,7 +258,7 @@ export default function AuthModal({
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           onClick={(e) => e.stopPropagation()}
-          className="relative rounded-2xl w-full max-w-lg p-6 my-auto bg-white border border-slate-200 shadow-2xl shadow-slate-900/10"
+          className="relative rounded-2xl w-full max-w-xl p-6 my-auto bg-white border border-slate-200 shadow-2xl shadow-slate-900/10"
         >
           {/* Header */}
           <div className="flex items-start justify-between mb-5">
@@ -232,9 +268,9 @@ export default function AuthModal({
               </div>
               <div>
                 <h2 className="text-slate-900 font-semibold">{mode === 'subscribe' ? 'Create your account' : 'Welcome back'}</h2>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 sm:whitespace-nowrap">
                   {mode === 'subscribe'
-                    ? 'Free account: upload a document and start chatting'
+                    ? 'Free account: Have access to a personalised assistant.'
                     : 'Sign in to your account'}
                 </p>
               </div>
@@ -249,22 +285,10 @@ export default function AuthModal({
             </button>
           </div>
 
-          {/* Free account benefits */}
+          {/* Free account note */}
           {mode === 'subscribe' && (
             <div className="mb-5 bg-[#E2611B]/5 rounded-xl p-3 border border-[#E2611B]/20">
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  'Chat with your documents',
-                  '1 document · up to 5MB',
-                  'Personalise your assistant',
-                  'A saved account',
-                ].map((b) => (
-                  <div key={b} className="flex items-center gap-1.5 text-xs text-slate-700">
-                    <Check className="w-3.5 h-3.5 text-[#E2611B] flex-shrink-0" /> {b}
-                  </div>
-                ))}
-              </div>
-              <p className="mt-2.5 pt-2.5 border-t border-[#E2611B]/20 flex items-center gap-1.5 text-xs text-slate-500">
+              <p className="flex items-center gap-1.5 text-xs text-slate-500">
                 <Crown className="w-3.5 h-3.5 text-[#E2611B] flex-shrink-0" />
                 Pro: multi-file compare &amp; larger uploads, coming soon.
               </p>
@@ -287,9 +311,9 @@ export default function AuthModal({
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">{SUPABASE_ENABLED ? 'Email' : 'Username'}</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">{SUPABASE_ENABLED ? 'Email' : 'Username'} <span className="text-red-500">*</span></label>
                 <input
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -301,7 +325,7 @@ export default function AuthModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Password <span className="text-red-500">*</span></label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -335,7 +359,10 @@ export default function AuthModal({
               <>
                 <div className="pt-1">
                   <p className="text-xs font-semibold text-[#E2611B] uppercase tracking-wider mb-2">Your details</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="mb-3">
+                    <AvatarUpload value={avatar} onChange={setAvatar} name={fullName} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" className="input-field" />
                     {SUPABASE_ENABLED ? (
                       <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone (optional)" className="input-field" />
@@ -352,32 +379,15 @@ export default function AuthModal({
                   <p className="text-xs font-semibold text-[#E2611B] uppercase tracking-wider mb-2">
                     Company <span className="text-slate-400 normal-case font-normal">(optional)</span>
                   </p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Company name" className="input-field" />
-                    <input value={companyRole} onChange={(e) => setCompanyRole(e.target.value)} placeholder="Your role" className="input-field" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 mt-3">
                     <input value={industry} onChange={(e) => setIndustry(e.target.value)} placeholder="Industry" className="input-field" />
-                    <select value={companySize} onChange={(e) => setCompanySize(e.target.value)} className="input-field">
-                      <option value="">Company size</option>
-                      {COMPANY_SIZES.map((s) => <option key={s} value={s}>{s} employees</option>)}
-                    </select>
                   </div>
                 </div>
               </>
             )}
 
             <AnimatePresence>
-              {success && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="flex items-center gap-2 text-[#E2611B] text-sm bg-[#E2611B]/10 rounded-lg px-3 py-2.5 border border-[#E2611B]/30"
-                >
-                  <Check className="w-4 h-4 flex-shrink-0" /> {success}
-                </motion.div>
-              )}
               {info && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
@@ -420,11 +430,31 @@ export default function AuthModal({
                 <><LogIn className="w-4 h-4" /> Sign in</>
               )}
             </button>
-          </form>
 
-          <p className="text-center text-slate-400 text-xs mt-5">
-            Your documents are never stored. Sessions are memory-only.
-          </p>
+            {/* Divider + social sign-in / sign-up (frontend only) */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                <span className="w-full border-t border-slate-200" />
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-white px-3 text-xs text-slate-400">or {mode === 'subscribe' ? 'sign up' : 'continue'} with</span>
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              {SOCIAL_PROVIDERS.map(({ name, Icon }) => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => handleSocial(name)}
+                  className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                >
+                  <Icon />
+                  {mode === 'subscribe' ? `Sign up with ${name} account` : `Continue with ${name} account`}
+                </button>
+              ))}
+            </div>
+          </form>
         </motion.div>
       </motion.div>
     </AnimatePresence>

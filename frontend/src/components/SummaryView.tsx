@@ -40,14 +40,14 @@ export default function SummaryView({ session, onStartChat }: Props) {
         <div className="flex items-center gap-2">
           <button
             onClick={shareSummary}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E60026] hover:text-[#E60026] transition-all"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all"
           >
             {shared ? <Check className="w-4 h-4 text-green-600" /> : <Share2 className="w-4 h-4" />}
             {shared === 'copied' ? 'Copied' : shared === 'shared' ? 'Shared' : 'Share'}
           </button>
           <button
             onClick={onStartChat}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#E60026] text-white text-sm font-medium hover:bg-[#E60026]/90 transition-all"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 transition-all"
           >
             <MessageSquare className="w-4 h-4" />
             Start chatting
@@ -68,7 +68,7 @@ export default function SummaryView({ session, onStartChat }: Props) {
 
             {/* Document type badge */}
             {s?.doc_type && (
-              <span className="inline-flex items-center gap-1.5 self-start px-3 py-1 rounded-full text-xs font-semibold bg-[#E60026]/10 text-[#E60026] border border-[#E60026]/20">
+              <span className="inline-flex items-center gap-1.5 self-start px-3 py-1 rounded-full text-xs font-semibold bg-[#E2611B]/10 text-[#E2611B] border border-[#E2611B]/20">
                 <FileText className="w-3 h-3" />
                 {s.doc_type}
               </span>
@@ -92,7 +92,7 @@ export default function SummaryView({ session, onStartChat }: Props) {
                 <ul className="space-y-2.5">
                   {s.key_points.map((point: string, i: number) => (
                     <li key={i} className="flex items-start gap-2.5 text-sm text-slate-700">
-                      <span className="mt-1 w-5 h-5 rounded-full bg-[#E60026]/10 text-[#E60026] text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                      <span className="mt-1 w-5 h-5 rounded-full bg-[#E2611B]/10 text-[#E2611B] text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
                       <span className="leading-relaxed">{point}</span>
                     </li>
                   ))}
@@ -133,7 +133,7 @@ export default function SummaryView({ session, onStartChat }: Props) {
               <button
                 key={i}
                 onClick={onStartChat}
-                className="text-left text-sm text-brand-600 hover:text-[#E60026] bg-white border border-slate-200 hover:border-[#E60026] rounded-xl px-4 py-2.5 transition-all"
+                className="text-left text-sm text-brand-600 hover:text-[#E2611B] bg-white border border-slate-200 hover:border-[#E2611B] rounded-xl px-4 py-2.5 transition-all"
               >
                 {q}
               </button>
@@ -144,7 +144,7 @@ export default function SummaryView({ session, onStartChat }: Props) {
 
       <button
         onClick={onStartChat}
-        className="self-center flex items-center gap-2 px-6 py-3 rounded-xl bg-[#E60026] text-white font-medium text-sm hover:bg-[#E60026]/90 transition-all shadow-md shadow-[#E60026]/20"
+        className="self-center flex items-center gap-2 px-6 py-3 rounded-xl bg-[#E2611B] text-white font-medium text-sm hover:bg-[#E2611B]/90 transition-all shadow-md shadow-[#E2611B]/20"
       >
         <MessageSquare className="w-4 h-4" />
         Chat with your document
