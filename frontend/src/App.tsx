@@ -18,6 +18,7 @@ const FlashcardsView = lazy(() => import('./components/FlashcardsView'))
 const TranslateView = lazy(() => import('./components/TranslateView'))
 const PodcastView = lazy(() => import('./components/PodcastView'))
 const SlidesView = lazy(() => import('./components/SlidesView'))
+const ChartsView = lazy(() => import('./components/ChartsView'))
 
 type AuthModalState = { open: boolean; mode: 'subscribe' | 'login' }
 
@@ -76,7 +77,7 @@ function AppShell() {
     return () => window.removeEventListener('beforeunload', handler)
   }, [session, uploading])
 
-  const handleReset = () => { setSession(null); setViewMode('chat') }
+  const handleReset = () => { setSession(null); setViewMode('chat'); setPendingUpload(null); setPendingUrl(null) }
   const goLanding = () => {
     setPendingUpload(null)
     setPendingUrl(null)
@@ -200,6 +201,8 @@ function AppShell() {
                       <PodcastView session={session} onStartChat={() => setViewMode('chat')} />
                     ) : viewMode === 'slides' ? (
                       <SlidesView session={session} onStartChat={() => setViewMode('chat')} />
+                    ) : viewMode === 'charts' ? (
+                      <ChartsView session={session} onStartChat={() => setViewMode('chat')} />
                     ) : (
                       <ChatWindow session={session} onReset={handleReset} />
                     )}

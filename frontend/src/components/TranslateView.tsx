@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Globe, Loader2, MessageSquare, Download, AlertCircle } from 'lucide-react'
+import { Globe, Loader2, MessageSquare, Download, AlertCircle, Share2, Check } from 'lucide-react'
 import type { SessionInfo } from '../types'
 import type { TranslateDoc } from '../api/client'
 import { toolsApi } from '../api/client'
+import { withAttribution, downloadText, shareOrCopy } from '../lib/share'
 
 interface Props {
   session: SessionInfo
@@ -21,6 +22,7 @@ export default function TranslateView({ session, onStartChat }: Props) {
   const [result, setResult] = useState<{ target_language: string; documents: TranslateDoc[]; note: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [sharedIdx, setSharedIdx] = useState<number | null>(null)
 
   const handleTranslate = async () => {
     const lang = customLang.trim() || targetLang
@@ -39,14 +41,21 @@ export default function TranslateView({ session, onStartChat }: Props) {
 
   const downloadDoc = (doc: TranslateDoc) => {
     if (!doc.translated_text) return
-    const blob = new Blob([doc.translated_text], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
     const lang = result?.target_language ?? 'translated'
-    a.href = url
-    a.download = `${doc.filename.replace(/\.[^.]+$/, '')}_${lang}.txt`
-    a.click()
-    URL.revokeObjectURL(url)
+    const name = `${doc.filename.replace(/\.[^.]+$/, '')}_${lang}.txt`
+    downloadText(name, withAttribution(doc.translated_text))
+  }
+
+  const shareDoc = async (doc: TranslateDoc, idx: number) => {
+    if (!doc.translated_text) return
+    const lang = result?.target_language ?? ''
+    const how = await shareOrCopy(
+      withAttribution(doc.translated_text),
+      `${doc.filename}${lang ? ` — ${lang}` : ''} — TalkToFile`,
+    )
+    setSharedIdx(idx)
+    setTimeout(() => setSharedIdx((c) => (c === idx ? null : c)), 2000)
+    return how
   }
 
   return (
@@ -120,12 +129,21 @@ export default function TranslateView({ session, onStartChat }: Props) {
           <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50">
             <span className="text-sm font-medium text-slate-700">{doc.filename}</span>
             {doc.translated_text && (
-              <button
-                onClick={() => downloadDoc(doc)}
-                className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-[#E60026] font-medium transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" /> Download .txt
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => shareDoc(doc, i)}
+                  className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-[#E60026] font-medium transition-colors"
+                >
+                  {sharedIdx === i ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Share2 className="w-3.5 h-3.5" />}
+                  {sharedIdx === i ? 'Done' : 'Share'}
+                </button>
+                <button
+                  onClick={() => downloadDoc(doc)}
+                  className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-[#E60026] font-medium transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" /> Download .txt
+                </button>
+              </div>
             )}
           </div>
           {doc.error ? (

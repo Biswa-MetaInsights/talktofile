@@ -1,5 +1,7 @@
-import { MessageSquare, FileText, Tag, List } from 'lucide-react'
+import { useState } from 'react'
+import { MessageSquare, FileText, Tag, List, Share2, Check } from 'lucide-react'
 import type { SessionInfo } from '../types'
+import { withAttribution, shareOrCopy } from '../lib/share'
 
 interface Props {
   session: SessionInfo
@@ -7,18 +9,50 @@ interface Props {
 }
 
 export default function SummaryView({ session, onStartChat }: Props) {
+  const [shared, setShared] = useState<'shared' | 'copied' | null>(null)
+
+  const shareSummary = async () => {
+    const parts = session.documents.map((doc) => {
+      const s = doc.summary
+      if (!s) return ''
+      const lines: string[] = []
+      if (session.documents.length > 1) lines.push(`## ${doc.filename}`)
+      if (s.doc_type) lines.push(`Type: ${s.doc_type}`)
+      if (s.overview) lines.push(`\nOverview:\n${s.overview}`)
+      if (s.key_points?.length) {
+        lines.push('\nKey points:')
+        s.key_points.forEach((p: string, i: number) => lines.push(`${i + 1}. ${p}`))
+      }
+      if (s.topics?.length) lines.push(`\nTopics: ${s.topics.join(', ')}`)
+      return lines.join('\n')
+    })
+    const body = `DOCUMENT SUMMARY\n\n${parts.filter(Boolean).join('\n\n———\n\n')}`
+    const how = await shareOrCopy(withAttribution(body), 'Document summary — TalkToFile')
+    setShared(how)
+    setTimeout(() => setShared(null), 2000)
+  }
+
   return (
     <div className="flex flex-col h-full overflow-y-auto p-5 gap-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="font-brand font-bold text-xl text-slate-900">Document Summary</h2>
-        <button
-          onClick={onStartChat}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#E60026] text-white text-sm font-medium hover:bg-[#E60026]/90 transition-all"
-        >
-          <MessageSquare className="w-4 h-4" />
-          Start chatting
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={shareSummary}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E60026] hover:text-[#E60026] transition-all"
+          >
+            {shared ? <Check className="w-4 h-4 text-green-600" /> : <Share2 className="w-4 h-4" />}
+            {shared === 'copied' ? 'Copied' : shared === 'shared' ? 'Shared' : 'Share'}
+          </button>
+          <button
+            onClick={onStartChat}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#E60026] text-white text-sm font-medium hover:bg-[#E60026]/90 transition-all"
+          >
+            <MessageSquare className="w-4 h-4" />
+            Start chatting
+          </button>
+        </div>
       </div>
 
       {session.documents.map((doc, idx) => {

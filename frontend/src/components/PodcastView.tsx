@@ -1,23 +1,27 @@
-import { useState } from 'react'
-import { Mic, Loader2, MessageSquare, Download, Radio } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Mic, Loader2, MessageSquare, Download, Radio, Send, Share2, Check } from 'lucide-react'
 import type { SessionInfo } from '../types'
 import type { PodcastLine } from '../api/client'
 import { toolsApi } from '../api/client'
+import { withAttribution, downloadText, shareOrCopy } from '../lib/share'
 
 interface Props {
   session: SessionInfo
   onStartChat: () => void
 }
 
-const SPEAKER_COLORS: Record<string, string> = {
-  HOST: 'bg-[#E60026]/10 border-[#E60026]/20 text-[#E60026]',
-  EXPERT: 'bg-slate-100 border-slate-200 text-slate-600',
-}
-
 export default function PodcastView({ session, onStartChat }: Props) {
   const [script, setScript] = useState<PodcastLine[]>([])
   const [loading, setLoading] = useState(false)
+  const [extending, setExtending] = useState(false)
   const [error, setError] = useState('')
+  const [extendRequest, setExtendRequest] = useState('')
+  const [shared, setShared] = useState<'shared' | 'copied' | null>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (script.length) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [script.length])
 
   const generate = async () => {
     setLoading(true)
@@ -33,16 +37,35 @@ export default function PodcastView({ session, onStartChat }: Props) {
     }
   }
 
+  const extend = async () => {
+    const req = extendRequest.trim()
+    if (!req || extending) return
+    setExtending(true)
+    setError('')
+    try {
+      const res = await toolsApi.extendPodcast(session.session_id, script, req)
+      setScript((prev) => [...prev, ...res.data.new_lines])
+      setExtendRequest('')
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to extend the conversation. Please try again.')
+    } finally {
+      setExtending(false)
+    }
+  }
+
+  const scriptText = () =>
+    withAttribution(script.map((line) => `${line.speaker}: ${line.text}`).join('\n\n'))
+
   const downloadScript = () => {
     if (!script.length) return
-    const text = script.map((line) => `${line.speaker}: ${line.text}`).join('\n\n')
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'podcast_script.txt'
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadText('podcast_script.txt', scriptText())
+  }
+
+  const shareScript = async () => {
+    if (!script.length) return
+    const how = await shareOrCopy(scriptText(), 'Podcast script — TalkToFile')
+    setShared(how)
+    setTimeout(() => setShared(null), 2000)
   }
 
   if (!script.length && !loading) {
@@ -93,6 +116,13 @@ export default function PodcastView({ session, onStartChat }: Props) {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={shareScript}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E60026] hover:text-[#E60026] transition-all"
+          >
+            {shared ? <Check className="w-4 h-4 text-green-600" /> : <Share2 className="w-4 h-4" />}
+            {shared === 'copied' ? 'Copied' : shared === 'shared' ? 'Shared' : 'Share'}
+          </button>
+          <button
             onClick={downloadScript}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E60026] hover:text-[#E60026] transition-all"
           >
@@ -133,7 +163,31 @@ export default function PodcastView({ session, onStartChat }: Props) {
         })}
       </div>
 
-      <div className="flex justify-center gap-3 pt-4">
+      {/* Extend conversation */}
+      <div className="border-t border-slate-100 pt-4 mt-2">
+        <p className="text-xs text-slate-400 mb-2 text-center">Want to go deeper? Ask the hosts to continue.</p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={extendRequest}
+            onChange={(e) => setExtendRequest(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && extend()}
+            placeholder="e.g. Go deeper on the key findings…"
+            disabled={extending}
+            className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#E60026] focus:ring-1 focus:ring-[#E60026]/30 disabled:opacity-50"
+          />
+          <button
+            onClick={extend}
+            disabled={!extendRequest.trim() || extending}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#E60026] text-white text-sm font-medium hover:bg-[#E60026]/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {extending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          </button>
+        </div>
+        {error && <p className="text-red-600 text-xs mt-2 text-center">{error}</p>}
+      </div>
+
+      <div className="flex justify-center gap-3 pt-2">
         <button
           onClick={generate}
           className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E60026] hover:text-[#E60026] transition-all"
@@ -147,6 +201,7 @@ export default function PodcastView({ session, onStartChat }: Props) {
           <MessageSquare className="w-4 h-4" /> Chat with your document
         </button>
       </div>
+      <div ref={bottomRef} />
     </div>
   )
 }

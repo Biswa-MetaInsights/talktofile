@@ -6,7 +6,7 @@ import {
   ShieldCheck, Lock, Zap, ArrowUp,
   GraduationCap, Scale, LineChart, HeartPulse, Briefcase, ScrollText,
 } from 'lucide-react'
-import { ACCEPT } from './UploadZone'
+import { ACCEPT, ACCEPT_EXCEL } from './UploadZone'
 import type { AppMode } from '../types'
 
 interface Props {
@@ -41,11 +41,7 @@ const AUDIENCES = [
   { icon: ScrollText, title: 'Anyone reading the fine print', body: 'Terms of service, warranties, rental agreements. Find out what you are actually agreeing to in seconds.' },
 ]
 
-// Mode tabs shown on the hero upload card. Selecting one switches the active mode,
-// which the upload pipeline then uses. The blurb shows below the tabs, above the
-// drop zone, for the active mode. ('charts' has no backend mode yet — it falls
-// back to chat on upload.)
-const MODES: { value: AppMode | 'charts'; label: string; blurb: string }[] = [
+const MODES: { value: AppMode; label: string; blurb: string }[] = [
   { value: 'chat', label: 'Chat', blurb: 'Ask anything in plain language and get answers pulled straight from your file. Follow-up questions remember what you already asked.' },
   { value: 'summary', label: 'Summary', blurb: 'Turn a long document into a clear, structured summary. The key points, without reading every page.' },
   { value: 'flashcards', label: 'Flashcards', blurb: 'Generate study-ready flashcards from any document. Useful for revision, onboarding, or learning something new fast.' },
@@ -56,7 +52,7 @@ const MODES: { value: AppMode | 'charts'; label: string; blurb: string }[] = [
 ]
 
 export default function Landing({ onGetStarted }: Props) {
-  const [activeMode, setActiveMode] = useState<AppMode | 'charts'>('chat')
+  const [activeMode, setActiveMode] = useState<AppMode>('chat')
   const [urlInput, setUrlInput] = useState('')
   const [urlError, setUrlError] = useState('')
 
@@ -73,13 +69,14 @@ export default function Landing({ onGetStarted }: Props) {
 
   const onDrop = useCallback((accepted: File[], rejections: FileRejection[]) => {
     if (accepted.length > 0 || rejections.length > 0) {
-      // 'charts' has no backend mode yet — fall back to chat.
-      const mode: AppMode = activeMode === 'charts' ? 'chat' : activeMode
-      onGetStarted(accepted, rejections, mode)
+      onGetStarted(accepted, rejections, activeMode)
     }
   }, [onGetStarted, activeMode])
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: ACCEPT })
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: activeMode === 'charts' ? ACCEPT_EXCEL : ACCEPT,
+  })
 
   return (
     <div className="min-h-screen bg-slate-50 bg-grid">
@@ -101,8 +98,8 @@ export default function Landing({ onGetStarted }: Props) {
           {/* Upload card — drop a file, paste a link, pick a mode. */}
           <div className="mt-10 max-w-2xl mx-auto text-left">
             {/* Mode tabs — selecting changes the active tab only (no navigation) */}
-            <div className="flex justify-center">
-              <div className="inline-flex items-center gap-1 rounded-full border border-[#303030] bg-[#F8FAFC] p-1">
+            <div className="overflow-x-auto pb-1 -mx-6 px-6 scrollbar-none">
+              <div className="inline-flex items-center gap-1 rounded-full border border-[#303030] bg-[#F8FAFC] p-1 min-w-max">
                 {MODES.map(({ value, label }) => {
                   const isActive = activeMode === value
                   return (

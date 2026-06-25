@@ -76,6 +76,35 @@ async def translate_document(
 
 # ── Podcast ──────────────────────────────────────────────────────────────────
 
+class ExtendPodcastRequest(BaseModel):
+    script: list[dict]
+    request: str
+
+
+@router.post("/podcast/{session_id}/extend")
+async def extend_podcast(
+    session_id: str,
+    body: ExtendPodcastRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    username = current_user["username"]
+    plan = current_user.get("plan", "free")
+    session = _get_ready_session(session_id, username)
+
+    if not body.request.strip():
+        raise HTTPException(status_code=400, detail="request is required")
+
+    settings = get_settings()
+    limit = settings.daily_question_limit(plan)
+    if count_today(username, "question") >= limit:
+        raise HTTPException(status_code=429, detail="Daily limit reached. Please try again tomorrow.")
+    log_usage(username, "question", "tool=podcast_extend")
+
+    from agents.podcast_agent import extend_podcast as _extend
+    new_lines = await _extend(session.documents, body.script, body.request)
+    return {"new_lines": new_lines}
+
+
 @router.post("/podcast/{session_id}")
 async def generate_podcast(session_id: str, current_user: dict = Depends(get_current_user)):
     username = current_user["username"]
@@ -91,6 +120,47 @@ async def generate_podcast(session_id: str, current_user: dict = Depends(get_cur
     from agents.podcast_agent import generate_podcast as _podcast
     script = await _podcast(session.documents)
     return {"script": script}
+
+
+# ── Charts ───────────────────────────────────────────────────────────────────
+
+class ChartRequest(BaseModel):
+    chart_type: str
+
+
+@router.post("/chart/{session_id}")
+async def generate_chart(
+    session_id: str,
+    body: ChartRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    username = current_user["username"]
+    plan = current_user.get("plan", "free")
+    session = _get_ready_session(session_id, username)
+
+    settings = get_settings()
+    limit = settings.daily_question_limit(plan)
+    if count_today(username, "question") >= limit:
+        raise HTTPException(status_code=429, detail="Daily limit reached. Please try again tomorrow.")
+    log_usage(username, "question", f"tool=chart type={body.chart_type}")
+
+    from agents.chart_agent import generate_chart as _chart, CHART_TYPES
+    if body.chart_type not in CHART_TYPES:
+        raise HTTPException(status_code=400, detail=f"Invalid chart type. Choose from: {', '.join(CHART_TYPES)}")
+
+    tabular = [d for d in session.documents if d.is_tabular]
+    if not tabular:
+        raise HTTPException(
+            status_code=422,
+            detail="Charts require an Excel (.xlsx) or CSV file with numerical data. No tabular file found in this session.",
+        )
+
+    try:
+        chart_data = await _chart(session.documents, body.chart_type)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    return chart_data
 
 
 # ── Slides ───────────────────────────────────────────────────────────────────

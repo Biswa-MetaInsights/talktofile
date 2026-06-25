@@ -231,6 +231,11 @@ Keep this updated as components are created or significantly changed.
 | `src/components/ChatWindow.tsx` | The chat experience | Chat WS lifecycle with auto-reconnect, streaming tokens, stop button, suggested questions, summary panel, scroll-to-bottom. |
 | `src/components/MessageBubble.tsx` | Renders one message (markdown) | Used for user + assistant + guard-reject + feedback prompts. |
 | `src/components/SummaryCard.tsx` | Document summary display | `compact` variant used in the side panel and summary drawer. |
+| `src/components/FlashcardsView.tsx` | Flashcards study tool | Has a **Share** action (active-card controls + finished screen) that copies/Web-Shares the full Q&A set with a "Made with TalkToFile" attribution. |
+| `src/components/SummaryView.tsx` | Full-page document summary | Header **Share** button → copies/Web-Shares the summary with attribution. |
+| `src/components/PodcastView.tsx` | Podcast script tool | **Share** + **Download** both emit the script with the attribution footer. |
+| `src/components/TranslateView.tsx` | Translate tool | Per-document **Share** + **Download .txt**, both with the attribution footer. |
+| `src/lib/share.ts` | Share/export helpers | `withAttribution()` appends a "Made with TalkToFile — <runtime origin>" footer; `downloadText()` (local .txt) and `shareOrCopy()` (Web Share API → clipboard fallback). Used by the four tool views above. Link target is `window.location.origin` — no hardcoded domain. |
 | `src/components/AuthModal.tsx` | Login / signup / password reset | |
 | `src/components/PersonaModal.tsx` | Pro persona configuration | |
 | `src/components/FeedbackModal.tsx` | User feedback form | |

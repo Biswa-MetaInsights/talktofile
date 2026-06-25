@@ -104,6 +104,20 @@ export interface PodcastLine {
   text: string
 }
 
+export interface ChartSeries {
+  name: string
+  data: number[] | [number, number][]
+}
+
+export interface ChartData {
+  chart_type: string
+  title: string
+  x_label: string
+  y_label: string
+  labels: string[]
+  series: ChartSeries[]
+}
+
 export const toolsApi = {
   flashcards: (sessionId: string) =>
     api.post<{ flashcards: Flashcard[] }>(`/tools/flashcards/${sessionId}`),
@@ -114,6 +128,10 @@ export const toolsApi = {
     ),
   podcast: (sessionId: string) =>
     api.post<{ script: PodcastLine[] }>(`/tools/podcast/${sessionId}`),
+  extendPodcast: (sessionId: string, script: PodcastLine[], request: string) =>
+    api.post<{ new_lines: PodcastLine[] }>(`/tools/podcast/${sessionId}/extend`, { script, request }),
+  chart: (sessionId: string, chartType: string) =>
+    api.post<ChartData>(`/tools/chart/${sessionId}`, { chart_type: chartType }),
   slidesDownloadUrl: (sessionId: string) => `/api/tools/slides/${sessionId}`,
 }
 
