@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, MessageSquare, Loader2, Trophy, RotateCcw, Eye, EyeOff } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MessageSquare, Loader2, Trophy, RotateCcw, Eye, EyeOff, Share2, Check } from 'lucide-react'
 import type { SessionInfo } from '../types'
 import type { Flashcard } from '../api/client'
 import { toolsApi } from '../api/client'
+import { withAttribution, shareOrCopy } from '../lib/share'
 
 interface Props {
   session: SessionInfo
@@ -21,6 +22,7 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
   const [showHint, setShowHint] = useState(false)
   const [scores, setScores] = useState<Record<number, boolean>>({})
   const [finished, setFinished] = useState(false)
+  const [shared, setShared] = useState<'shared' | 'copied' | null>(null)
 
   const generate = async () => {
     setLoading(true)
@@ -66,6 +68,21 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
   }
 
   const correctCount = Object.values(scores).filter(Boolean).length
+
+  const shareSet = async () => {
+    if (!cards.length) return
+    const body =
+      'FLASHCARDS\n\n' +
+      cards
+        .map((c, i) => {
+          const hint = c.hint ? `\nHint: ${c.hint}` : ''
+          return `${i + 1}. Q: ${c.question}${hint}\n   A: ${c.answer}`
+        })
+        .join('\n\n')
+    const how = await shareOrCopy(withAttribution(body), 'Flashcards — TalkToFile')
+    setShared(how)
+    setTimeout(() => setShared(null), 2000)
+  }
 
   if (!cards.length && !loading) {
     return (
@@ -122,8 +139,9 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
           <button onClick={restart} className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:border-[#E60026] hover:text-[#E60026] transition-all">
             <RotateCcw className="w-4 h-4" /> Try again
           </button>
-          <button onClick={generate} className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:border-[#E60026] hover:text-[#E60026] transition-all">
-            New set
+          <button onClick={shareSet} className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:border-[#E60026] hover:text-[#E60026] transition-all">
+            {shared ? <Check className="w-4 h-4 text-green-600" /> : <Share2 className="w-4 h-4" />}
+            {shared === 'copied' ? 'Copied' : shared === 'shared' ? 'Shared' : 'Share set'}
           </button>
           <button onClick={onStartChat} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#E60026] text-white text-sm font-medium hover:bg-[#E60026]/90 transition-all">
             <MessageSquare className="w-4 h-4" /> Start chatting
@@ -231,9 +249,15 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
         )}
 
         <div className="flex justify-between items-center text-xs text-slate-400">
-          <button onClick={onStartChat} className="flex items-center gap-1 hover:text-[#E60026] transition-colors">
-            <MessageSquare className="w-3.5 h-3.5" /> Chat
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={onStartChat} className="flex items-center gap-1 hover:text-[#E60026] transition-colors">
+              <MessageSquare className="w-3.5 h-3.5" /> Chat
+            </button>
+            <button onClick={shareSet} className="flex items-center gap-1 hover:text-[#E60026] transition-colors">
+              {shared ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Share2 className="w-3.5 h-3.5" />}
+              {shared === 'copied' ? 'Copied' : shared === 'shared' ? 'Shared' : 'Share'}
+            </button>
+          </div>
           <div className="flex gap-1">
             <button onClick={() => { if (currentIdx > 0) { setCurrentIdx(i => i - 1); setShowAnswer(false); setShowHint(false) } }} disabled={currentIdx === 0} className="p-1 rounded-lg hover:bg-slate-100 disabled:opacity-30 transition-colors">
               <ChevronLeft className="w-4 h-4" />

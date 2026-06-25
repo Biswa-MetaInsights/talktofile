@@ -46,6 +46,12 @@ const MODE_LABELS: Record<string, string> = {
   slides: 'Build a slide deck',
   translate: 'Translate your document',
   podcast: 'Create a podcast script',
+  charts: 'Visualise your data as a chart',
+}
+
+export const ACCEPT_EXCEL = {
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+  'text/csv': ['.csv'],
 }
 
 export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, initialFiles, initialRejections, initialUrl, selectedMode }: Props) {
@@ -245,7 +251,7 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
 
   const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
     onDrop,
-    accept: ACCEPT,
+    accept: selectedMode === 'charts' ? ACCEPT_EXCEL : ACCEPT,
     maxFiles: limits.maxFiles,
     multiple: limits.maxFiles > 1,
     disabled: !!stage,

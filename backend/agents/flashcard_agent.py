@@ -7,6 +7,7 @@ import json
 from openai import AsyncOpenAI
 from core.session_store import DocumentData
 from core.config import get_settings
+from agents.lingua_agent import translate_to_english
 
 
 _PROMPT = """You are a flashcard generator. Given document content, create a set of Q&A flashcards
@@ -26,7 +27,7 @@ Return ONLY a JSON array with this structure (no markdown, no extra text):
 ]"""
 
 
-def _build_context(documents: list[DocumentData]) -> str:
+async def _build_context(documents: list[DocumentData]) -> str:
     parts = []
     for doc in documents:
         if isinstance(doc.summary, dict):
@@ -35,8 +36,10 @@ def _build_context(documents: list[DocumentData]) -> str:
             kps = "; ".join(s.get("key_points", []))
             parts.append(f"=== {doc.filename} — Overview ===\n{overview}\nKey points: {kps}")
         if doc.chunks:
-            # Use first ~6000 chars of content
             content = "\n\n".join(doc.chunks)[:6000]
+            lang = getattr(doc, "original_language", "en") or "en"
+            if not (lang == "en" or lang.startswith("en")):
+                content = await translate_to_english(content, lang)
             parts.append(f"=== {doc.filename} — Content ===\n{content}")
     return "\n\n".join(parts)
 
@@ -44,7 +47,7 @@ def _build_context(documents: list[DocumentData]) -> str:
 async def generate_flashcards(documents: list[DocumentData]) -> list[dict]:
     settings = get_settings()
     client = AsyncOpenAI(api_key=settings.openai_api_key)
-    context = _build_context(documents)
+    context = await _build_context(documents)
 
     response = await client.chat.completions.create(
         model="gpt-4o",
