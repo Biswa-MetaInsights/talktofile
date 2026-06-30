@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { UserProfile, Plan } from '../types'
+import type { UserProfile, Plan, SessionInfo } from '../types'
 
 const api = axios.create({
   baseURL: '/api',
@@ -13,11 +13,21 @@ export function setAuthToken(token: string | null) {
   authToken = token
 }
 
-// True once the app itself triggers a full-page reload (e.g. recovering from an
-// expired session on a 401). The refresh guard checks this so it doesn't show a
-// "Leave site?" prompt for a reload the app intentionally started.
+// True once the app itself triggers a full-page reload (e.g. the legacy fallback
+// when no unauthorized handler is registered). The refresh guard checks this so it
+// doesn't show a "Leave site?" prompt for a reload the app intentionally started.
 let _programmaticReload = false
 export const isProgrammaticReload = () => _programmaticReload
+
+// Handler invoked when an authenticated request returns 401 (an expired/invalid
+// session). AuthContext registers one that gracefully re-bootstraps a guest and
+// prompts the user to sign in again — instead of a jarring full-page reload.
+// Until one is registered we fall back to the old reload behaviour.
+type UnauthorizedHandler = () => void
+let onUnauthorized: UnauthorizedHandler | null = null
+export function setUnauthorizedHandler(fn: UnauthorizedHandler | null) {
+  onUnauthorized = fn
+}
 
 api.interceptors.request.use((config) => {
   const token = authToken || localStorage.getItem('ttf_token')
@@ -29,13 +39,22 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     const url: string = err.config?.url ?? ''
-    const isAuthAttempt = url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/guest')
-    // Let login/register/guest failures surface to the caller. For an expired
-    // token mid-session, clear it and reload so the app re-bootstraps a guest.
+    const isAuthAttempt =
+      url.includes('/auth/login') ||
+      url.includes('/auth/register') ||
+      url.includes('/auth/guest') ||
+      url.includes('/auth/refresh')
+    // Let login/register/guest/refresh failures surface to the caller. For an
+    // expired token mid-session, hand off to the registered handler (graceful
+    // re-auth) or, if none, fall back to clearing the token and reloading.
     if (err.response?.status === 401 && !isAuthAttempt) {
-      localStorage.removeItem('ttf_token')
-      _programmaticReload = true
-      window.location.reload()
+      if (onUnauthorized) {
+        onUnauthorized()
+      } else {
+        localStorage.removeItem('ttf_token')
+        _programmaticReload = true
+        window.location.reload()
+      }
     }
     return Promise.reject(err)
   }
@@ -50,6 +69,8 @@ interface AuthResponse {
 
 export const authApi = {
   guest: () => api.post<AuthResponse>('/auth/guest'),
+  // Slide the current session's expiry forward (called periodically while active).
+  refresh: () => api.post<AuthResponse>('/auth/refresh'),
   register: (username: string, password: string, profile: UserProfile) =>
     api.post<AuthResponse>('/auth/register', { username, password, profile }),
   login: (username: string, password: string) =>
@@ -84,6 +105,10 @@ export const documentApi = {
     api.get(`/document/${sessionId}`),
   deleteSession: (sessionId: string) =>
     api.delete(`/document/${sessionId}`),
+  // Remove one document from a ready multi-file session; the survivors keep their
+  // indexes (no re-processing). Returns the updated session.
+  removeFile: (sessionId: string, filename: string) =>
+    api.post<SessionInfo>(`/document/${sessionId}/remove-file`, { filename }),
 }
 
 export interface Flashcard {
@@ -133,6 +158,13 @@ export const toolsApi = {
   chart: (sessionId: string, chartType: string) =>
     api.post<ChartData>(`/tools/chart/${sessionId}`, { chart_type: chartType }),
   slidesDownloadUrl: (sessionId: string) => `/api/tools/slides/${sessionId}`,
+  // Transcribe a recorded audio blob (voice dictation) via Whisper.
+  transcribe: (audio: Blob) => {
+    const form = new FormData()
+    const ext = (audio.type.split('/')[1] || 'webm').split(';')[0]
+    form.append('audio', audio, `dictation.${ext}`)
+    return api.post<{ text: string }>('/tools/transcribe', form)
+  },
 }
 
 // The token is sent via the WebSocket subprotocol header (["bearer", <jwt>])

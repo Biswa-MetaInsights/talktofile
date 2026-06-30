@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { FileText, LogOut, User, Sparkles, Crown, LogIn, Lock, MessageSquare } from 'lucide-react'
+import { LogOut, User, Sparkles, Crown, LogIn, Lock, MessageSquare } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import markColor from '../assets/mark-color.svg'
 import PersonaModal from './PersonaModal'
 import FeedbackModal from './FeedbackModal'
 import ProfileModal from './ProfileModal'
@@ -15,24 +16,27 @@ export default function Navbar({ onOpenAuth, onHome, onHowItWorks, onSignedOut }
   const [menuOpen, setMenuOpen] = useState(false)
   const isGuest = user?.is_guest ?? true
   const isPro = user?.plan === 'pro'
+  const avatar = user?.profile?.avatar
 
   return (
     <motion.nav
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.4 }}
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-6 h-14 border-b border-[#303030] bg-[#F8FAFC]"
+      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-6 h-16 border-b border-[#303030] bg-[#F8FAFC]"
     >
       <div className="flex items-center gap-5 sm:gap-7">
         <Tooltip label="Back to home" side="bottom">
           <button
             onClick={onHome}
-            className="flex items-center gap-2.5 group"
+            className="flex items-center gap-1 group"
           >
-            <div className="w-7 h-7 rounded-lg bg-[#E2611B] flex items-center justify-center transition-transform group-hover:scale-105 shadow-sm">
-              <FileText className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="font-brand italic font-bold text-[26px] sm:text-[34px] tracking-[-0.02em] text-[#E2611B]">
+            <img
+              src={markColor}
+              alt="Talktofile"
+              className="w-14 h-14 transition-transform group-hover:scale-105"
+            />
+            <span className="-ml-3 font-brand italic font-bold text-[26px] sm:text-[34px] tracking-[-0.02em] text-[#E2611B]">
               Talktofile
             </span>
           </button>
@@ -88,9 +92,17 @@ export default function Navbar({ onOpenAuth, onHome, onHowItWorks, onSignedOut }
                 onClick={() => setMenuOpen((o) => !o)}
                 className="flex items-center gap-2 text-lg font-medium text-[#303030] hover:text-[#E2611B] rounded-lg px-1 py-1 transition-colors"
               >
-                <div className="w-7 h-7 rounded-full bg-[#E2611B] flex items-center justify-center">
-                  <User className="w-3.5 h-3.5 text-white" />
-                </div>
+                {avatar ? (
+                  <img
+                    src={avatar}
+                    alt={user?.username ?? 'Account'}
+                    className="w-7 h-7 rounded-full object-cover ring-1 ring-[#E2611B]/30"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-[#E2611B] flex items-center justify-center">
+                    <User className="w-3.5 h-3.5 text-white" />
+                  </div>
+                )}
                 <span className="hidden sm:block max-w-[140px] truncate">{user?.username}</span>
               </button>
             </Tooltip>

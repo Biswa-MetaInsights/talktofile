@@ -22,10 +22,10 @@ const PodcastView = lazy(() => import('./components/PodcastView'))
 const SlidesView = lazy(() => import('./components/SlidesView'))
 const ChartsView = lazy(() => import('./components/ChartsView'))
 
-type AuthModalState = { open: boolean; mode: 'subscribe' | 'login' }
+type AuthModalState = { open: boolean; mode: 'subscribe' | 'login'; notice?: string }
 
 function AppShell({ showToast }: { showToast: (message: string) => void }) {
-  const { recoveryMode } = useAuth()
+  const { recoveryMode, sessionExpired, clearSessionExpired } = useAuth()
   const [session, setSession] = useState<SessionInfo | null>(null)
   const [authModal, setAuthModal] = useState<AuthModalState>({ open: false, mode: 'subscribe' })
   const [confirmLeave, setConfirmLeave] = useState(false)
@@ -61,6 +61,21 @@ function AppShell({ showToast }: { showToast: (message: string) => void }) {
       setAuthModal({ open: true, mode: 'login' })
     }
   }, [recoveryMode])
+
+  // A session expired mid-use (a 401 was handled gracefully under the hood — the
+  // app is now a guest). Invite the user to sign in again, without losing context.
+  useEffect(() => {
+    if (sessionExpired) {
+      setAuthModal({ open: true, mode: 'login', notice: 'Your session expired. Please sign in again to continue.' })
+    }
+  }, [sessionExpired])
+
+  // Close the auth modal and clear any session-expired notice together, so the
+  // banner can't linger on a later, unrelated open.
+  const closeAuth = () => {
+    setAuthModal((s) => ({ ...s, open: false, notice: undefined }))
+    clearSessionExpired()
+  }
 
   // Guard against an accidental refresh or tab-close while work would be lost:
   // either a document chat is active, or a file is mid-upload/processing. The
@@ -122,7 +137,8 @@ function AppShell({ showToast }: { showToast: (message: string) => void }) {
         {authModal.open && (
           <AuthModal
             initialMode={authModal.mode}
-            onClose={() => setAuthModal((s) => ({ ...s, open: false }))}
+            notice={authModal.notice}
+            onClose={closeAuth}
             onAuthSuccess={showToast}
           />
         )}
@@ -134,7 +150,7 @@ function AppShell({ showToast }: { showToast: (message: string) => void }) {
     <div className="min-h-screen bg-slate-50 bg-grid relative overflow-x-hidden">
       <Navbar onOpenAuth={openAuth} onHome={handleHome} onHowItWorks={handleHowItWorks} onSignedOut={() => showToast('Sign out successful')} />
 
-      <main className="relative z-10 pt-14 min-h-screen flex overflow-x-hidden">
+      <main className="relative z-10 pt-16 min-h-screen flex overflow-x-hidden">
         <AnimatePresence mode="wait">
           {!session ? (
             <motion.div
@@ -165,7 +181,7 @@ function AppShell({ showToast }: { showToast: (message: string) => void }) {
               className="flex-1 flex flex-col lg:flex-row gap-0 min-h-0"
             >
               {/* Left panel: document(s) info */}
-              <div className="hidden lg:flex flex-col w-72 xl:w-80 border-r border-slate-200 bg-white p-5 gap-4 flex-shrink-0 overflow-y-auto scrollbar-thin" style={{ maxHeight: 'calc(100dvh - 3.5rem)' }}>
+              <div className="hidden lg:flex flex-col w-72 xl:w-80 border-r border-slate-200 bg-white p-5 gap-4 flex-shrink-0 overflow-y-auto scrollbar-thin" style={{ maxHeight: 'calc(100dvh - 4rem)' }}>
                 <div className="glass-card rounded-2xl p-4">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-xs font-semibold text-brand-600 uppercase tracking-wider">
@@ -206,7 +222,7 @@ function AppShell({ showToast }: { showToast: (message: string) => void }) {
 
               {/* Main panel — switches between chat and tool views */}
               <div className="flex-1 min-w-0 flex flex-col min-h-0 relative bg-slate-50">
-                <div className="flex-1 glass-card m-3 lg:m-4 rounded-2xl flex flex-col min-h-0 overflow-hidden" style={{ height: 'calc(100dvh - 5rem)' }}>
+                <div className="flex-1 glass-card m-3 lg:m-4 rounded-2xl flex flex-col min-h-0 overflow-hidden" style={{ height: 'calc(100dvh - 5.5rem)' }}>
                   <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-brand-200 border-t-brand-600 rounded-full animate-spin" /></div>}>
                     {viewMode === 'summary' ? (
                       <SummaryView session={session} onStartChat={() => setViewMode('chat')} />
@@ -234,7 +250,8 @@ function AppShell({ showToast }: { showToast: (message: string) => void }) {
       {authModal.open && (
         <AuthModal
           initialMode={authModal.mode}
-          onClose={() => setAuthModal((s) => ({ ...s, open: false }))}
+          notice={authModal.notice}
+          onClose={closeAuth}
           onAuthSuccess={showToast}
         />
       )}
@@ -300,7 +317,7 @@ export default function App() {
           <div className="w-12 h-12 rounded-xl bg-brand-50 border border-brand-200 flex items-center justify-center mx-auto mb-4">
             <FileText className="w-6 h-6 text-brand-600" />
           </div>
-          <h2 className="text-slate-900 font-semibold text-lg mb-2">Can't reach TalkToFile</h2>
+          <h2 className="text-slate-900 font-semibold text-lg mb-2">Can't reach Talktofile</h2>
           <p className="text-slate-500 text-sm mb-5">
             We couldn't start a session. Please check your connection and try again.
           </p>

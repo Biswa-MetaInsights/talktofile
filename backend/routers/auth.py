@@ -60,6 +60,17 @@ async def login(request: Request, body: LoginRequest, db: Session = Depends(get_
     return _token_response(user)
 
 
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh(current_user: dict = Depends(get_current_user)):
+    """Mint a fresh access token for the current (still-valid) session.
+
+    The frontend calls this periodically while a session is active so a long-lived
+    tab slides its expiry forward and never expires mid-use. Requires a valid token
+    (an already-expired token can't be refreshed — the user signs in again).
+    """
+    return _token_response(current_user)
+
+
 @router.get("/me", response_model=UserInfo)
 async def me(current_user: dict = Depends(get_current_user)):
     return UserInfo(
@@ -97,12 +108,12 @@ async def get_my_persona(current_user: dict = Depends(get_current_user)):
 async def generate_my_persona(
     body: PersonaGenerateRequest,
     current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db),
 ):
     if not (body.role or body.specialty or body.address_as):
         raise HTTPException(status_code=400, detail="Provide at least one detail")
+    # Only draft the persona — do NOT persist it here. The user reviews/edits the
+    # draft on the "Edit prompt" tab and explicitly saves via PUT /persona.
     persona = await generate_persona(body.role, body.specialty, body.address_as)
-    set_persona_for(db, current_user, persona)
     return PersonaResponse(persona=persona)
 
 

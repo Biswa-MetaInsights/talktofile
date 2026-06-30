@@ -11,7 +11,7 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
   const { user, saveProfile } = useAuth()
   const p = user?.profile ?? {}
 
-  const [avatar, setAvatar] = useState('')   // data URL — frontend only, not yet persisted
+  const [avatar, setAvatar] = useState(p.avatar ?? '')   // persisted profile photo (data URL)
   const [fullName, setFullName] = useState(p.full_name ?? '')
   const [phone, setPhone] = useState(p.phone ?? '')
   const [companyName, setCompanyName] = useState(p.company_name ?? '')
@@ -29,6 +29,13 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  // If the session expires while editing (a 401 drops us to a guest), close this
+  // modal — there's no profile to edit as a guest, and the app shows a sign-in
+  // prompt instead. Without this, this modal would stack under that prompt.
+  useEffect(() => {
+    if (!user || user.is_guest) onClose()
+  }, [user, onClose])
+
   const accountEmail = p.email || user?.username || ''
 
   const handleSave = async (e: React.FormEvent) => {
@@ -43,6 +50,7 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
         company_role: companyRole,
         company_size: companySize,
         industry,
+        avatar,
       }
       await saveProfile(profile)
       setSaved(true)

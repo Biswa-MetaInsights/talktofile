@@ -8,7 +8,11 @@ class Settings(BaseSettings):
     openai_api_key: str
     secret_key: str = DEFAULT_SECRET
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60
+    # 7 days. Long-lived so routine, intermittent use (e.g. editing your profile
+    # after leaving a tab open) doesn't expire mid-session and silently sign you
+    # out. The frontend also proactively refreshes the token while a session is
+    # active (POST /auth/refresh), so an active tab effectively never expires.
+    access_token_expire_minutes: int = 60 * 24 * 7
     allowed_origins: str = "http://localhost:5173,http://localhost:3000"
     environment: str = "development"
 
