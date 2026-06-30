@@ -9,6 +9,8 @@ export interface UserProfile {
   company_role?: string
   company_size?: string
   industry?: string
+  /** Profile photo as a small, client-downscaled image data URL ("" when none). */
+  avatar?: string
 }
 
 export interface User {

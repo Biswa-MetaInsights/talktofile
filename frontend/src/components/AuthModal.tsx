@@ -76,11 +76,14 @@ export default function AuthModal({
   initialMode = 'subscribe',
   onClose,
   onAuthSuccess,
+  notice,
 }: {
   initialMode?: Mode
   onClose: () => void
   /** Called on a successful sign in so the host can show a confirmation (e.g. a navbar toast). */
   onAuthSuccess?: (message: string) => void
+  /** Optional banner shown above the form, e.g. "Your session expired — sign in again." */
+  notice?: string
 }) {
   const { login, register, resetPassword, updatePassword, recoveryMode, clearRecovery } = useAuth()
   const [mode, setMode] = useState<Mode>(initialMode)
@@ -131,6 +134,7 @@ export default function AuthModal({
           phone,
           company_name: companyName,
           industry,
+          avatar,
         }
         await register(username, password, profile)
         onClose()
@@ -284,6 +288,16 @@ export default function AuthModal({
               <X className="w-4 h-4" />
             </button>
           </div>
+
+          {/* Session-expired (or other host) notice */}
+          {notice && (
+            <div className="mb-5 bg-amber-50 rounded-xl p-3 border border-amber-200">
+              <p className="flex items-center gap-1.5 text-xs text-amber-800">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                {notice}
+              </p>
+            </div>
+          )}
 
           {/* Free account note */}
           {mode === 'subscribe' && (

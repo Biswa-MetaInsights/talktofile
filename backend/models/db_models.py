@@ -30,6 +30,8 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(200), default="")
     email: Mapped[str] = mapped_column(String(200), default="", index=True)
     phone: Mapped[str] = mapped_column(String(50), default="")
+    # Profile photo as a small, client-downscaled data URL ("" when none).
+    avatar: Mapped[str] = mapped_column(Text, default="")
 
     # Company details (optional)
     company_name: Mapped[str] = mapped_column(String(200), default="")
@@ -56,6 +58,7 @@ class User(Base):
                 "full_name": self.full_name,
                 "email": self.email,
                 "phone": self.phone,
+                "avatar": self.avatar,
                 "company_name": self.company_name,
                 "company_role": self.company_role,
                 "company_size": self.company_size,

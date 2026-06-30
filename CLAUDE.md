@@ -1,4 +1,4 @@
-# TalkToFile — Project Handover for Claude
+# Talktofile — Project Handover for Claude
 
 > You are picking up an active project. Read this file fully before making any changes.
 > When you make a meaningful contribution, update this file so the next session (and the
@@ -33,9 +33,9 @@
 
 ---
 
-## What Is TalkToFile?
+## What Is Talktofile?
 
-TalkToFile is a private, agentic **"chat with your document"** web app. A user uploads one or
+Talktofile is a private, agentic **"chat with your document"** web app. A user uploads one or
 more files (PDF, Word, Excel, PowerPoint, HTML, JSON, CSV, Markdown, plain text, and many
 source-code formats), the backend extracts and indexes the text, and the user asks questions in
 natural language. An AI assistant named **"Sage"** answers **only from the document content**
@@ -226,25 +226,28 @@ Keep this updated as components are created or significantly changed.
 |---|---|---|
 | `src/App.tsx` | App shell, view + session state, modals | Holds the `beforeunload` refresh guard (active only while a chat session exists). Chat/sidebar heights use `100dvh` for mobile correctness. |
 | `src/components/Landing.tsx` | Marketing landing page (the "front door") **+ the upload/intent flow** | Hero, "how it works", features, privacy band, CTA, footer. **The hero now owns the upload:** dropping a file / adding a URL starts processing in-place (via `useDocumentProcessor`) while the user stays on the page; a chat box then "appears" where they pick a mode (chat/summary/flashcards/…) and type their first request. The orange circular **Proceed** button (`ArrowUp`) enables once the doc is ready (chat mode also needs typed text; other modes don't). On proceed it calls `onEnter(session, mode, prompt)`. Responsive via Tailwind breakpoints. |
-| `src/components/Navbar.tsx` | Top nav inside the app | Feedback, Personalise (Pro), sign up / sign in or user menu. Labels collapse to icons on small screens. |
+| `src/components/Navbar.tsx` | Top nav inside the app | Feedback, Personalise (Pro), sign up / sign in or user menu. Labels collapse to icons on small screens. The account button shows the user's **saved profile photo** (`user.profile.avatar`) next to the name, falling back to a `User` icon. |
 | `src/components/UploadZone.tsx` | Drag-and-drop upload + processing UI (in-app fallback, e.g. password-recovery entry) | Enforces plan file-count/size limits client-side; runs the pipeline via `useDocumentProcessor`. No longer the primary upload path — the Landing hero is (see above). |
 | `src/hooks/useDocumentProcessor.ts` | Shared upload→process pipeline hook | Uploads file bytes / a URL, drives the processing WebSocket (`extracting`→`analysing`→`ready`), exposes `{ stage, stageMsg, progress, error, session, processing, processFiles, processUrl, reset }`, and fires the `document_uploaded` analytics event. Used by both `Landing` and `UploadZone`. Does **not** navigate — the caller reacts to `session`. |
 | `src/components/ChatWindow.tsx` | The chat experience | Chat WS lifecycle with auto-reconnect, streaming tokens, stop button, suggested questions, summary panel, scroll-to-bottom. Accepts an optional `initialPrompt` — the first message typed on the landing chat box, auto-sent once connected (guarded against resend on reconnect). |
 | `src/components/MessageBubble.tsx` | Renders one message (markdown) | Used for user + assistant + guard-reject + feedback prompts. |
 | `src/components/SummaryCard.tsx` | Document summary display | `compact` variant used in the side panel and summary drawer. |
-| `src/components/FlashcardsView.tsx` | Flashcards study tool | Has a **Share** action (active-card controls + finished screen) that copies/Web-Shares the full Q&A set with a "Made with TalkToFile" attribution. |
+| `src/components/FlashcardsView.tsx` | Flashcards study tool | Has a **Share** action (active-card controls + finished screen) that copies/Web-Shares the full Q&A set with a "Made with Talktofile" attribution. |
 | `src/components/SummaryView.tsx` | Full-page document summary | Header **Share** button → copies/Web-Shares the summary with attribution. |
 | `src/components/PodcastView.tsx` | Podcast script tool | **Share** + **Download** both emit the script with the attribution footer. |
 | `src/components/TranslateView.tsx` | Translate tool | Per-document **Share** + **Download .txt**, both with the attribution footer. |
-| `src/lib/share.ts` | Share/export helpers | `withAttribution()` appends a "Made with TalkToFile — <runtime origin>" footer; `downloadText()` (local .txt) and `shareOrCopy()` (Web Share API → clipboard fallback). Used by the four tool views above. Link target is `window.location.origin` — no hardcoded domain. |
+| `src/lib/share.ts` | Share/export helpers | `withAttribution()` appends a "Made with Talktofile — <runtime origin>" footer; `downloadText()` (local .txt) and `shareOrCopy()` (Web Share API → clipboard fallback). Used by the four tool views above. Link target is `window.location.origin` — no hardcoded domain. |
 | `src/components/AuthModal.tsx` | Login / signup / password reset | |
 | `src/components/PersonaModal.tsx` | Pro persona configuration | |
 | `src/components/FeedbackModal.tsx` | User feedback form | |
 | `src/components/ConfirmDialog.tsx` | Reusable confirm dialog | Used for "leave this chat?" (in-app navigation away). |
 | `src/components/TypingIndicator.tsx` | "Sage is typing" animation | |
 | `src/components/Tooltip.tsx` | Reusable hover/focus tooltip | **Single source of the tooltip look** (dark `#303030` bubble, white text, arrow). Wrap a target, pass `label` + `side`. Use everywhere instead of native `title`. See Design / Brand. |
-| `src/components/AvatarUpload.tsx` | Circular avatar picker with camera/remove controls | **Frontend only** — reads the picked image into a data URL via `FileReader` and returns it through `onChange`; not uploaded/persisted to the backend yet. Falls back to initials (from `name`) then a `User` icon. Used by `AuthModal` (signup) and `ProfileModal`. |
+| `src/components/AvatarUpload.tsx` | Avatar picker laid out as a premium "settings row" | Reads the picked image, **downscales it client-side to a 256×256 JPEG data URL** (center-cropped, white-flattened) so the stored value is tiny, and returns it via `onChange`. **Now persisted** end-to-end (see the avatar `UserProfile.avatar` field). Falls back to initials (from `name`) then a `User` icon. **Layout:** circular avatar (default 72px) on the left with a **hover/focus-only** dark overlay + camera icon (no persistent floating badge), beside a labelled **Upload/Change photo** button, a **Remove** text button (only when set), and a `JPG, PNG or GIF. Max 5 MB.` caption. Used by `AuthModal` (signup) and `ProfileModal`; the saved avatar shows in the `Navbar` account button. |
 | `src/lib/smoothScroll.ts` | `smoothScrollTo` slow in-page scroll helper | Configurable-duration ease-in-out scroll with `block`/`offset` + reduced-motion support. Use instead of native smooth `scrollIntoView`. |
+| `src/components/MicButton.tsx` | Voice-dictation mic button for chat inputs | Standard slate `Mic` (lucide) with the shared `Tooltip` ("Click to dictate your instructions"); turns **brand orange** (`bg-brand-600/10 text-brand-600` + a soft pulse ring) while recording, then a `Loader2` spinner ("Transcribing…") while Whisper runs. On failure it tints **red** and shows a **red error bubble above the mic** (auto-dismiss 6s / click to dismiss). Pushes transcribed text to `onTranscript`; the caller appends it (never owns the text). **Renders nothing where voice is unsupported.** **Engine-agnostic:** imports the hook as `useVoiceDictation`, currently wired to the Whisper hook (see import comment to swap engines). Used in `ChatWindow` and the `Landing` chat box. |
+| `src/hooks/useVoiceDictation.ts` | **ACTIVE** voice engine — record → Whisper | Records mic audio with `MediaRecorder` (`getUserMedia`), then on stop uploads the clip to `POST /api/tools/transcribe` (OpenAI Whisper) and returns text via `onResult`. **Works in every browser incl. Brave** (the reason it's the chosen engine), but **costs money per use** (Whisper). `hardReset()` per attempt so the button can't stick; surfaces failures via `error`. Needs a secure context (localhost/https) + a mic. Returns `{ supported, listening, transcribing, error, toggle, clearError }`. |
+| `src/hooks/useWebSpeech.ts` | **DORMANT** fallback engine — Web Speech API | Not imported. Browser-native, **free/no-backend/no-cost**, but **dead in Brave/Firefox** (they block it) — which is why it's not the active engine. Accumulates the full transcript across continuous-mode auto-restarts (`launch()` preserves text, `start()` clears it), delivers on stop, surfaces a clear "not available — use Chrome/Edge" error. Same return shape as `useVoiceDictation`; swap MicButton's import to re-enable. |
 
 ---
 
@@ -256,16 +259,26 @@ Clean, minimal, premium. **Simplicity is the priority — do not add unnecessary
   Tailwind `slate` scale. Surfaces are white / a `glass-card` utility; corners are `rounded-2xl`.
 - **Fonts** (loaded in `frontend/index.html`): **Inter** (body), **Plus Jakarta Sans** (the
   `font-brand` wordmark/headings), **JetBrains Mono** (mono accents). Don't add fonts without asking.
-- **Wordmark — keep it consistent everywhere.** The "Talktofile" wordmark must always render the
-  same way it does in the Navbar (`src/components/Navbar.tsx`): the `FileText` icon in a
-  `w-7 h-7 rounded-lg bg-[#E2611B]` chip, next to the text
+- **Wordmark — keep it consistent everywhere.** The "Talktofile" wordmark is the **brand mark**
+  (a transparent SVG, no tile) next to the text
   `font-brand italic font-bold text-[26px] sm:text-[34px] tracking-[-0.02em] text-[#E2611B]`. The
-  wordmark **scales down on mobile** (`text-[26px]` below the `sm` breakpoint, `text-[34px]` at
-  `sm` and up) so it doesn't crowd the nav icons on small phones — keep this responsive sizing when
-  reusing it. Apart from the size step, reuse this exact treatment anywhere the wordmark appears on
-  a light surface — don't restyle it per-location. **On orange/dark surfaces** (e.g. the footer,
-  which is `bg-[#E2611B]`) use the inverted variant for contrast — same form and responsive sizing,
-  but a `bg-slate-50` chip with an `text-[#E2611B]` icon and `text-slate-50` wordmark text.
+  mark assets live in `src/assets/` and are **surface-dependent — pick by background contrast:**
+  - **Light surfaces** (e.g. the Navbar, `bg-[#F8FAFC]`) → **`mark-color.svg`** (dark file +
+    terracotta bubble), sized `w-14 h-14`.
+  - **Orange/dark surfaces** (e.g. the footer, `bg-[#E2611B]`) → **`mark-white.svg`** (all-white
+    reversed mark), sized `w-14 h-14 sm:w-16 sm:h-16`, with the text as `text-slate-50`.
+
+  Render as `<img src={mark} className="w-14 h-14" />` — these marks are **transparent (no tile
+  background), so no `rounded`/`shadow` wrapper** (unlike the old app-icon tiles). **Gotcha:** the
+  mark drawing only occupies the middle ~54% of its 100×100 canvas, so ~23% transparent padding is
+  baked onto each side. Spacing classes alone can't close the mark↔wordmark gap — the row uses
+  `gap-1` on the flex container **plus a `-ml-3` negative margin on the wordmark `<span>`** to cancel
+  that built-in padding; keep both when reusing the lockup. The wordmark text
+  **scales down on mobile** (`text-[26px]` below `sm`, `text-[34px]` at `sm`+) — keep this responsive
+  sizing when reusing it. **Never put `mark-white` on a light surface** (it disappears) or
+  `mark-color` on a dark one. `app-icon.svg` / `app-icon-dark.svg` (terracotta/dark tiles) also live
+  in `src/assets/` but are currently unused. (Replaced the old `FileText`-in-a-coloured-chip lockup,
+  then the app-icon tiles, with the bare marks — 2026-06-30.)
 - **Responsiveness (verified to no horizontal scroll across 320–1280px):** standard patterns are in
   place — `hidden sm:block` / `hidden lg:flex` to progressively reveal chrome, responsive grids,
   `100dvh` (not `100vh`) for full-height panels so the chat input isn't hidden behind mobile browser
@@ -317,6 +330,331 @@ Not built / known gaps:
 > for small sessions. Keep entries terse (a few bullets), not a blow-by-blow transcript. The
 > detailed "how" belongs in the relevant section above; this log is just the running status so the
 > next session/developer can see at a glance where things stand.
+
+### 2026-06-30 — Profile photo: now persisted + shown in the navbar
+**Done:**
+- Made the avatar **real** (it was frontend-only state, discarded on close) and surfaced it in the
+  **navbar account button** next to the username, per request.
+- **Persistence end-to-end:** new `avatar` column on `users` (Alembic migration
+  `9e2a7c4b1d83_add_user_avatar.py`, Text, `server_default=''`; applied — `alembic current` at that
+  head). `models/db_models.py` adds the field + includes it in `to_auth_dict().profile`.
+  `models/schemas.py` `UserProfile.avatar` with its own validator (must be a `data:image/` URL,
+  capped ~700k chars; **not** in the 200-char `trim` group). `core/auth.py` `update_profile` +
+  `create_user` persist it. `UserInfo.profile` is a passthrough `dict`, so `/auth/me`,
+  `/auth/profile`, register/login all round-trip the avatar with no further schema change.
+- **Frontend:** `types` `UserProfile.avatar`. `ProfileModal` now seeds the avatar from the saved
+  profile **and sends it on save** (was omitted before — the root of the "photo didn't stick").
+  `AuthModal` signup includes it in the register payload. `Navbar` shows
+  `user.profile.avatar` as a 28px round image (ring), falling back to the `User` icon.
+- **Image kept tiny:** `AvatarUpload` now **downscales the picked file to a 256×256 JPEG data URL**
+  (canvas, center-cropped, white-flattened, q0.85) before `onChange`, so the value stored in the DB
+  and sent in every `me`/profile payload is ~tens of KB, not the raw multi-MB file. Falls back to
+  the raw data URL if canvas processing fails.
+- **Verified end-to-end live:** registered a throwaway user with an avatar → `/auth/me` returned
+  `profile.avatar` (then deleted the test user). Frontend type-check + backend `import main` pass.
+
+**Pending / next:**
+- **Visual check not done:** upload a photo in Profile/signup, Save, confirm it shows in the navbar
+  button (and persists across reload/sign-in). Check the round image crop + ring at 320–1280px.
+- Avatars are stored inline as data URLs (simple, no object storage). Fine at this scale; if the
+  user base grows, move to a blob/CDN and store a URL instead.
+
+### 2026-06-30 — Don't silently sign users out on an expired session (graceful 401 + token refresh)
+**Done:**
+- **Root cause of the "saving my profile signed me out" report:** the avatar is *not* sent to
+  the server (frontend-only, known gap), so the photo was incidental. The real trigger was the
+  `PUT /auth/profile` request returning **401** because the legacy JWT had expired (it lasted only
+  **60 min**), and the axios response interceptor reacted to *any* 401 by wiping the token and
+  **hard-reloading the page**, which re-bootstrapped an anonymous guest — i.e. looked like a
+  silent sign-out, and discarded the unsaved edits.
+- **Graceful 401 handling (both auth modes).** `api/client.ts` no longer hard-reloads on a 401:
+  it calls a registered `setUnauthorizedHandler` (falls back to the old reload only if none is
+  set). `AuthContext` registers one in each provider:
+  - **Legacy:** transparently issues a fresh **guest** token (app stays usable) and, **only if the
+    user had actually been signed in**, flips a new `sessionExpired` flag. A plain guest whose 3h
+    record expired is re-guested silently (no nag).
+  - **Supabase:** safety net (supabase-js auto-refreshes normally) — re-syncs to an anonymous
+    session and sets `sessionExpired` if the user was signed in.
+  - `App.tsx` watches `sessionExpired` and opens the **AuthModal in login mode with an amber
+    notice** ("Your session expired. Please sign in again to continue."), via a new `notice` prop
+    on `AuthModal`. `closeAuth` clears the flag + notice together. **No page reload**, so the
+    user's on-screen context (e.g. a chat) survives. `ProfileModal` now auto-closes if the session
+    drops to a guest, so it can't stack under the sign-in prompt.
+- **Token longevity / refresh (legacy).** `config.py` `access_token_expire_minutes` 60 → **7 days**,
+  so routine intermittent use never expires mid-session. New backend **`POST /auth/refresh`**
+  (`routers/auth.py`, requires a valid token, mints a fresh one). Legacy `AuthContext` proactively
+  refreshes **every 6h while signed in** (`authApi.refresh`), so an active tab slides its expiry
+  forward and effectively never expires. (Supabase mode already auto-refreshes.) The interceptor
+  excludes `/auth/refresh` from the 401 handler. Updated the now-stale guest-TTL comment in
+  `core/auth.py` (the 3h record eviction, not the JWT expiry, is the effective guest lifetime).
+- Frontend type-check + backend `import main` both pass.
+
+**Pending / next:**
+- **⚠️ Restart the backend** so the new `/auth/refresh` route registers (the `--reload` gotcha;
+  a stale uvicorn returns 404). Quick check:
+  `curl -s -X POST http://localhost:9099/api/auth/refresh -o /dev/null -w "%{http_code}"` →
+  401/403 = live, 404 = restart.
+- **Live verify:** sign in, let the token expire (or temporarily lower `access_token_expire_minutes`),
+  hit Save in the profile modal → expect the amber "session expired, sign in again" prompt (not a
+  reload-to-guest), with the page/chat intact. Confirm the 6h refresh keeps a long-open tab signed in.
+
+### 2026-06-30 — Reject duplicate uploads (same filename / URL) in a session
+**Done:**
+- Stopped the same file/URL being uploaded more than once in a session. Matching is by
+  **name only** (case-insensitive, trimmed) — file contents are never inspected. The first
+  copy is kept, later copies are rejected with a warning. Works for a **multiple-selection**
+  (the same file twice in one pick) and for sources added **one after another**.
+- **`components/Landing.tsx`** (primary path):
+  - New module-level `duplicateRejectionMessage(names)` builds the notice ("'X' was rejected
+    since a copy already exists.").
+  - `onDrop` (initial drop/browse) now de-dupes the dropped batch by filename before the
+    plan/size checks; the warning surfaces via `multiHint` once the chat box appears (combined
+    with the existing free-plan "only first file" notice if both apply).
+  - New `existingSourceKeys()` returns the case-folded set of every source already in the
+    session (initial files, the URL `sourceLabel`, and any added `extraSources`).
+  - `handleExtraFilesSelected` (Add more files) and `saveExtraUrl` (Add more URLs) reject any
+    pick already present (and de-dupe within a single multi-file pick), warning via `multiHint`.
+- **`components/UploadZone.tsx`** (in-app fallback): `onDrop` de-dupes the batch by filename;
+  new `dupWarning` state renders an amber notice. Only reachable on Pro (multi-select).
+- Type-check passes (`tsc --noEmit`).
+
+**Pending / next:**
+- **Visual verification not done** — run the dev server and confirm: dropping/selecting the same
+  file twice keeps one + shows the warning; re-adding an existing file/URL via the "Add more"
+  controls is rejected with the warning; the warning auto-dismisses (5s, via `multiHint`).
+- Matching is name-only by design (no content hashing), so two genuinely different files sharing
+  a name are treated as duplicates — acceptable per the request.
+
+### 2026-06-30 — Avatar upload section restyled for a premium look (frontend only)
+**Done:**
+- Reworked `components/AvatarUpload.tsx` from a circle with two floating badges (a
+  persistent camera button + an X) into a standard, premium **settings row**: avatar on
+  the left, action button + helper caption on the right.
+- The persistent camera badge is gone — the camera icon now lives in a **dark overlay that
+  only fades in on hover/focus**, so the resting state is clean. Clicking the avatar (or the
+  button) opens the picker; focus shows a brand-orange focus ring.
+- Right side: an **Upload photo** / **Change photo** pill (brand orange), a **Remove** text
+  button (only when an image is set), and a `JPG, PNG or GIF. Max 5 MB.` caption.
+- Default size 80px→72px to sit better in the row. Both call sites (`AuthModal` signup,
+  `ProfileModal`) render it unchanged. Type-check passes (`tsc --noEmit`).
+
+**Pending / next:**
+- **Visual verification not done** — run the dev server and check the new row in both the
+  signup form and Profile modal, incl. hover overlay + 320–1280px. Avatar is still not
+  persisted to the backend (unchanged — see the 2026-06-24 avatar entry).
+
+### 2026-06-30 — Remove-one-file: real backend endpoint (no re-processing)
+**Done:**
+- Replaced the earlier "removing a file re-runs the pipeline on the survivors" stopgap
+  (which made the *remaining* file visibly re-process) with a real per-document removal.
+- **Backend** (`routers/document.py`): new **`POST /document/{session_id}/remove-file`**
+  (body `{ filename }`, returns `SessionInfo`). Pops just that `DocumentData` from the
+  in-memory session — **survivors keep their already-built FAISS indexes, nothing is
+  re-extracted/re-embedded**. Refreshes suggested questions for the new set
+  (`generate_suggested_questions` for 1 doc / `generate_multi_doc_questions` for >1),
+  best-effort so a failure there can't undo the removal. `session.mode` is a derived
+  property, so compare→single happens automatically. Guards: 404 if the file isn't in
+  the session; 400 if it's the only document (clear via `DELETE /document/{id}` instead).
+- **Frontend:** `documentApi.removeFile(sessionId, filename)` (`api/client.ts`); the hook
+  `useDocumentProcessor` gains `removeFile(filename)` — calls the endpoint and swaps in
+  the returned session **with no re-processing** when a session exists, falls back to
+  re-running on the remaining files only if removal happens *before* the session is ready
+  (nothing server-side to trim yet), and routes "remove the last file" through `reset`.
+  `Landing.removeFileAt` now delegates to it (last-file case → `startOver` for full local
+  cleanup). The surviving row stays "ready" — no flicker.
+- **Optimistic removal (follow-up fix):** the first cut still showed a brief "processing"
+  on the surviving file, because `setFiles`/`setSession` only ran *after* the backend
+  `await` (which includes a ~1–2s suggested-questions regen), leaving a gap. `removeFile`
+  now updates the UI **immediately** — drops the file and trims the session locally
+  (keeping it `ready`, mode recomputed) with no await — then calls the server in the
+  background and swaps in its authoritative response; on failure it rolls back and shows
+  an error. Surviving rows never leave "ready".
+- **Proceed-gating (follow-up):** to cover the ~1–2s window where the UI shows a file
+  removed but the backend hasn't finished, the hook now exposes `removing`. If the user
+  hits **Proceed** while `removing` is true, `Landing` sets `proceedPending` instead of
+  entering — the orange button shows a `Loader2` spinner and its tooltip flips to
+  "Finishing up, one moment…", and a `useEffect` enters the chat automatically the instant
+  `removing` flips false (skipped if the removal errored & rolled back). So the session
+  entered is always consistent with what's shown.
+- Frontend type-check + backend `import main` both pass.
+
+**Pending / next:**
+- **⚠️ Restart the backend** so the new route registers (the `--reload` gotcha — a stale
+  uvicorn returns 404 for `/document/{id}/remove-file`). Quick check:
+  `curl -s -X POST http://localhost:9099/api/document/x/remove-file -o /dev/null -w "%{http_code}"`
+  → 401/403/422 = live, 404 = restart.
+- **Live verify:** 2-file Pro upload → remove one → the other stays "ready" (no
+  re-process), mode/suggested-questions update, chat answers only from the kept file.
+- Removing a file *mid-processing* (before ready) still re-runs on the survivors — edge
+  case, acceptable. Duplicate filenames in one batch would remove the first match only.
+
+### 2026-06-30 — Multi-file upload: show each filename on its own row
+**Done:**
+- Fixed the hero chat box collapsing a simultaneous multi-file upload into a single
+  `"2 files"` row. The primary upload now renders **one `SourceRow` per file** (its
+  `f.name`), so a batch upload reads the same as uploading the files one by one.
+- **Frontend only** (`components/Landing.tsx`): destructured the already-exposed
+  `files: File[]` from `useDocumentProcessor` and replaced the single primary
+  `SourceRow` with `files.map(...)`. URL sources (no `File`) keep the single
+  `sourceLabel` row.
+- **Per-file progress (fix — was: all rows shared the one overall number):** the
+  backend processes the batch as one unit but extracts files in order, emitting a
+  `(i/total)` marker as each starts. New `activeFileIdx` parses that marker
+  (`session`/`analysing` stage ⇒ all done) and `fileRowProps(idx)` derives each
+  row's state: files before the active index show a **tick (ready)**, the active one
+  shows the spinner + bar, later ones show **"Queued"**. Rows now advance file-by-file.
+- **Per-file removal (fix — was: X removed the whole batch):** there's no server
+  "drop one document" endpoint (a session is one batch), so `removeFileAt(idx)`
+  **re-runs the pipeline on the remaining files** (`processFiles(remaining)`);
+  removing the last file calls `startOver`. This re-uploads/re-indexes the survivors —
+  acceptable for ≤5 files; a real add/remove-from-session backend endpoint would avoid
+  the re-process. `sourceLabel` is kept as the URL-row label + `removeFileAt` fallback.
+- Type-check passes (`tsc --noEmit`).
+
+**Pending / next:**
+- **Visual verification not done** — run the dev server (backend needs an OpenAI key)
+  and confirm a 2-file Pro upload: both names show, rows tick over one-by-one as the
+  pipeline advances, and removing one re-processes only the other. Re-check 320–1280px.
+- The active file's bar reuses the global `progress` (no true sub-file %, since the
+  backend emits one marker per file, not continuous progress). If smoother per-file
+  fill is wanted later, it needs backend sub-progress events.
+
+### 2026-06-30 — Brand logo: app-icon SVGs in navbar + footer
+**Done:**
+- Replaced the old `FileText`-in-a-coloured-chip mark with the new brand **app-icon tiles**.
+  Copied `talktofile_logo/svg/app-icon.svg` and `app-icon-dark.svg` into **`frontend/src/assets/`**.
+- **Navbar** (`components/Navbar.tsx`): the orange `bg-[#E2611B]` chip + `FileText` is now
+  `<img src={appIcon} className="w-7 h-7 rounded-lg …">` (terracotta tile). Removed the now-unused
+  `FileText` import. Wordmark text unchanged.
+- **Footer** (`components/Landing.tsx`): the `bg-slate-50` chip + `FileText` is now
+  `<img src={appIcon} className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl …">` (terracotta tile — it
+  reads better on the orange footer than the dark variant). `FileText` import kept — still used
+  elsewhere in Landing.
+- **Sizing follow-up (same session):** logos were too small/invisible, so bumped them — navbar to
+  `w-10 h-10`, footer to `w-11 h-11 sm:w-14 sm:h-14`.
+- **Switched to bare marks (same session):** per request, both swapped from the app-icon
+  **tiles** to the transparent **marks**. Navbar → **`mark-color.svg`** (dark+terracotta, reads on
+  the light navbar — `mark-white` would've been invisible there, so we used the light-bg variant),
+  footer → **`mark-white.svg`** (white, on the orange footer). Marks are transparent, so dropped the
+  `rounded`/`shadow` chrome. `app-icon*.svg` now unused (kept in `src/assets/`).
+- **Final sizing + spacing (same session, latest — user-approved):** navbar logo `w-14 h-14`; to
+  fit it the **navbar bar grew `h-14`→`h-16`**, so `App.tsx` `main` offset `pt-14`→`pt-16` and the
+  two `calc(100dvh - …)` panel heights were rebased (`3.5rem`→`4rem`, `5rem`→`5.5rem`). Footer logo
+  `w-14 h-14 sm:w-16 sm:h-16`. **Closed the mark↔wordmark gap:** the mark SVG has ~23% transparent
+  padding baked on each side, so `gap-2.5`→`gap-1` alone wasn't enough — added a **`-ml-3` on the
+  wordmark `<span>`** in both navbar + footer to pull it in (user confirmed it looks right).
+- The app-icon SVGs are self-contained (own rounded background), so no chip wrapper is needed.
+  SVG imports type-check via the existing `vite/client` reference in `vite-env.d.ts`.
+- Updated the Design / Brand wordmark rule to document the new app-icon assets. Type-check passes
+  (`tsc --noEmit`).
+
+**Pending / next:**
+- **Visual verification not done this session** — run the dev server and confirm the new tiles
+  render crisply in the navbar (light bg) and footer (orange bg), and re-check 320–1280px.
+- Other logo assets (favicon, lockups, app-store icons) in `talktofile_logo/` are not wired up yet —
+  e.g. `favicon.svg`/`favicon-32.png` for the browser tab if desired.
+
+### 2026-06-30 — Generated persona no longer auto-saves
+**Done:**
+- A generated persona is now a **draft the user must explicitly save**, not an auto-applied one.
+- **Backend** (`routers/auth.py`): `POST /auth/persona/generate` no longer calls
+  `set_persona_for` — it only generates and returns the draft (removed the now-unused `db`
+  dependency). The persona is persisted only by `PUT /auth/persona` (the Save button).
+- **Frontend** (`components/PersonaModal.tsx`): `handleGenerate` no longer calls `setPersona`
+  (which flipped the local "Active persona" display) or flashes "Saved". It now fills the draft,
+  switches to the **Edit prompt** tab, and shows a brand-orange `hint` banner: "Persona drafted.
+  Review and tweak it below, then click Save persona to apply it." The hint clears on save, reset,
+  and tab switch. The "Active persona" panel stays unchanged until the user actually saves.
+- Type-check passes (`tsc --noEmit`); backend imports cleanly.
+
+### 2026-06-30 (latest) — Reverted active voice engine to Whisper (Web Speech failed in both browsers)
+**Done:**
+- Tested the free Web Speech engine: **red "not available" message in Brave** (expected — Brave blocks
+  it) and, even after the restart-wipe fix, **it still didn't transcribe in Chrome** on the dev box.
+  Web Speech is therefore a dead end here (Brave is the everyday browser). **Reverted to Whisper**,
+  which had already worked end-to-end in Brave.
+- Changes: MicButton import back to `useVoiceDictation` (Whisper); **uncommented** the backend
+  `POST /tools/transcribe` route in `routers/tools.py`; swapped the ACTIVE/DORMANT banners
+  (`useVoiceDictation` active, `useWebSpeech` dormant fallback). Backend `--reload` picked up the
+  route (now 403 = live). Type-check passes; backend imports OK.
+- **Net state:** Whisper is the active engine. `useWebSpeech.ts` stays in the tree as a free fallback
+  for anyone who only uses Chrome/Edge and wants to avoid the (tiny) Whisper cost — one-line import swap.
+
+**Pending / next:**
+- **Re-verify Whisper live in Brave** (hard-refresh the frontend): mic permission → orange recording →
+  "Transcribing…" spinner → text in the box. Backend must be running (it is) with an OpenAI key.
+- Optional: cap transcribe calls against a daily limit (currently logged via `log_usage`, not capped).
+
+### 2026-06-30 (later) — Switched active voice engine to free Web Speech; shelved Whisper
+**Done:**
+- After confirming the Whisper path worked end-to-end (the earlier failure was a **stale backend**
+  + a stuck-state bug, both fixed), switched the **active** voice engine to the **free browser Web
+  Speech API** to avoid the per-use Whisper cost. Clarified for the record: the Web Speech failures
+  were **never** related to our backend — Web Speech talks to Google directly and never hits our
+  API; it fails in **Brave** because Brave strips Google's speech backend (and Firefox has none).
+- New `src/hooks/useWebSpeech.ts` (active): robust Web Speech wrapper reusing the Whisper-era
+  hardening — `hardReset()` per attempt (no stuck button), full-transcript accumulation (no reliance
+  on `isFinal`), auto-restart across silences, deliver-on-stop, and **visible `error`** including a
+  clear "not available in Brave/Firefox — use Chrome/Edge" message. Same return shape as the Whisper
+  hook, so `MicButton` swaps engines with a **one-line aliased import**.
+- **Shelved Whisper (kept, not deleted):** `useVoiceDictation.ts` carries a SHELVED banner and is no
+  longer imported; the backend `POST /tools/transcribe` route in `routers/tools.py` is **commented
+  out** (imports left in place for a one-uncomment revert). Backend reloaded clean (health 200), and
+  the route now 404s as expected.
+- Type-check passes; backend imports OK.
+- **Bug fixed same session:** the first `useWebSpeech` had `hardReset()` (which clears the
+  accumulated transcript) at the top of `start()`, and the **auto-restart on every Chrome pause also
+  called `start()`** — so each restart wiped the text. Result in Chrome: speech recognised, **no
+  error**, but nothing written. Split into `launch()` (internal restart, **preserves** transcript)
+  vs `start()` (user-initiated, clears it). This is the canonical Web-Speech continuous-restart gotcha.
+
+**Pending / next:**
+- **Live test of Web Speech (re-test after the restart-wipe fix):** should now work in Chrome/Edge;
+  in **Brave** expect the red "not available…" bubble (by design). If we later want it to work in Brave too, revert to the shelved Whisper engine
+  (or build a Web-Speech-with-Whisper-fallback hybrid).
+
+### 2026-06-30 — Voice dictation (mic button) on chat inputs — via Whisper
+**Done:**
+- Added voice-to-text dictation to both chat inputs: a mic button that records and transcribes
+  the user's spoken instruction into the text box (it fills the box; it does **not** auto-send —
+  the user reviews and presses send/proceed).
+- **First tried the browser Web Speech API (no key/cost), but abandoned it** — it relies on the
+  browser streaming audio to Google's servers, which **Brave strips out** (and Firefox doesn't
+  support at all), so it produced no transcription on the dev machine. Switched to a reliable,
+  browser-independent path.
+- **Backend:** new `POST /api/tools/transcribe` in `routers/tools.py` — accepts an audio upload,
+  transcribes with **OpenAI Whisper** (`whisper-1`, reusing `settings.openai_api_key`), returns
+  `{ text }`. Auth-required; 25 MB cap; maps the browser MIME type → a Whisper-recognised extension;
+  logs usage as type `transcribe`. **This costs money per use** (Whisper, against the OpenAI budget).
+- **Frontend:** new `src/hooks/useVoiceDictation.ts` records mic audio with `MediaRecorder`
+  (`getUserMedia`, picks a supported container via `MediaRecorder.isTypeSupported`), and on stop
+  uploads the clip via new `toolsApi.transcribe(blob)` → delivers text through `onResult`. Replaces
+  the deleted `useSpeechRecognition.ts`.
+- `src/components/MicButton.tsx` updated: slate `Mic` → **brand orange** + pulse while recording →
+  `Loader2` spinner ("Transcribing…") while Whisper runs. Renders nothing where mic recording is
+  unsupported. Wired into `ChatWindow` (between textarea and send/stop) and the `Landing` chat box
+  (between textarea and the orange Proceed button).
+- Type-check passes (`tsc --noEmit`); backend imports OK (`python -c "import main"`); OpenAI SDK
+  1.57.0 confirmed to support `audio.transcriptions.create`.
+- **Hardening (same session):** `useVoiceDictation` now has a `hardReset()` run at the start of every
+  attempt, so a stuck prior attempt (error mid-recording, etc.) can never lock the button — it
+  self-heals in one click. Every failure path sets a human-readable `error`; `MicButton` shows it as
+  a **red bubble above the mic** (auto-dismisses after 6s, click to dismiss) and tints the mic red.
+  The `transcribing` spinner always clears in a `finally`. Added a `MediaRecorder.onerror` handler.
+- **⚠️ Gotcha that cost us time:** new backend routes need a **backend restart** to take effect. The
+  running uvicorn was stale (started without `--reload`, or the watcher missed the edit), so
+  `POST /api/tools/transcribe` returned **404** while the frontend kept failing silently. Quick check
+  that a route is live: `curl -s -X POST http://localhost:9099/api/tools/transcribe -o /dev/null -w "%{http_code}"`
+  → **403/401 = registered**, **404 = stale server, restart it**. Always run the backend with
+  `--reload` in dev. Backend was restarted this session; route now returns 403 (live).
+
+**Pending / next:**
+- **Live end-to-end verification still pending** — with the restarted backend, confirm in **Brave**:
+  mic permission prompt → orange recording → transcribing spinner → text lands in the box (Landing +
+  ChatWindow). Requires a secure context (localhost/https) and a working mic. Hard-refresh the
+  frontend so the new `MicButton`/hook load.
+- Optional: count transcribe calls against a daily cap (currently logged via `log_usage` but not
+  capped).
 
 ### 2026-06-27 — Unified source-row look in the Landing chat box (frontend only)
 **Done:**

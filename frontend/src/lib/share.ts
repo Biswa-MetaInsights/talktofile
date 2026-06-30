@@ -1,6 +1,6 @@
 // Shared helpers for exporting / sharing generated content (flashcards, summary,
 // podcast scripts, translations). Every export carries a small "Made with
-// TalkToFile" attribution so shared content quietly spreads the word.
+// Talktofile" attribution so shared content quietly spreads the word.
 //
 // Privacy note: nothing is uploaded to share. We only act on text the user
 // already has in their browser — copy to clipboard, the Web Share sheet, or a
@@ -8,7 +8,7 @@
 // nothing-stored design.
 
 /** The public-facing name used in the attribution line. */
-const BRAND = 'TalkToFile'
+const BRAND = 'Talktofile'
 
 /**
  * The URL the attribution points at. We use the runtime origin so a shared
@@ -49,7 +49,7 @@ export function downloadText(filename: string, content: string): void {
  * desktops), otherwise copy it to the clipboard. Returns how it was handled so
  * the caller can show the right confirmation ("Shared" vs "Copied").
  */
-export async function shareOrCopy(text: string, title = 'TalkToFile'): Promise<'shared' | 'copied'> {
+export async function shareOrCopy(text: string, title = 'Talktofile'): Promise<'shared' | 'copied'> {
   const nav = typeof navigator !== 'undefined' ? navigator : undefined
 
   if (nav?.share) {

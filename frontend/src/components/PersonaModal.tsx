@@ -26,6 +26,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
+  const [hint, setHint] = useState(false)
 
   const flash = () => {
     setSaved(true)
@@ -44,13 +45,15 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
       return
     }
     setError('')
+    setHint(false)
     setLoading(true)
     try {
       const res = await authApi.generatePersona(role, specialty, addressAs)
+      // Draft only — do not save or activate yet. Route the user to the edit tab
+      // so they can review/tweak the generated persona and save it themselves.
       setDraft(res.data.persona ?? '')
-      setPersona(res.data.persona ?? null)
       setTab('manual')
-      flash()
+      setHint(true)
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Could not generate persona. Try again.')
     } finally {
@@ -60,6 +63,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
 
   const handleSave = async () => {
     setError('')
+    setHint(false)
     setLoading(true)
     try {
       const value = draft.trim() || null
@@ -75,6 +79,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
 
   const handleReset = async () => {
     setError('')
+    setHint(false)
     setLoading(true)
     try {
       await authApi.setPersona(null)
@@ -159,7 +164,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
             ] as const).map(([key, label, Icon]) => (
               <button
                 key={key}
-                onClick={() => { setTab(key); setError('') }}
+                onClick={() => { setTab(key); setError(''); setHint(false) }}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg transition-all ${
                   tab === key ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-900'
                 }`}
@@ -246,6 +251,19 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
                 />
                 <p className="text-right text-xs text-slate-400 mt-1">{draft.length}/1200</p>
               </div>
+
+              <AnimatePresence>
+                {hint && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex items-center gap-2 text-[#E2611B] text-sm bg-[#E2611B]/10 rounded-lg px-3 py-2 border border-[#E2611B]/20"
+                  >
+                    <Sparkles className="w-4 h-4 flex-shrink-0" /> Persona drafted. Review and tweak it above, then click Save persona to apply it.
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <div className="flex gap-2">
                 <button

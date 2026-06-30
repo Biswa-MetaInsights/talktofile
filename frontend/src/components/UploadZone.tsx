@@ -62,6 +62,8 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
   // Local (pre-pipeline) validation messages — plan/file-type limits.
   const [limitError, setLimitError] = useState<string>('')
   const [upgradeHint, setUpgradeHint] = useState<string>('')
+  // Notice when a duplicate file (same name) is dropped within the same selection.
+  const [dupWarning, setDupWarning] = useState<string>('')
   const error = limitError || pipelineError
 
   // Mirror upload/processing state up to the parent (drives the refresh guard).
@@ -81,6 +83,20 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
   const onDrop = useCallback((accepted: File[], rejections: FileRejection[]) => {
     setLimitError('')
     setUpgradeHint('')
+    setDupWarning('')
+
+    // Reject duplicate filenames within the dropped batch (same file selected
+    // twice) — keep the first copy, drop the rest, and warn.
+    const seen = new Set<string>()
+    const deduped: File[] = []
+    const dupNames: string[] = []
+    for (const f of accepted) {
+      const key = f.name.trim().toLowerCase()
+      if (seen.has(key)) { dupNames.push(f.name); continue }
+      seen.add(key)
+      deduped.push(f)
+    }
+    accepted = deduped
 
     if (accepted.length + rejections.length > limits.maxFiles) {
       if (plan === 'free') {
@@ -105,7 +121,12 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
       setLimitError('Some files have an unsupported type. Allowed: PDF, DOCX, XLSX, PPTX, HTML, JSON, TXT, CSV, MD.')
       return
     }
-    if (accepted.length > 0) processFiles(accepted)
+    if (accepted.length > 0) {
+      if (dupNames.length) {
+        setDupWarning(`${dupNames.map((n) => `'${n}'`).join(', ')} ${dupNames.length === 1 ? 'was' : 'were'} rejected since a copy already exists.`)
+      }
+      processFiles(accepted)
+    }
   }, [limits, plan, processFiles])
 
   const consumedInitial = useRef(false)
@@ -246,6 +267,11 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
           {error && (
             <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-4 flex items-center gap-2 text-red-600 text-sm bg-red-50 rounded-xl px-4 py-3 border border-red-200">
               <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
+            </motion.div>
+          )}
+          {dupWarning && (
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-4 flex items-start gap-2 text-amber-700 text-sm bg-amber-50 rounded-xl px-4 py-3 border border-amber-200">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /> {dupWarning}
             </motion.div>
           )}
         </AnimatePresence>
