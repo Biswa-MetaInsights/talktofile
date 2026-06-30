@@ -318,6 +318,25 @@ Not built / known gaps:
 > detailed "how" belongs in the relevant section above; this log is just the running status so the
 > next session/developer can see at a glance where things stand.
 
+### 2026-06-27 — Unified source-row look in the Landing chat box (frontend only)
+**Done:**
+- Made every source in the hero chat box render identically. New module-level `SourceRow`
+  component in `Landing.tsx` is the single source of the row look: grey card body
+  (`bg-slate-50`), a rounded brand icon-chip (`w-9 h-9 rounded-xl bg-[#E2611B]/10`) showing a
+  `FileText` while uploading and a `CheckCircle` **tick** once ready, the right-side `Loader2`
+  spinner + the `from-[#E2611B]/70 to-[#E2611B]` progress bar while uploading, and a Remove (X)
+  button. The first upload and every added file/URL now both render through it.
+- Replaced the old bespoke status-header (white, no card) and the old plain grey extra-source rows
+  (FileText/Link2 icon, no tick/spinner/progress) with a single stacked list. **Newest sits on
+  top**, so the first upload is the last row.
+- Added sources now play the **same upload animation** as the first file via a front-end-only
+  `simulateExtraUpload` (ramps progress, then flips to ready/tick). Timers are tracked in
+  `extraTimersRef` and cancelled on remove / startOver / unmount. **Still display-only — added
+  sources are NOT uploaded or merged into the session** (backend untouched, as before).
+- Per-row ready text shortened to "Ready" (was "Ready. Choose what to do below" on the header) so
+  all rows read identically.
+- Type-check passes (`tsc --noEmit`). Visual verification in the dev server not done this session.
+
 ### 2026-06-24 — Avatar upload + Basic/Pro plan comparison table (frontend only)
 **Done:**
 - New reusable `src/components/AvatarUpload.tsx` — circular avatar with a camera button (opens an
@@ -436,3 +455,7 @@ When you complete work in a session:
    new colours or fonts without agreement.
 8. **Keep paths machine-agnostic** — this runs on two desktops. No hardcoded user paths.
 9. **List the files you changed** at the end of the task.
+10. **Never attribute commits to Claude.** Claude (or any AI assistant) must never appear as a
+    GitHub contributor. Do **not** add `Co-Authored-By: Claude …` trailers, a "Generated with
+    Claude Code" line, or any similar attribution to commit messages or PR descriptions. Commits
+    are authored solely by the human contributors.

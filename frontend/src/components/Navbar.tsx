@@ -35,11 +35,6 @@ export default function Navbar({ onOpenAuth, onHome, onHowItWorks, onSignedOut }
             <span className="font-brand italic font-bold text-[26px] sm:text-[34px] tracking-[-0.02em] text-[#E2611B]">
               Talktofile
             </span>
-            {user?.plan === 'pro' && (
-              <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-neutral-100 border border-neutral-300 text-neutral-900">
-                <Crown className="w-2.5 h-2.5" /> PRO
-              </span>
-            )}
           </button>
         </Tooltip>
 
@@ -120,6 +115,12 @@ export default function Navbar({ onOpenAuth, onHome, onHowItWorks, onSignedOut }
               </>
             )}
           </div>
+        )}
+
+        {isPro && (
+          <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-neutral-100 border border-neutral-300 text-neutral-900">
+            <Crown className="w-2.5 h-2.5" /> PRO
+          </span>
         )}
       </div>
 

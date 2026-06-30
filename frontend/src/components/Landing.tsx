@@ -69,6 +69,73 @@ const PLAN_FEATURES: { name: string; basic: boolean; pro: boolean }[] = [
   { name: 'Personalised assistant', basic: false, pro: true },
 ]
 
+// A single source's display state. Used for the first upload and every added
+// file/URL so they all render through the same `SourceRow` look.
+type SourceStatus = 'uploading' | 'ready' | 'error'
+
+// One source row. Every source (the first upload and any added file/URL) renders
+// through this so they look identical in every aspect: grey card body, a rounded
+// brand icon-chip that shows a spinner-less file icon while uploading and a tick
+// once ready, the same right-side spinner + progress bar while uploading, and a
+// remove button. Rows are stacked newest-on-top by the caller.
+function SourceRow({
+  label,
+  status,
+  progress,
+  statusMsg,
+  onRemove,
+}: {
+  label: string
+  status: SourceStatus
+  progress: number
+  statusMsg?: string
+  onRemove?: () => void
+}) {
+  const ready = status === 'ready'
+  const error = status === 'error'
+  const uploading = status === 'uploading'
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-[#E2611B]/10 flex items-center justify-center flex-shrink-0">
+          {error ? <AlertCircle className="w-4 h-4 text-red-500" />
+            : ready ? <CheckCircle className="w-4 h-4 text-[#E2611B]" />
+            : <FileText className="w-4 h-4 text-[#E2611B]" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-slate-800 truncate" title={label}>{label}</p>
+          <p className={`text-xs ${error ? 'text-red-500' : 'text-[#E2611B]'}`}>
+            {error ? 'Upload failed' : ready ? 'Ready' : (statusMsg || 'Processing…')}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {uploading && <Loader2 className="w-4 h-4 text-[#E2611B] animate-spin" />}
+          {!error && onRemove && (
+            <Tooltip label="Remove" side="right">
+              <button
+                onClick={onRemove}
+                aria-label="Remove"
+                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </Tooltip>
+          )}
+        </div>
+      </div>
+      {uploading && (
+        <div className="mt-3 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+          <motion.div
+            className="h-full bg-gradient-to-r from-[#E2611B]/70 to-[#E2611B] rounded-full"
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Mode tabs shown on the hero upload card. Selecting one switches the active mode,
 // which the upload pipeline then uses. The blurb shows below the tabs, above the
 // drop zone, for the active mode. ('charts' has no backend mode yet — it falls
@@ -108,9 +175,13 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
   // user adds inside the chat box. These are display-only at the moment — they are
   // NOT yet uploaded or merged into the session (the backend builds a session from a
   // single batch; wiring this up is a follow-up). See CLAUDE.md.
-  const [extraSources, setExtraSources] = useState<{ id: number; type: 'file' | 'url'; label: string }[]>([])
+  const [extraSources, setExtraSources] = useState<{ id: number; type: 'file' | 'url'; label: string; status: SourceStatus; progress: number }[]>([])
   const [addingUrl, setAddingUrl] = useState(false)
   const [extraUrl, setExtraUrl] = useState('')
+  // Per-source simulated-upload timers (front-end only — added sources aren't
+  // really uploaded yet, so we fake the same progress/ready animation the first
+  // file gets). Keyed by source id so each can be cancelled on remove/unmount.
+  const extraTimersRef = useRef<Record<number, number>>({})
   // Shown to non-Pro users who try to add a source — the controls are visible to
   // everyone, but only Pro can actually add more.
   const [multiHint, setMultiHint] = useState('')
@@ -139,6 +210,31 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
     const t = window.setTimeout(() => setMultiHint(''), 5_000)
     return () => window.clearTimeout(t)
   }, [multiHint])
+
+  // Cancel any in-flight simulated-upload timers when the component unmounts.
+  useEffect(() => () => {
+    Object.values(extraTimersRef.current).forEach((t) => window.clearTimeout(t))
+  }, [])
+
+  // Drive a fake upload for an added source: ramp its progress, then mark it
+  // ready (with the tick). Mirrors the first file's spinner + progress + ready
+  // animation. Front-end only — nothing is actually uploaded.
+  const simulateExtraUpload = (id: number) => {
+    let p = 0
+    const step = () => {
+      p = Math.min(100, p + Math.random() * 22 + 12)
+      const ready = p >= 100
+      setExtraSources((prev) => prev.map((s) =>
+        s.id === id ? { ...s, progress: p, status: ready ? 'ready' : 'uploading' } : s
+      ))
+      if (ready) {
+        delete extraTimersRef.current[id]
+      } else {
+        extraTimersRef.current[id] = window.setTimeout(step, 320)
+      }
+    }
+    extraTimersRef.current[id] = window.setTimeout(step, 200)
+  }
 
   // Scroll the hero drop zone into view, focus it, and flash the active highlight.
   const focusDropZone = () => {
@@ -213,10 +309,12 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
   const handleExtraFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files ?? [])
     if (picked.length) {
-      setExtraSources((prev) => [
-        ...prev,
-        ...picked.map((f) => ({ id: ++extraIdRef.current, type: 'file' as const, label: f.name })),
-      ])
+      // Newly added sources appear above the existing ones (newest on top).
+      const newItems = picked.map((f) => ({
+        id: ++extraIdRef.current, type: 'file' as const, label: f.name, status: 'uploading' as SourceStatus, progress: 0,
+      }))
+      setExtraSources((prev) => [...newItems, ...prev])
+      newItems.forEach((it) => simulateExtraUpload(it.id))
     }
     e.target.value = '' // allow re-picking the same file
   }
@@ -224,12 +322,21 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
   const saveExtraUrl = () => {
     const u = extraUrl.trim()
     if (!u) return
-    setExtraSources((prev) => [...prev, { id: ++extraIdRef.current, type: 'url', label: u }])
+    const id = ++extraIdRef.current
+    // Prepend so the newest source sits on top.
+    setExtraSources((prev) => [{ id, type: 'url', label: u, status: 'uploading', progress: 0 }, ...prev])
+    simulateExtraUpload(id)
     setExtraUrl('')
     setAddingUrl(false)
   }
 
-  const removeExtraSource = (id: number) => setExtraSources((prev) => prev.filter((s) => s.id !== id))
+  const removeExtraSource = (id: number) => {
+    if (extraTimersRef.current[id]) {
+      window.clearTimeout(extraTimersRef.current[id])
+      delete extraTimersRef.current[id]
+    }
+    setExtraSources((prev) => prev.filter((s) => s.id !== id))
+  }
 
   // Start over after an error (or to pick a different file).
   const startOver = () => {
@@ -237,6 +344,8 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
     setPrompt('')
     setSourceLabel('')
     setHeroError('')
+    Object.values(extraTimersRef.current).forEach((t) => window.clearTimeout(t))
+    extraTimersRef.current = {}
     setExtraSources([])
     setAddingUrl(false)
     setExtraUrl('')
@@ -412,45 +521,28 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                   transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                   className="rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/60 p-5 sm:p-6"
                 >
-                  {/* Source + processing status */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-[#E2611B]/10 flex items-center justify-center flex-shrink-0">
-                      {error ? <AlertCircle className="w-4 h-4 text-red-500" />
-                        : session ? <CheckCircle className="w-4 h-4 text-[#E2611B]" />
-                        : <FileText className="w-4 h-4 text-[#E2611B]" />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-slate-800 truncate" title={sourceLabel}>{sourceLabel}</p>
-                      <p className={`text-xs ${error ? 'text-red-500' : 'text-[#E2611B]'}`}>
-                        {error ? 'Upload failed' : session ? 'Ready. Choose what to do below' : (stageMsg || 'Processing…')}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {!session && processing && <Loader2 className="w-4 h-4 text-[#E2611B] animate-spin" />}
-                      {!error && (
-                        <Tooltip label="Remove" side="right">
-                          <button
-                            onClick={startOver}
-                            aria-label="Remove file"
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </Tooltip>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Progress bar (while still working) */}
-                  {!session && !error && (
-                    <div className="mt-3 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                      <motion.div
-                        className="h-full bg-gradient-to-r from-[#E2611B]/70 to-[#E2611B] rounded-full"
-                        animate={{ width: `${progress}%` }}
-                        transition={{ duration: 0.5, ease: 'easeOut' }}
+                  {/* Source rows — every source (the first upload and any added
+                      file/URL) uses the same SourceRow look: grey card body, a tick
+                      once ready, the same spinner + progress while uploading. Newest
+                      sits on top, so the first upload is the last row. */}
+                  <div className="space-y-2">
+                    {extraSources.map((s) => (
+                      <SourceRow
+                        key={s.id}
+                        label={s.label}
+                        status={s.status}
+                        progress={s.progress}
+                        onRemove={() => removeExtraSource(s.id)}
                       />
-                    </div>
-                  )}
+                    ))}
+                    <SourceRow
+                      label={sourceLabel}
+                      status={error ? 'error' : session ? 'ready' : 'uploading'}
+                      progress={progress}
+                      statusMsg={stageMsg}
+                      onRemove={startOver}
+                    />
+                  </div>
 
                   {error ? (
                     <div className="mt-4 flex flex-col items-start gap-3">
@@ -471,23 +563,6 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                           scaffold: added files/URLs show as rows but aren't uploaded
                           or merged into the session yet (see CLAUDE.md). */}
                       <div className="mt-3 space-y-2">
-                          {/* Rows for each added source */}
-                          {extraSources.map((s) => (
-                            <div key={s.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                              {s.type === 'url'
-                                ? <Link2 className="w-4 h-4 text-[#E2611B] flex-shrink-0" />
-                                : <FileText className="w-4 h-4 text-[#E2611B] flex-shrink-0" />}
-                              <span className="text-sm text-slate-700 truncate flex-1" title={s.label}>{s.label}</span>
-                              <button
-                                onClick={() => removeExtraSource(s.id)}
-                                aria-label="Remove"
-                                className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ))}
-
                           {/* Add controls: two "+" buttons, or the URL input box */}
                           {addingUrl ? (
                             <div className="flex items-stretch gap-2">
