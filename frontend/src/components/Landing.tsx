@@ -8,9 +8,11 @@ import {
 } from 'lucide-react'
 import { ACCEPT } from './UploadZone'
 import Tooltip from './Tooltip'
+import MicButton from './MicButton'
 import { smoothScrollTo } from '../lib/smoothScroll'
 import { useAuth } from '../context/AuthContext'
 import { useDocumentProcessor } from '../hooks/useDocumentProcessor'
+import markWhite from '../assets/mark-white.svg'
 import { PLAN_LIMITS } from '../types'
 import type { AppMode, SessionInfo } from '../types'
 
@@ -69,6 +71,73 @@ const PLAN_FEATURES: { name: string; basic: boolean; pro: boolean }[] = [
   { name: 'Personalised assistant', basic: false, pro: true },
 ]
 
+// A single source's display state. Used for the first upload and every added
+// file/URL so they all render through the same `SourceRow` look.
+type SourceStatus = 'uploading' | 'ready' | 'error'
+
+// One source row. Every source (the first upload and any added file/URL) renders
+// through this so they look identical in every aspect: grey card body, a rounded
+// brand icon-chip that shows a spinner-less file icon while uploading and a tick
+// once ready, the same right-side spinner + progress bar while uploading, and a
+// remove button. Rows are stacked newest-on-top by the caller.
+function SourceRow({
+  label,
+  status,
+  progress,
+  statusMsg,
+  onRemove,
+}: {
+  label: string
+  status: SourceStatus
+  progress: number
+  statusMsg?: string
+  onRemove?: () => void
+}) {
+  const ready = status === 'ready'
+  const error = status === 'error'
+  const uploading = status === 'uploading'
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-[#E2611B]/10 flex items-center justify-center flex-shrink-0">
+          {error ? <AlertCircle className="w-4 h-4 text-red-500" />
+            : ready ? <CheckCircle className="w-4 h-4 text-[#E2611B]" />
+            : <FileText className="w-4 h-4 text-[#E2611B]" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-slate-800 truncate" title={label}>{label}</p>
+          <p className={`text-xs ${error ? 'text-red-500' : 'text-[#E2611B]'}`}>
+            {error ? 'Upload failed' : ready ? 'Ready' : (statusMsg || 'Processing…')}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {uploading && <Loader2 className="w-4 h-4 text-[#E2611B] animate-spin" />}
+          {!error && onRemove && (
+            <Tooltip label="Remove" side="right">
+              <button
+                onClick={onRemove}
+                aria-label="Remove"
+                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </Tooltip>
+          )}
+        </div>
+      </div>
+      {uploading && (
+        <div className="mt-3 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+          <motion.div
+            className="h-full bg-gradient-to-r from-[#E2611B]/70 to-[#E2611B] rounded-full"
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Mode tabs shown on the hero upload card. Selecting one switches the active mode,
 // which the upload pipeline then uses. The blurb shows below the tabs, above the
 // drop zone, for the active mode. ('charts' has no backend mode yet — it falls
@@ -83,12 +152,20 @@ const MODES: { value: AppMode | 'charts'; label: string; blurb: string }[] = [
   { value: 'charts', label: 'Charts', blurb: 'Turn the tables in your file into bar, line, or pie charts, and more. See the numbers, don’t just read them.' },
 ]
 
+// Warning shown when an upload (file or URL) is rejected for being a copy of a
+// source already in the session. Names are compared case-insensitively elsewhere;
+// this just phrases the notice.
+function duplicateRejectionMessage(names: string[]): string {
+  if (names.length === 1) return `'${names[0]}' was rejected since a copy already exists.`
+  return `${names.map((n) => `'${n}'`).join(', ')} were rejected since copies already exist.`
+}
+
 export default function Landing({ onEnter, onBusyChange }: Props) {
   const { token, user } = useAuth()
   const plan = user?.plan ?? 'free'
   const limits = PLAN_LIMITS[plan]
 
-  const { stage, stageMsg, progress, error, session, processing, processFiles, processUrl, reset } =
+  const { stage, stageMsg, progress, error, session, processing, removing, files, processFiles, processUrl, removeFile, reset } =
     useDocumentProcessor(token, plan)
 
   // Mode chosen inside the chat box that appears once an upload starts.
@@ -108,9 +185,13 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
   // user adds inside the chat box. These are display-only at the moment — they are
   // NOT yet uploaded or merged into the session (the backend builds a session from a
   // single batch; wiring this up is a follow-up). See CLAUDE.md.
-  const [extraSources, setExtraSources] = useState<{ id: number; type: 'file' | 'url'; label: string }[]>([])
+  const [extraSources, setExtraSources] = useState<{ id: number; type: 'file' | 'url'; label: string; status: SourceStatus; progress: number }[]>([])
   const [addingUrl, setAddingUrl] = useState(false)
   const [extraUrl, setExtraUrl] = useState('')
+  // Per-source simulated-upload timers (front-end only — added sources aren't
+  // really uploaded yet, so we fake the same progress/ready animation the first
+  // file gets). Keyed by source id so each can be cancelled on remove/unmount.
+  const extraTimersRef = useRef<Record<number, number>>({})
   // Shown to non-Pro users who try to add a source — the controls are visible to
   // everyone, but only Pro can actually add more.
   const [multiHint, setMultiHint] = useState('')
@@ -126,6 +207,27 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
   // the other modes generate from the document, so they only need the upload done.
   const canProceed = !!session && (effectiveMode !== 'chat' || prompt.trim().length > 0)
 
+  // Per-file status for a multi-file upload. The backend processes the batch as one
+  // unit but extracts the files in order, emitting a "(i/total)" marker as it starts
+  // each one — so we can show each row moving through queued → processing → ready on
+  // its own, instead of every row sharing the single overall progress number. `i` in
+  // the marker is 1-based; `activeFileIdx` is the 0-based index currently extracting
+  // (everything before it is done, everything after is queued).
+  const activeFileIdx = (() => {
+    if (session) return files.length          // ready → every file done
+    if (stage === 'analysing') return files.length  // extraction finished for all
+    const m = stageMsg.match(/\((\d+)\/\d+\)/)
+    return m ? parseInt(m[1], 10) - 1 : 0
+  })()
+
+  // Status/progress/label for one file row, derived from where the pipeline is.
+  const fileRowProps = (idx: number): { status: SourceStatus; progress: number; statusMsg?: string } => {
+    if (error) return { status: 'error', progress: 0 }
+    if (idx < activeFileIdx) return { status: 'ready', progress: 100 }
+    if (idx === activeFileIdx) return { status: 'uploading', progress: Math.max(progress, 35) }
+    return { status: 'uploading', progress: 0, statusMsg: 'Queued' }
+  }
+
   // While an upload/processing is in flight, mark the app busy so an accidental
   // refresh is guarded ('error' doesn't count — nothing is being lost).
   useEffect(() => {
@@ -139,6 +241,31 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
     const t = window.setTimeout(() => setMultiHint(''), 5_000)
     return () => window.clearTimeout(t)
   }, [multiHint])
+
+  // Cancel any in-flight simulated-upload timers when the component unmounts.
+  useEffect(() => () => {
+    Object.values(extraTimersRef.current).forEach((t) => window.clearTimeout(t))
+  }, [])
+
+  // Drive a fake upload for an added source: ramp its progress, then mark it
+  // ready (with the tick). Mirrors the first file's spinner + progress + ready
+  // animation. Front-end only — nothing is actually uploaded.
+  const simulateExtraUpload = (id: number) => {
+    let p = 0
+    const step = () => {
+      p = Math.min(100, p + Math.random() * 22 + 12)
+      const ready = p >= 100
+      setExtraSources((prev) => prev.map((s) =>
+        s.id === id ? { ...s, progress: p, status: ready ? 'ready' : 'uploading' } : s
+      ))
+      if (ready) {
+        delete extraTimersRef.current[id]
+      } else {
+        extraTimersRef.current[id] = window.setTimeout(step, 320)
+      }
+    }
+    extraTimersRef.current[id] = window.setTimeout(step, 200)
+  }
 
   // Scroll the hero drop zone into view, focus it, and flash the active highlight.
   const focusDropZone = () => {
@@ -170,34 +297,92 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
 
   const onDrop = useCallback((accepted: File[], rejections: FileRejection[]) => {
     setHeroError('')
+    setMultiHint('')
 
-    if (accepted.length + rejections.length > limits.maxFiles) {
-      setHeroError(plan === 'free'
-        ? `The free plan handles ${limits.maxFiles} file at a time. Multi-file is coming soon with Pro.`
-        : `You can upload at most ${limits.maxFiles} files.`)
-      return
+    let acceptedFiles = accepted
+    let fileRejections = rejections
+
+    // Reject duplicate filenames within the dropped batch (e.g. the same file
+    // dragged in twice, or a copy picked from another folder). Keep the first and
+    // drop the rest; the warning is surfaced via multiHint once the chat box shows.
+    const dupInBatch: string[] = []
+    {
+      const seen = new Set<string>()
+      const unique: File[] = []
+      for (const f of acceptedFiles) {
+        const key = f.name.trim().toLowerCase()
+        if (seen.has(key)) { dupInBatch.push(f.name); continue }
+        seen.add(key)
+        unique.push(f)
+      }
+      acceptedFiles = unique
     }
-    const tooBig = [...accepted, ...rejections.map((r) => r.file)].find((f) => f.size > limits.maxSizeMb * 1024 * 1024)
+
+    // The free plan can now *select* several files (the picker is no longer
+    // single-select), but only one is actually uploaded. Trim the picked set to
+    // the first allowed file and flag the Pro-only notice surfaced below.
+    let trimmedForFree = false
+    if (acceptedFiles.length + fileRejections.length > limits.maxFiles) {
+      if (plan !== 'free') {
+        setHeroError(`You can upload at most ${limits.maxFiles} files.`)
+        return
+      }
+      trimmedForFree = true
+      acceptedFiles = acceptedFiles.slice(0, limits.maxFiles)
+      // Prefer a valid file; only keep a rejection if nothing valid was picked
+      // (so the unsupported-type error below still fires for an all-bad selection).
+      fileRejections = acceptedFiles.length > 0 ? [] : fileRejections.slice(0, limits.maxFiles)
+    }
+
+    const tooBig = [...acceptedFiles, ...fileRejections.map((r) => r.file)].find((f) => f.size > limits.maxSizeMb * 1024 * 1024)
     if (tooBig) {
       setHeroError(plan === 'free'
         ? `'${tooBig.name}' is over the ${limits.maxSizeMb}MB free limit. Larger uploads are coming soon with Pro.`
         : `'${tooBig.name}' exceeds the ${limits.maxSizeMb}MB limit.`)
       return
     }
-    if (rejections.length > 0) {
+    if (fileRejections.length > 0) {
       setHeroError('Some files have an unsupported type. Allowed: PDF, DOCX, XLSX, PPTX, HTML, JSON, TXT, CSV, MD.')
       return
     }
-    if (accepted.length > 0) {
-      setSourceLabel(accepted.length > 1 ? `${accepted.length} files` : accepted[0].name)
-      processFiles(accepted)
+    if (acceptedFiles.length > 0) {
+      setSourceLabel(acceptedFiles.length > 1 ? `${acceptedFiles.length} files` : acceptedFiles[0].name)
+      // heroError lives only on the pre-upload view, which unmounts the instant
+      // processing starts — so surface notices via multiHint, which renders inside
+      // the chat box the upload morphs into.
+      const notices: string[] = []
+      if (trimmedForFree) notices.push('Multiple uploads are possible only on a Pro account. Only the first file was uploaded.')
+      if (dupInBatch.length) notices.push(duplicateRejectionMessage(dupInBatch))
+      if (notices.length) setMultiHint(notices.join(' '))
+      processFiles(acceptedFiles)
     }
   }, [limits, plan, processFiles])
 
+  // Set when the user hits Proceed while a file removal is still settling on the
+  // backend (see `removing`). We hold them on the page with a "Please wait…" button
+  // and enter the chat the moment the server confirms, so the session they enter is
+  // guaranteed consistent with what they see.
+  const [proceedPending, setProceedPending] = useState(false)
+
   const handleProceed = () => {
     if (!canProceed || !session) return
+    if (removing) {
+      setProceedPending(true)  // wait for the backend removal to finish, then enter
+      return
+    }
     onEnter(session, effectiveMode, prompt.trim())
   }
+
+  // Once a pending removal settles, complete the queued Proceed. If the removal failed
+  // it rolled back and surfaced an `error`, so we don't enter — the user stays to see it.
+  useEffect(() => {
+    if (!proceedPending || removing) return
+    setProceedPending(false)
+    if (error || !session) return
+    if (effectiveMode !== 'chat' || prompt.trim().length > 0) {
+      onEnter(session, effectiveMode, prompt.trim())
+    }
+  }, [proceedPending, removing, error, session, effectiveMode, prompt, onEnter])
 
   // ── Multi-source add (controls visible to all; only Pro can add — front-end only) ──
   const openExtraFilePicker = () => {
@@ -210,26 +395,68 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
     setAddingUrl(true)
   }
 
+  // Filenames / URLs already in this session: the initial upload's files (or its
+  // URL label) plus any added extra sources. Compared case-insensitively so a copy
+  // of something already added can be rejected.
+  const existingSourceKeys = useCallback(() => {
+    const keys = new Set<string>()
+    files.forEach((f) => keys.add(f.name.trim().toLowerCase()))
+    if (files.length === 0 && sourceLabel) keys.add(sourceLabel.trim().toLowerCase())
+    extraSources.forEach((s) => keys.add(s.label.trim().toLowerCase()))
+    return keys
+  }, [files, sourceLabel, extraSources])
+
   const handleExtraFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files ?? [])
-    if (picked.length) {
-      setExtraSources((prev) => [
-        ...prev,
-        ...picked.map((f) => ({ id: ++extraIdRef.current, type: 'file' as const, label: f.name })),
-      ])
+    // Reject any file whose name already exists in the session (or is repeated
+    // within this pick), keeping the first copy. Works the same whether files are
+    // picked one after another or together in a multiple-selection.
+    const existing = existingSourceKeys()
+    const accepted: File[] = []
+    const rejected: string[] = []
+    for (const f of picked) {
+      const key = f.name.trim().toLowerCase()
+      if (existing.has(key)) { rejected.push(f.name); continue }
+      existing.add(key)
+      accepted.push(f)
     }
+    if (accepted.length) {
+      // Newly added sources appear above the existing ones (newest on top).
+      const newItems = accepted.map((f) => ({
+        id: ++extraIdRef.current, type: 'file' as const, label: f.name, status: 'uploading' as SourceStatus, progress: 0,
+      }))
+      setExtraSources((prev) => [...newItems, ...prev])
+      newItems.forEach((it) => simulateExtraUpload(it.id))
+    }
+    if (rejected.length) setMultiHint(duplicateRejectionMessage(rejected))
     e.target.value = '' // allow re-picking the same file
   }
 
   const saveExtraUrl = () => {
     const u = extraUrl.trim()
     if (!u) return
-    setExtraSources((prev) => [...prev, { id: ++extraIdRef.current, type: 'url', label: u }])
+    // Reject a URL that's already in the session.
+    if (existingSourceKeys().has(u.toLowerCase())) {
+      setMultiHint(duplicateRejectionMessage([u]))
+      setExtraUrl('')
+      setAddingUrl(false)
+      return
+    }
+    const id = ++extraIdRef.current
+    // Prepend so the newest source sits on top.
+    setExtraSources((prev) => [{ id, type: 'url', label: u, status: 'uploading', progress: 0 }, ...prev])
+    simulateExtraUpload(id)
     setExtraUrl('')
     setAddingUrl(false)
   }
 
-  const removeExtraSource = (id: number) => setExtraSources((prev) => prev.filter((s) => s.id !== id))
+  const removeExtraSource = (id: number) => {
+    if (extraTimersRef.current[id]) {
+      window.clearTimeout(extraTimersRef.current[id])
+      delete extraTimersRef.current[id]
+    }
+    setExtraSources((prev) => prev.filter((s) => s.id !== id))
+  }
 
   // Start over after an error (or to pick a different file).
   const startOver = () => {
@@ -237,16 +464,36 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
     setPrompt('')
     setSourceLabel('')
     setHeroError('')
+    Object.values(extraTimersRef.current).forEach((t) => window.clearTimeout(t))
+    extraTimersRef.current = {}
     setExtraSources([])
     setAddingUrl(false)
     setExtraUrl('')
     setMultiHint('')
   }
 
+  // Remove one file from a multi-file upload. Delegates to the hook's `removeFile`,
+  // which asks the server to drop just that document (the survivors keep their built
+  // indexes — no re-processing). Removing the last file clears the whole upload, so we
+  // route that through `startOver` to also reset this component's own state (prompt,
+  // any added sources, timers).
+  const removeFileAt = (idx: number) => {
+    const target = files[idx]
+    if (!target) return
+    if (files.length <= 1) {
+      startOver()
+      return
+    }
+    removeFile(target.name)
+  }
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: ACCEPT,
-    multiple: limits.maxFiles > 1,
+    // Allow selecting several files even on the free plan — onDrop trims to the
+    // first one and shows the Pro-only notice. (No `maxFiles` here, so extra picks
+    // arrive as accepted files rather than 'too-many-files' rejections.)
+    multiple: true,
     disabled: started,
   })
 
@@ -412,45 +659,51 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                   transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                   className="rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/60 p-5 sm:p-6"
                 >
-                  {/* Source + processing status */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-[#E2611B]/10 flex items-center justify-center flex-shrink-0">
-                      {error ? <AlertCircle className="w-4 h-4 text-red-500" />
-                        : session ? <CheckCircle className="w-4 h-4 text-[#E2611B]" />
-                        : <FileText className="w-4 h-4 text-[#E2611B]" />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-slate-800 truncate" title={sourceLabel}>{sourceLabel}</p>
-                      <p className={`text-xs ${error ? 'text-red-500' : 'text-[#E2611B]'}`}>
-                        {error ? 'Upload failed' : session ? 'Ready. Choose what to do below' : (stageMsg || 'Processing…')}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {!session && processing && <Loader2 className="w-4 h-4 text-[#E2611B] animate-spin" />}
-                      {!error && (
-                        <Tooltip label="Remove" side="right">
-                          <button
-                            onClick={startOver}
-                            aria-label="Remove file"
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </Tooltip>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Progress bar (while still working) */}
-                  {!session && !error && (
-                    <div className="mt-3 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                      <motion.div
-                        className="h-full bg-gradient-to-r from-[#E2611B]/70 to-[#E2611B] rounded-full"
-                        animate={{ width: `${progress}%` }}
-                        transition={{ duration: 0.5, ease: 'easeOut' }}
+                  {/* Source rows — every source (the first upload and any added
+                      file/URL) uses the same SourceRow look: grey card body, a tick
+                      once ready, the same spinner + progress while uploading. Newest
+                      sits on top, so the first upload is the last row. */}
+                  <div className="space-y-2">
+                    {extraSources.map((s) => (
+                      <SourceRow
+                        key={s.id}
+                        label={s.label}
+                        status={s.status}
+                        progress={s.progress}
+                        onRemove={() => removeExtraSource(s.id)}
                       />
-                    </div>
-                  )}
+                    ))}
+                    {/* The first upload. When several files were uploaded together we
+                        show each filename on its own row so a multi-file upload reads
+                        the same as uploading them one by one — each row tracks that
+                        file's own status/progress (see `fileRowProps`), and its X
+                        removes just that file (re-processing the rest via
+                        `removeFileAt`). URL sources have no File, so they fall back to
+                        the single friendly `sourceLabel` row. */}
+                    {files.length > 0 ? (
+                      files.map((f, i) => {
+                        const rp = fileRowProps(i)
+                        return (
+                          <SourceRow
+                            key={`${f.name}-${i}`}
+                            label={f.name}
+                            status={rp.status}
+                            progress={rp.progress}
+                            statusMsg={rp.statusMsg}
+                            onRemove={() => removeFileAt(i)}
+                          />
+                        )
+                      })
+                    ) : (
+                      <SourceRow
+                        label={sourceLabel}
+                        status={error ? 'error' : session ? 'ready' : 'uploading'}
+                        progress={progress}
+                        statusMsg={stageMsg}
+                        onRemove={startOver}
+                      />
+                    )}
+                  </div>
 
                   {error ? (
                     <div className="mt-4 flex flex-col items-start gap-3">
@@ -471,23 +724,6 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                           scaffold: added files/URLs show as rows but aren't uploaded
                           or merged into the session yet (see CLAUDE.md). */}
                       <div className="mt-3 space-y-2">
-                          {/* Rows for each added source */}
-                          {extraSources.map((s) => (
-                            <div key={s.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                              {s.type === 'url'
-                                ? <Link2 className="w-4 h-4 text-[#E2611B] flex-shrink-0" />
-                                : <FileText className="w-4 h-4 text-[#E2611B] flex-shrink-0" />}
-                              <span className="text-sm text-slate-700 truncate flex-1" title={s.label}>{s.label}</span>
-                              <button
-                                onClick={() => removeExtraSource(s.id)}
-                                aria-label="Remove"
-                                className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ))}
-
                           {/* Add controls: two "+" buttons, or the URL input box */}
                           {addingUrl ? (
                             <div className="flex items-stretch gap-2">
@@ -569,19 +805,24 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                           className="flex-1 min-w-0 bg-transparent px-2 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none resize-none leading-relaxed"
                           style={{ maxHeight: '120px' }}
                         />
+                        <MicButton
+                          onTranscript={(text) =>
+                            setPrompt((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))
+                          }
+                        />
                         <Tooltip
-                          label={canProceed ? 'Proceed' : !session ? 'Hang on, still reading your document' : 'Type what you want to do first'}
+                          label={proceedPending ? 'Finishing up, one moment…' : canProceed ? 'Proceed' : !session ? 'Hang on, still reading your document' : 'Type what you want to do first'}
                           side="right"
                         >
                           <motion.button
-                            whileHover={canProceed ? { scale: 1.05 } : undefined}
-                            whileTap={canProceed ? { scale: 0.95 } : undefined}
+                            whileHover={canProceed && !proceedPending ? { scale: 1.05 } : undefined}
+                            whileTap={canProceed && !proceedPending ? { scale: 0.95 } : undefined}
                             onClick={handleProceed}
-                            disabled={!canProceed}
+                            disabled={!canProceed || proceedPending}
                             aria-label="Proceed"
                             className="w-10 h-10 rounded-full bg-[#E2611B] text-white flex items-center justify-center flex-shrink-0 shadow-sm transition-all hover:bg-[#E2611B]/90 disabled:opacity-40 disabled:cursor-not-allowed"
                           >
-                            {!session && processing
+                            {proceedPending || (!session && processing)
                               ? <Loader2 className="w-4 h-4 animate-spin" />
                               : <ArrowUp className="w-4 h-4" />}
                           </motion.button>
@@ -817,11 +1058,13 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5 sm:gap-8">
             {/* Brand — inverted wordmark for the orange surface (see CLAUDE.md) */}
             <div className="max-w-sm">
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-slate-50 flex items-center justify-center shadow-sm">
-                  <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#E2611B]" />
-                </div>
-                <span className="font-brand italic font-bold text-[26px] sm:text-[34px] tracking-[-0.02em] text-slate-50">
+              <div className="flex items-center gap-1">
+                <img
+                  src={markWhite}
+                  alt="Talktofile"
+                  className="w-14 h-14 sm:w-16 sm:h-16"
+                />
+                <span className="-ml-3 font-brand italic font-bold text-[26px] sm:text-[34px] tracking-[-0.02em] text-slate-50">
                   Talktofile
                 </span>
               </div>

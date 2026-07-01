@@ -1,7 +1,7 @@
-# TalkToFile — Dev Startup Script
+# Talktofile — Dev Startup Script
 # Run from the talktofile/ root directory
 
-Write-Host "Starting TalkToFile in development mode..." -ForegroundColor Cyan
+Write-Host "Starting Talktofile in development mode..." -ForegroundColor Cyan
 
 # Check .env
 if (-not (Test-Path "backend\.env")) {
@@ -20,7 +20,7 @@ Write-Host "Starting frontend on http://localhost:5173 ..." -ForegroundColor Gre
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PWD\frontend'; npm run dev"
 
 Write-Host ""
-Write-Host "TalkToFile is starting up!" -ForegroundColor Cyan
+Write-Host "Talktofile is starting up!" -ForegroundColor Cyan
 Write-Host "  Frontend: http://localhost:5173" -ForegroundColor White
 Write-Host "  Backend:  http://localhost:9099" -ForegroundColor White
 Write-Host "  API Docs: http://localhost:9099/api/docs" -ForegroundColor White

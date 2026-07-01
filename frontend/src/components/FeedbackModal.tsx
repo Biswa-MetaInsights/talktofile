@@ -61,7 +61,7 @@ export default function FeedbackModal({ onClose }: { onClose: () => void }) {
               </div>
               <div>
                 <h2 className="text-slate-900 font-semibold">Send feedback</h2>
-                <p className="text-xs text-slate-500">Help us make TalkToFile better</p>
+                <p className="text-xs text-slate-500">Help us make Talktofile better</p>
               </div>
             </div>
             <button onClick={onClose} aria-label="Close" title="Close"

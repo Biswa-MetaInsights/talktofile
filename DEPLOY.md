@@ -1,4 +1,4 @@
-# Deploying TalkToFile
+# Deploying Talktofile
 
 Single‑VM deployment with Docker Compose: a FastAPI backend + Caddy (automatic
 HTTPS, serves the SPA, reverse‑proxies `/api` including WebSockets). Postgres is

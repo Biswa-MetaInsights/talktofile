@@ -1,18 +1,18 @@
 import { useRef } from 'react'
-import { Camera, User, X } from 'lucide-react'
-import Tooltip from './Tooltip'
+import { Camera, User } from 'lucide-react'
 
 /**
- * Circular avatar with an upload control. Frontend only — the picked image is read
- * into a data URL and handed back via `onChange`; nothing is uploaded to a server yet.
- * Shows the image when set, otherwise the user's initials (from `name`) or a fallback
- * icon. A small camera button opens the file picker; a remove button clears it.
+ * Avatar picker, laid out as a premium "settings row": a circular avatar on the
+ * left with a hover overlay, and a labelled action button + helper text on the
+ * right. Frontend only — the picked image is read into a data URL and handed back
+ * via `onChange`; nothing is uploaded to a server yet. Shows the image when set,
+ * otherwise the user's initials (from `name`) or a fallback icon.
  */
 export default function AvatarUpload({
   value,
   onChange,
   name,
-  size = 80,
+  size = 72,
 }: {
   /** Current avatar as a data URL (or empty for none). */
   value: string
@@ -23,12 +23,41 @@ export default function AvatarUpload({
   size?: number
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const pick = () => inputRef.current?.click()
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = () => onChange(typeof reader.result === 'string' ? reader.result : '')
+    reader.onload = () => {
+      const src = typeof reader.result === 'string' ? reader.result : ''
+      if (!src) return
+      // Downscale to a small square thumbnail so the stored avatar is tiny
+      // (it's sent in every profile/me payload). Fall back to the raw image if
+      // canvas processing fails for any reason.
+      const img = new Image()
+      img.onload = () => {
+        try {
+          const SIZE = 256
+          const canvas = document.createElement('canvas')
+          canvas.width = SIZE
+          canvas.height = SIZE
+          const ctx = canvas.getContext('2d')
+          if (!ctx) { onChange(src); return }
+          const side = Math.min(img.width, img.height)
+          const sx = (img.width - side) / 2
+          const sy = (img.height - side) / 2
+          ctx.fillStyle = '#ffffff' // flatten any transparency (we export JPEG)
+          ctx.fillRect(0, 0, SIZE, SIZE)
+          ctx.drawImage(img, sx, sy, side, side, 0, 0, SIZE, SIZE)
+          onChange(canvas.toDataURL('image/jpeg', 0.85))
+        } catch {
+          onChange(src)
+        }
+      }
+      img.onerror = () => onChange(src)
+      img.src = src
+    }
     reader.readAsDataURL(file)
     e.target.value = '' // allow re-picking the same file
   }
@@ -42,55 +71,57 @@ export default function AvatarUpload({
     .toUpperCase()
 
   return (
-    <div className="inline-flex">
-      <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
-        <Tooltip label="Upload a photo. JPG, PNG or GIF.">
+    <div className="flex items-center gap-4">
+      {/* Avatar — click anywhere on it to open the picker; a soft overlay invites the action on hover/focus. */}
+      <button
+        type="button"
+        onClick={pick}
+        aria-label={value ? 'Change photo' : 'Upload a photo'}
+        className="group relative flex-shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[#E2611B]/40 focus-visible:ring-offset-2"
+        style={{ width: size, height: size }}
+      >
+        <span className="block w-full h-full rounded-full overflow-hidden bg-[#E2611B]/10 ring-1 ring-[#E2611B]/15 flex items-center justify-center">
+          {value ? (
+            <img src={value} alt="Avatar" className="w-full h-full object-cover" />
+          ) : initials ? (
+            <span className="font-semibold text-[#E2611B] leading-none" style={{ fontSize: size * 0.34 }}>
+              {initials}
+            </span>
+          ) : (
+            <User className="text-[#E2611B]" style={{ width: size * 0.4, height: size * 0.4 }} />
+          )}
+        </span>
+
+        {/* Hover/focus overlay — appears only on interaction, so the resting state stays clean. */}
+        <span className="absolute inset-0 rounded-full bg-slate-900/45 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity flex items-center justify-center">
+          <Camera className="text-white" style={{ width: size * 0.28, height: size * 0.28 }} />
+        </span>
+      </button>
+
+      {/* Actions + helper text */}
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => inputRef.current?.click()}
-            aria-label={value ? 'Change avatar' : 'Upload a photo. JPG, PNG or GIF.'}
-            className="w-full h-full rounded-full overflow-hidden bg-[#E2611B]/10 border-2 border-[#E2611B]/20 flex items-center justify-center"
+            onClick={pick}
+            className="px-3 py-1.5 rounded-lg text-sm font-medium text-[#E2611B] bg-[#E2611B]/10 hover:bg-[#E2611B]/15 transition-colors"
           >
-            {value ? (
-              <img src={value} alt="Avatar" className="w-full h-full object-cover" />
-            ) : initials ? (
-              <span className="font-semibold text-[#E2611B]" style={{ fontSize: size * 0.34 }}>{initials}</span>
-            ) : (
-              <User className="text-[#E2611B]" style={{ width: size * 0.4, height: size * 0.4 }} />
-            )}
+            {value ? 'Change photo' : 'Upload photo'}
           </button>
-        </Tooltip>
-
-        {/* Camera button to open the picker */}
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          aria-label={value ? 'Change avatar' : 'Upload avatar'}
-          className="absolute -bottom-0.5 -right-0.5 w-7 h-7 rounded-full bg-[#E2611B] text-white flex items-center justify-center shadow-sm border-2 border-white hover:bg-[#E2611B]/90 transition-colors"
-        >
-          <Camera className="w-3.5 h-3.5" />
-        </button>
-
-        {/* Remove button (only when an image is set) */}
-        {value && (
-          <button
-            type="button"
-            onClick={() => onChange('')}
-            aria-label="Remove avatar"
-            className="absolute -top-0.5 -right-0.5 w-6 h-6 rounded-full bg-white text-slate-500 flex items-center justify-center shadow-sm border border-slate-200 hover:text-red-500 hover:border-red-200 transition-colors"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        )}
+          {value && (
+            <button
+              type="button"
+              onClick={() => onChange('')}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors"
+            >
+              Remove
+            </button>
+          )}
+        </div>
+        <p className="mt-1.5 text-xs text-slate-400">JPG, PNG or GIF. Max 5 MB.</p>
       </div>
 
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFile}
-        className="hidden"
-      />
+      <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
     </div>
   )
 }

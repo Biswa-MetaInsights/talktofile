@@ -79,7 +79,7 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
           return `${i + 1}. Q: ${c.question}${hint}\n   A: ${c.answer}`
         })
         .join('\n\n')
-    const how = await shareOrCopy(withAttribution(body), 'Flashcards — TalkToFile')
+    const how = await shareOrCopy(withAttribution(body), 'Flashcards — Talktofile')
     setShared(how)
     setTimeout(() => setShared(null), 2000)
   }

@@ -68,7 +68,7 @@ export default function PodcastView({ session, onStartChat }: Props) {
 
   const shareScript = async () => {
     if (!script.length) return
-    const how = await shareOrCopy(scriptText(), 'Podcast script — TalkToFile')
+    const how = await shareOrCopy(scriptText(), 'Podcast script — Talktofile')
     setShared(how)
     setTimeout(() => setShared(null), 2000)
   }

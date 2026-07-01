@@ -4,8 +4,9 @@ Flashcards, translation, podcast script, slide generation, and URL ingestion.
 """
 
 import re
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
+from openai import AsyncOpenAI
 from pydantic import BaseModel
 from core.auth import get_current_user
 from core.session_store import session_store
@@ -195,3 +196,52 @@ async def generate_slides(session_id: str, current_user: dict = Depends(get_curr
         media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
         headers={"Content-Disposition": f'attachment; filename="{safe_name}.pptx"'},
     )
+
+
+# ── Voice transcription (Whisper) — ACTIVE ─────────────────────────────────────
+# Speech-to-text for the dictation mic in the chat inputs. The browser records
+# audio and posts it here; we transcribe it with OpenAI Whisper and return text.
+# This is browser-independent (works where the Web Speech API doesn't, e.g. Brave).
+
+# Map the browser MediaRecorder MIME types to the extensions Whisper recognises.
+_AUDIO_EXT = {
+    "audio/webm": "webm",
+    "audio/ogg": "ogg",
+    "audio/mp4": "mp4",
+    "audio/mpeg": "mp3",
+    "audio/wav": "wav",
+    "audio/x-wav": "wav",
+}
+_MAX_AUDIO_BYTES = 25 * 1024 * 1024  # Whisper's hard upload limit.
+
+
+@router.post("/transcribe")
+async def transcribe_audio(
+    audio: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    username = current_user["username"]
+
+    content = await audio.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="No audio received.")
+    if len(content) > _MAX_AUDIO_BYTES:
+        raise HTTPException(status_code=413, detail="Audio is too long. Please keep dictation short.")
+
+    # Whisper infers the audio format from the filename extension, so give it one
+    # matching the recorded MIME type (default to webm — Chrome/Brave's default).
+    base = (audio.content_type or "audio/webm").split(";")[0].strip()
+    ext = _AUDIO_EXT.get(base, "webm")
+
+    settings = get_settings()
+    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    try:
+        result = await client.audio.transcriptions.create(
+            model="whisper-1",
+            file=(f"dictation.{ext}", content, base),
+        )
+    except Exception as e:  # noqa: BLE001 — surface a clean error to the client
+        raise HTTPException(status_code=502, detail=f"Transcription failed: {e}")
+
+    log_usage(username, "transcribe", f"bytes={len(content)}")
+    return {"text": (result.text or "").strip()}

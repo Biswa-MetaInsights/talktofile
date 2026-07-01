@@ -19,7 +19,10 @@ bearer_scheme = HTTPBearer()
 _guests: dict[str, dict] = {}
 
 # Bound the in-memory guest store so repeated /auth/guest calls can't exhaust RAM.
-_GUEST_TTL_SECONDS = 3 * 60 * 60   # expire guests after 3h (token lives 1h)
+# This record TTL (not the JWT expiry) is the effective guest lifetime: once the
+# record is evicted, the token still decodes but resolves to no user → 401, which
+# the frontend handles by transparently issuing a fresh guest.
+_GUEST_TTL_SECONDS = 3 * 60 * 60   # evict idle guest records after 3h
 _MAX_GUESTS = 5000
 
 
@@ -81,6 +84,7 @@ def create_user(db: Session, username: str, password: str, profile: Optional[dic
         company_role=p.get("company_role", ""),
         company_size=p.get("company_size", ""),
         industry=p.get("industry", ""),
+        avatar=p.get("avatar", ""),
     )
     db.add(user)
     db.commit()
@@ -148,7 +152,7 @@ def update_profile(db: Session, current_user: dict, profile: dict) -> dict:
         user = _db_user(db, current_user.get("username"))
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    for field in ("full_name", "email", "phone", "company_name", "company_role", "company_size", "industry"):
+    for field in ("full_name", "email", "phone", "company_name", "company_role", "company_size", "industry", "avatar"):
         if field in profile and profile[field] is not None:
             setattr(user, field, profile[field])
     db.commit()

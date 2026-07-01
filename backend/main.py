@@ -13,19 +13,19 @@ from routers import auth, document, chat, feedback, tools
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("TalkToFile backend starting...")
+    print("Talktofile backend starting...")
     get_settings().validate_for_runtime()  # refuse insecure defaults in prod
     init_db()
     print("Database ready")
     yield
-    print("TalkToFile backend shutting down")
+    print("Talktofile backend shutting down")
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
 
     app = FastAPI(
-        title="TalkToFile API",
+        title="Talktofile API",
         description="Agentic document Q&A backend",
         version="1.0.0",
         lifespan=lifespan,
@@ -64,7 +64,7 @@ def create_app() -> FastAPI:
 
     @app.get("/api/health")
     async def health():
-        return {"status": "ok", "service": "TalkToFile"}
+        return {"status": "ok", "service": "Talktofile"}
 
     return app
 
