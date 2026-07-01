@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDropzone, FileRejection } from 'react-dropzone'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
   FileText, Upload, MessageSquare, Sparkles, Globe, Files, BookOpen, Link2,
   ShieldCheck, Lock, Zap, ArrowUp, Loader2, CheckCircle, AlertCircle, RotateCcw, X, Plus,
@@ -254,7 +254,11 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
   // mode. Rendered identically in two places — below the drop zone before an upload
   // and inside the white chat box once it appears — differing only in the pill's
   // background colour (so it blends with whatever surface it sits on).
-  const renderModeTabs = (pillBg: string) => (
+  // `spotlightId` namespaces the sliding active-pill `layoutId` per instance. The
+  // tabs render in two places (the uploader card and, after upload, the chat box);
+  // sharing one layoutId across both makes framer-motion try to animate the pill
+  // *between* the two surfaces, which is wrong — each surface keeps its own pill.
+  const renderModeTabs = (pillBg: string, spotlightId: string) => (
     <>
       <div className={`flex flex-wrap items-center justify-center gap-1 rounded-3xl border border-[#303030] p-1 ${pillBg}`}>
         {MODES.map(({ value, label }) => {
@@ -267,7 +271,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
             >
               {isActive && (
                 <motion.span
-                  layoutId="mode-spotlight"
+                  layoutId={spotlightId}
                   className="absolute inset-0 rounded-full bg-[#E2611B] shadow-sm"
                   transition={{ type: 'spring', stiffness: 500, damping: 34 }}
                 />
@@ -328,13 +332,16 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
               max-w-3xl so the mode tabs sit on one line at full width (they still wrap
               on narrow screens via flex-wrap). */}
           <div className="mt-10 max-w-3xl mx-auto text-left">
-            <AnimatePresence mode="wait">
-              {!started ? (
+            {/* Plain conditional swap (no AnimatePresence): the mode-tab spotlight's
+                layoutId animation prevents framer's exit from ever completing, which
+                left the exiting uploader mounted (invisible but occupying space) and
+                the chat box never fully taking over. Each side keeps its own entrance
+                animation; the outgoing one unmounts immediately. */}
+            {!started ? (
                 <motion.div
                   key="uploader"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.3 }}
                 >
                   {/* Drop zone — accepts a real file and starts the upload right here */}
@@ -398,7 +405,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
 
                   {/* Mode selection — sits below the drop zone / URL box before upload */}
                   <div className="mt-8">
-                    {renderModeTabs('bg-[#F8FAFC]')}
+                    {renderModeTabs('bg-[#F8FAFC]', 'mode-spotlight-hero')}
                   </div>
                 </motion.div>
               ) : (
@@ -591,13 +598,12 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                       {/* Mode selection — now lives inside the white box (white pill
                           background so it blends with the card) */}
                       <div className="mt-5">
-                        {renderModeTabs('bg-white')}
+                        {renderModeTabs('bg-white', 'mode-spotlight-chat')}
                       </div>
                     </>
                   )}
                 </motion.div>
               )}
-            </AnimatePresence>
           </div>
         </motion.div>
       </section>

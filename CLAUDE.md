@@ -296,10 +296,22 @@ Clean, minimal, premium. **Simplicity is the priority — do not add unnecessary
 
 ## What Is / Isn't Built Yet
 
-Built and working: guest + registered auth (legacy JWT or Supabase), single/multi/compare upload
-modes, the full extract→index→summarize pipeline, streaming Q&A with reconnect, suggested
-questions, per-document summaries, plan limits + daily usage caps, feedback capture, persona
-(Pro), rate limiting, and Dockerized production serving (Caddy).
+Built and working: guest + registered auth (legacy JWT or Supabase), **password reset / "forgot
+password"** (both modes — see below), single/multi/compare upload modes, the full
+extract→index→summarize pipeline, streaming Q&A with reconnect, suggested questions, per-document
+summaries, plan limits + daily usage caps, feedback capture, persona (Pro), rate limiting, and
+Dockerized production serving (Caddy).
+
+**Password reset.** In **Supabase mode** it's handled by Supabase. In **legacy mode** it's
+native: `POST /api/auth/forgot-password {email}` mints a single-use, 30-min, hashed-at-rest token
+(`password_reset_tokens` table) and emails a link `${FRONTEND_URL}/reset-password?token=…`;
+`POST /api/auth/reset-password {token, new_password}` consumes it and signs the user in. Both are
+rate-limited and the forgot endpoint is enumeration-safe (always the same generic response). Email
+goes through `core/email.py` (Resend HTTP API). **In development with no `RESEND_API_KEY`, no mail
+is sent — the link is logged to the console and also returned as `dev_reset_link` in the response**
+(strictly gated to `ENVIRONMENT=development`, so it can never leak in prod). To enable real emails
+set `RESEND_API_KEY` / `EMAIL_FROM` / `FRONTEND_URL` (see `.env.example`). Note: legacy registration
+now **requires a unique email** so reset can resolve an account unambiguously.
 
 Not built / known gaps:
 - **Real billing** — Pro is granted only via the `PRO_EMAILS` env var; there is no payment flow.
@@ -317,6 +329,36 @@ Not built / known gaps:
 > for small sessions. Keep entries terse (a few bullets), not a blow-by-blow transcript. The
 > detailed "how" belongs in the relevant section above; this log is just the running status so the
 > next session/developer can see at a glance where things stand.
+
+### 2026-06-26 — Fix: upload stuck / "nothing happens" after picking a non-chat mode
+**Done:**
+- Fixed a Landing bug where selecting any mode tab other than the default (e.g. **Flashcards**)
+  before uploading left the page stuck — the "Ready" chat box never appeared and the tool view
+  was never reached. Root cause: the uploader→chat-box swap used `<AnimatePresence mode="wait">`,
+  and the mode-tab active-pill (`layoutId="mode-spotlight"`) layout animation prevented framer's
+  exit from completing, so the exiting uploader never unmounted and the chat box never mounted.
+  This *also* explained "Back to home not working" — the page was wedged in that half-state.
+- Replaced the `AnimatePresence` morph with a plain conditional render (each side keeps its own
+  entrance animation; the outgoing one unmounts immediately), and namespaced the spotlight
+  `layoutId` per tab instance (`mode-spotlight-hero` / `mode-spotlight-chat`). Verified end-to-end
+  (Flashcards upload → Proceed → generate cards → Back-to-home) in the browser.
+
+### 2026-06-25 — Merged upstream PR #3 + native "forgot password" (legacy auth)
+**Done:**
+- Integrated Gautham's upstream PR #3 (responsive home page, `useDocumentProcessor`, Tooltip,
+  smoothScroll, plan table) on top of local WIP (charts/share tooling). Resolved 5 conflicts; kept
+  both sides' tool buttons and normalized the old red `#E60026` → brand orange `#E2611B`. Landing
+  taken wholesale from upstream (new `onEnter`/`useDocumentProcessor` contract).
+- Built **native password reset** for legacy auth (was a stub that threw): `password_reset_tokens`
+  table + Alembic migration `a3c1d7e9f2b4`; `core/email.py` (Resend, dev-console fallback);
+  `POST /api/auth/forgot-password` + `POST /api/auth/reset-password` (rate-limited, single-use,
+  30-min, hashed-at-rest, enumeration-safe). Frontend: `authApi.forgotPassword/resetPassword`,
+  legacy `AuthContext` reads `?token=` → recovery mode, "Forgot password?" now shown in legacy mode.
+- Legacy registration now **requires a unique email** (fixes the screenshot bug where an email was
+  typed into the username field and rejected). Verified the full flow end-to-end (API + browser).
+**Pending:**
+- Set real `RESEND_API_KEY` / `EMAIL_FROM` / `FRONTEND_URL` in prod `.env` to send actual emails.
+- Existing legacy accounts with a blank email can't reset until they set one (via profile). Not yet handled.
 
 ### 2026-06-24 — Avatar upload + Basic/Pro plan comparison table (frontend only)
 **Done:**
