@@ -22,6 +22,20 @@ class UserProfile(BaseModel):
         return v
 
 
+def validate_password_strength(v: str) -> str:
+    """Shared password policy — used at registration and password reset."""
+    if len(v) < 8:
+        raise ValueError("Password must be at least 8 characters")
+    # bcrypt silently truncates beyond 72 bytes — reject so users aren't misled.
+    if len(v.encode("utf-8")) > 72:
+        raise ValueError("Password must be 72 bytes or fewer")
+    if len(set(v)) < 4:
+        raise ValueError("Password is too repetitive — use a stronger one")
+    if v.lower() in {"password", "12345678", "password1", "qwertyui", "11111111", "abcdefgh"}:
+        raise ValueError("That password is too common — choose another")
+    return v
+
+
 class RegisterRequest(BaseModel):
     username: str
     password: str
@@ -40,16 +54,37 @@ class RegisterRequest(BaseModel):
     @field_validator("password")
     @classmethod
     def password_strong(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        # bcrypt silently truncates beyond 72 bytes — reject so users aren't misled.
-        if len(v.encode("utf-8")) > 72:
-            raise ValueError("Password must be 72 bytes or fewer")
-        if len(set(v)) < 4:
-            raise ValueError("Password is too repetitive — use a stronger one")
-        if v.lower() in {"password", "12345678", "password1", "qwertyui", "11111111", "abcdefgh"}:
-            raise ValueError("That password is too common — choose another")
+        return validate_password_strength(v)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+    @field_validator("email")
+    @classmethod
+    def email_present(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v or "@" not in v or len(v) > 200:
+            raise ValueError("Enter a valid email address")
         return v
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+    @field_validator("token")
+    @classmethod
+    def token_present(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v:
+            raise ValueError("Missing reset token")
+        return v
+
+    @field_validator("new_password")
+    @classmethod
+    def password_strong(cls, v: str) -> str:
+        return validate_password_strength(v)
 
 
 class LoginRequest(BaseModel):

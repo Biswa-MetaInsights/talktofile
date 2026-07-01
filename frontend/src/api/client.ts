@@ -54,6 +54,10 @@ export const authApi = {
     api.post<AuthResponse>('/auth/register', { username, password, profile }),
   login: (username: string, password: string) =>
     api.post<AuthResponse>('/auth/login', { username, password }),
+  forgotPassword: (email: string) =>
+    api.post<{ message: string }>('/auth/forgot-password', { email }),
+  resetPassword: (token: string, newPassword: string) =>
+    api.post<AuthResponse>('/auth/reset-password', { token, new_password: newPassword }),
   me: () =>
     api.get<{ username: string; plan: Plan; is_guest: boolean; persona: string | null; profile: UserProfile }>('/auth/me'),
   updateProfile: (profile: UserProfile) =>

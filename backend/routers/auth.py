@@ -5,6 +5,8 @@ from core.ratelimit import limiter
 from models.schemas import (
     RegisterRequest,
     LoginRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
     TokenResponse,
     UserInfo,
     PersonaGenerateRequest,
@@ -16,10 +18,14 @@ from core.auth import (
     create_guest,
     authenticate_user,
     create_access_token,
+    create_password_reset,
+    reset_password_with_token,
     get_current_user,
     set_persona_for,
     update_profile,
 )
+from core.config import get_settings
+from core.email import send_password_reset_email
 from models.schemas import UserProfile
 from agents.persona_agent import generate_persona
 
@@ -57,6 +63,43 @@ async def login(request: Request, body: LoginRequest, db: Session = Depends(get_
     user = authenticate_user(db, body.username, body.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid username or password")
+    return _token_response(user)
+
+
+@router.post("/forgot-password")
+@limiter.limit("5/hour")
+async def forgot_password(request: Request, body: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """Email a password-reset link if an account exists for this address.
+
+    Always returns the same generic response regardless of whether the email is
+    registered — this prevents attackers from probing which emails have accounts.
+    """
+    settings = get_settings()
+    generic = {"message": "If an account exists for that email, we've sent a reset link."}
+    result = create_password_reset(db, body.email)
+    if not result:
+        return generic
+    user_email, raw_token = result
+    link = f"{settings.public_base_url}/reset-password?token={raw_token}"
+    sent = send_password_reset_email(user_email, link, settings.reset_token_ttl_minutes)
+    # Dev convenience: when there's no email provider AND we're in development,
+    # hand the link back so the flow is testable without a mailbox. Strictly
+    # gated so a misconfigured production deploy never leaks reset links.
+    if not sent and settings.environment == "development":
+        return {**generic, "dev_reset_link": link}
+    return generic
+
+
+@router.post("/reset-password", response_model=TokenResponse)
+@limiter.limit("10/hour")
+async def reset_password(request: Request, body: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Set a new password using a valid reset token, then sign the user in."""
+    user = reset_password_with_token(db, body.token, body.new_password)
+    if not user:
+        raise HTTPException(
+            status_code=400,
+            detail="This reset link is invalid or has expired. Please request a new one.",
+        )
     return _token_response(user)
 
 

@@ -64,6 +64,23 @@ class User(Base):
         }
 
 
+class PasswordResetToken(Base):
+    """Single-use, short-lived password-reset tokens (legacy custom auth).
+
+    Privacy/security: only the SHA-256 *hash* of the token is stored — the raw
+    token exists solely in the emailed link. Tokens expire after a short TTL and
+    are consumed (``used_at`` set) on first successful reset.
+    """
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True, nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
 class Subscription(Base):
     """Plan lifecycle — ready for real billing later. One active row per user expected."""
     __tablename__ = "subscriptions"

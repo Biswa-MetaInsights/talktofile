@@ -162,9 +162,11 @@ export default function AuthModal({
     e.preventDefault(); setError(''); setInfo(''); setLoading(true)
     try {
       await resetPassword(username)   // the email field is `username` in Supabase mode
-      setInfo(`We've sent a password reset link to ${username}. Open it to choose a new password.`)
+      // Enumeration-safe: same message whether or not the email is registered.
+      setInfo(`If an account exists for ${username}, we've sent a password reset link. Open it to choose a new password.`)
     } catch (err: any) {
-      setError(err.message || 'Could not send the reset email. Please try again.')
+      const raw = err.response?.data?.detail || err.message || 'Could not send the reset email. Please try again.'
+      setError(typeof raw === 'string' ? raw : JSON.stringify(raw))
     } finally { setLoading(false) }
   }
 
@@ -343,7 +345,7 @@ export default function AuthModal({
               </div>
             </div>
 
-            {mode === 'login' && SUPABASE_ENABLED && (
+            {mode === 'login' && (
               <div className="flex justify-end -mt-1">
                 <button
                   type="button"
