@@ -1,13 +1,13 @@
-# TalkToFile — Complete Application Overview
+# Talktofile — Complete Application Overview
 
 > **For:** Marketing copy, investor pitch decks, sales one-pagers, and technical due diligence.
 > **Last updated:** June 2026
 
 ---
 
-## 1. What Is TalkToFile?
+## 1. What Is Talktofile?
 
-TalkToFile is a **private, AI-powered document intelligence platform**. A user uploads any file — or pastes a web link — and immediately has a conversation with it. The AI assistant, named **Sage**, answers questions, generates summaries, creates flashcards and podcast scripts, translates content, visualises spreadsheet data as charts, and more — all in real time, with every answer grounded strictly in the user's own document.
+Talktofile is a **private, AI-powered document intelligence platform**. A user uploads any file — or pastes a web link — and immediately has a conversation with it. The AI assistant, named **Sage**, answers questions, generates summaries, creates flashcards and podcast scripts, translates content, visualises spreadsheet data as charts, and more — all in real time, with every answer grounded strictly in the user's own document.
 
 **The one-sentence pitch:**  
 > *Upload a file. Ask anything. Get accurate, sourced answers — in seconds, with nothing stored.*
@@ -28,7 +28,7 @@ Existing tools fail in one or more of these ways:
 | Requires an account, subscription, or data handoff | NotebookLM, ChatGPT upload |
 | Too generic — not built for a document workflow | Claude / ChatGPT file upload |
 
-TalkToFile fixes all five at once.
+Talktofile fixes all five at once.
 
 ---
 
@@ -281,7 +281,7 @@ Eight security controls are in place:
 
 ## 8. Competitive Positioning
 
-| Capability | **TalkToFile** | ChatPDF / Humata | ChatGPT upload | NotebookLM |
+| Capability | **Talktofile** | ChatPDF / Humata | ChatGPT upload | NotebookLM |
 |---|:---:|:---:|:---:|:---:|
 | Zero file storage (structural) | ✅ | ❌ | ⚠️ | ❌ |
 | Multi-agent safety + ethics guard | ✅ | ❌ | ⚠️ generic | ⚠️ generic |
@@ -339,7 +339,7 @@ Terms of service, warranties, rental agreements — understand what you're actua
 
 ## 11. Live Demo Flow (for pitches)
 
-The fastest way to show TalkToFile:
+The fastest way to show Talktofile:
 
 1. **Open the app** — no account needed; guest session auto-creates.
 2. **Drop in a PDF** — a research paper, a contract, a financial report. Processing takes 5–15 seconds.

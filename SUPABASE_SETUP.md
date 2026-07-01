@@ -1,6 +1,6 @@
 # Supabase setup (Auth + Postgres)
 
-TalkToFile uses Supabase for **Postgres** and **Auth** when the env vars below are
+Talktofile uses Supabase for **Postgres** and **Auth** when the env vars below are
 set. With them unset, the app falls back to its built-in auth + SQLite (local dev).
 Both modes use the same code — flipping is purely configuration.
 

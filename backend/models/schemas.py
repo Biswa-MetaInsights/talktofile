@@ -12,6 +12,8 @@ class UserProfile(BaseModel):
     company_role: str = ""
     company_size: str = ""
     industry: str = ""
+    # Profile photo: a small, client-downscaled image data URL ("" when none).
+    avatar: str = ""
 
     @field_validator("full_name", "email", "phone", "company_name", "company_role", "company_size", "industry")
     @classmethod
@@ -19,6 +21,20 @@ class UserProfile(BaseModel):
         v = (v or "").strip()
         if len(v) > 200:
             raise ValueError("Field too long (max 200 chars)")
+        return v
+
+    @field_validator("avatar")
+    @classmethod
+    def validate_avatar(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v:
+            return ""
+        # Only accept inline image data URLs, and cap the size as a backstop —
+        # the frontend already downscales to a tiny thumbnail (~tens of KB).
+        if not v.startswith("data:image/"):
+            raise ValueError("Avatar must be an image data URL")
+        if len(v) > 700_000:  # ~500 KB of binary; a downscaled avatar is far smaller
+            raise ValueError("Avatar image is too large")
         return v
 
 

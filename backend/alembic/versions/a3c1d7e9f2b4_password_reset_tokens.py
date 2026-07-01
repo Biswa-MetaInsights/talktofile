@@ -13,7 +13,9 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'a3c1d7e9f2b4'
-down_revision: Union[str, None] = '1f5b209d190b'
+# Chained after the avatar migration (Gautham's) so the history is linear —
+# both were originally branched off 1f5b209d190b, which would create two heads.
+down_revision: Union[str, None] = '9e2a7c4b1d83'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

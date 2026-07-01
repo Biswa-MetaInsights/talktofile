@@ -1,8 +1,8 @@
-# TalkToFile
+# Talktofile
 
 **Upload a document. Have an intelligent conversation with it.**
 
-TalkToFile lets anyone drop in a file and instantly ask questions, get summaries,
+Talktofile lets anyone drop in a file and instantly ask questions, get summaries,
 compare documents, or run calculations on spreadsheets — in any language, with
 answers grounded strictly in the document's own content. No setup, no learning
 curve, no data left behind.
@@ -29,7 +29,7 @@ privacy-sensitive professionals and budget-conscious teams need.
 
 ## The solution
 
-TalkToFile is a **purpose-built, privacy-first document intelligence app** powered
+Talktofile is a **purpose-built, privacy-first document intelligence app** powered
 by a multi-agent AI pipeline. It answers only from your document, refuses to
 hallucinate or take controversial stances, never stores your files, and runs on a
 single low-cost server.
@@ -39,7 +39,7 @@ single low-cost server.
 ## What makes it different
 
 ### 🧠 A multi-agent pipeline, not a prompt wrapper
-Most competitors are a single LLM call. TalkToFile runs five specialised agents,
+Most competitors are a single LLM call. Talktofile runs five specialised agents,
 each with one job:
 
 | Agent | Role |
@@ -85,7 +85,7 @@ no Kubernetes, no cloud sprawl.
 
 ## How it compares
 
-| Capability | **TalkToFile** | ChatPDF / AskYourPDF | Humata | ChatGPT / Claude upload | NotebookLM |
+| Capability | **Talktofile** | ChatPDF / AskYourPDF | Humata | ChatGPT / Claude upload | NotebookLM |
 |---|:--:|:--:|:--:|:--:|:--:|
 | Multi-agent safety + ethics guard | ✅ | ❌ | ❌ | ⚠️ generic | ⚠️ generic |
 | Memory-only, zero-persistence privacy | ✅ | ❌ | ❌ | ⚠️ retained | ❌ |

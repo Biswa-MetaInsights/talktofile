@@ -6,7 +6,7 @@ Enforces document-scope, AI ethics, and safety. Rejects politely.
 from openai import AsyncOpenAI
 from core.config import get_settings
 
-_SYSTEM = """You are a MINIMAL safety filter for TalkToFile. The user uploaded their own document and
+_SYSTEM = """You are a MINIMAL safety filter for Talktofile. The user uploaded their own document and
 wants help with it. Your DEFAULT is SAFE.
 
 IMPORTANT: Questions ABOUT the document are always SAFE — even on sensitive subjects like sex, war,
