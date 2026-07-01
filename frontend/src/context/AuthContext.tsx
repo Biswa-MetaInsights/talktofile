@@ -170,10 +170,18 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
 
 /* ------------------------------ Legacy mode ------------------------------ */
 
+// The reset link is `${origin}/reset-password?token=...`. Pull it out of the URL
+// (regardless of path) so we can show the "set a new password" form on load.
+function readResetToken(): string | null {
+  try { return new URLSearchParams(window.location.search).get('token') } catch { return null }
+}
+
 function LegacyAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(localStorage.getItem(TOKEN_KEY))
   const [isLoading, setIsLoading] = useState(true)
+  // Reset token carried in from the email link → drives recoveryMode.
+  const [resetToken, setResetToken] = useState<string | null>(() => readResetToken())
 
   const applyToken = (accessToken: string) => {
     localStorage.setItem(TOKEN_KEY, accessToken)
@@ -251,9 +259,35 @@ function LegacyAuthProvider({ children }: { children: ReactNode }) {
   const setPersona = (persona: string | null) =>
     setUser((prev) => (prev ? { ...prev, persona } : prev))
 
-  // Password reset isn't available in legacy (non-Supabase) mode.
-  const resetPassword = async () => { throw new Error('Password reset isn’t available in this mode.') }
-  const updatePassword = async () => { throw new Error('Password reset isn’t available in this mode.') }
+  // Strip the ?token= param from the URL so a refresh doesn't re-trigger recovery.
+  const stripResetTokenFromUrl = () => {
+    try {
+      const url = new URL(window.location.href)
+      if (url.searchParams.has('token')) {
+        url.searchParams.delete('token')
+        window.history.replaceState({}, '', url.pathname + url.search + url.hash)
+      }
+    } catch { /* no-op */ }
+  }
+
+  // Step 1: email the reset link. Backend always responds generically (no
+  // account enumeration), so this resolves even for unknown addresses.
+  const resetPassword = async (email: string) => {
+    await authApi.forgotPassword(email)
+  }
+
+  // Step 2: the user followed the link (?token=...) and chose a new password.
+  // On success the backend signs them in, so apply the returned token.
+  const updatePassword = async (password: string) => {
+    if (!resetToken) throw new Error('This reset link is invalid or has expired. Please request a new one.')
+    const res = await authApi.resetPassword(resetToken, password)
+    applyToken(res.data.access_token)
+    await hydrateUser()
+    setResetToken(null)
+    stripResetTokenFromUrl()
+  }
+
+  const clearRecovery = () => { setResetToken(null); stripResetTokenFromUrl() }
 
   const saveProfile = async (profile: UserProfile) => {
     const me = await authApi.updateProfile(profile)
@@ -264,7 +298,7 @@ function LegacyAuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, setPersona, isLoading, resetPassword, updatePassword, recoveryMode: false, clearRecovery: () => {}, saveProfile }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, setPersona, isLoading, resetPassword, updatePassword, recoveryMode: !!resetToken, clearRecovery, saveProfile }}>
       {children}
     </AuthContext.Provider>
   )

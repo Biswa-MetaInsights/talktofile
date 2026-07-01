@@ -39,6 +39,21 @@ class Settings(BaseSettings):
     # (e.g. test accounts / early users) until real billing exists.
     pro_emails: str = ""
 
+    # Transactional email (Resend) for password-reset links. When resend_api_key
+    # is empty (e.g. local dev) emails aren't sent — the reset link is logged to
+    # the console instead so the flow stays fully testable. Used only by legacy
+    # custom auth; in Supabase mode reset emails are sent by Supabase.
+    resend_api_key: str = ""
+    email_from: str = "TalkToFile <onboarding@resend.dev>"
+    # Public base URL used to build links in emails. Defaults to the first
+    # allowed origin (the frontend) when unset.
+    frontend_url: str = ""
+    reset_token_ttl_minutes: int = 30
+
+    @property
+    def public_base_url(self) -> str:
+        return (self.frontend_url or self.origins[0]).rstrip("/")
+
     @property
     def supabase_enabled(self) -> bool:
         return bool(self.supabase_jwt_secret)

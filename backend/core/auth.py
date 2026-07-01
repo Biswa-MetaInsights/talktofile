@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -6,7 +8,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from core.config import get_settings
 from core.db import get_db, SessionLocal
@@ -70,12 +72,22 @@ def create_user(db: Session, username: str, password: str, profile: Optional[dic
         raise HTTPException(status_code=409, detail="Username already taken")
 
     p = profile or {}
+    # Email is required and unique for new accounts so password reset can resolve
+    # an account unambiguously (reset links are emailed).
+    email = (p.get("email") or "").strip()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=422, detail="A valid email address is required")
+    if db.scalar(
+        select(User).where(func.lower(User.email) == email.lower(), User.hashed_password.isnot(None))
+    ) is not None:
+        raise HTTPException(status_code=409, detail="An account with this email already exists")
+
     user = User(
         username=username,
         hashed_password=hash_password(password),
         plan="free",
         full_name=p.get("full_name", ""),
-        email=p.get("email", ""),
+        email=email,
         phone=p.get("phone", ""),
         company_name=p.get("company_name", ""),
         company_role=p.get("company_role", ""),
@@ -197,6 +209,85 @@ def authenticate_user(db: Session, username: str, password: str) -> Optional[dic
     if not u or not u.hashed_password or not verify_password(password, u.hashed_password):
         return None
     return u.to_auth_dict()
+
+
+# --------------------------- Password reset (legacy) ---------------------------
+
+def _hash_reset_token(raw: str) -> str:
+    """Tokens are stored only as a SHA-256 hash; the raw value lives in the email."""
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def create_password_reset(db: Session, email: str) -> Optional[tuple]:
+    """Issue a reset token for the account with this email.
+
+    Returns ``(user_email, raw_token)`` if a legacy (password-backed) account
+    exists, else ``None``. The caller must NOT reveal which case occurred — the
+    endpoint always responds generically to avoid account enumeration.
+
+    Any previously-issued unused tokens for the account are invalidated so only
+    the newest link works.
+    """
+    from models.db_models import User, PasswordResetToken
+
+    email = (email or "").strip().lower()
+    if not email:
+        return None
+    user = db.scalar(
+        select(User)
+        .where(func.lower(User.email) == email, User.hashed_password.isnot(None))
+        .order_by(User.id)
+    )
+    if user is None:
+        return None
+
+    now = datetime.now(timezone.utc)
+    # Invalidate older outstanding tokens for this user.
+    for old in db.scalars(
+        select(PasswordResetToken).where(
+            PasswordResetToken.user_id == user.id, PasswordResetToken.used_at.is_(None)
+        )
+    ):
+        old.used_at = now
+
+    raw = secrets.token_urlsafe(32)
+    ttl = get_settings().reset_token_ttl_minutes
+    db.add(PasswordResetToken(
+        user_id=user.id,
+        token_hash=_hash_reset_token(raw),
+        expires_at=now + timedelta(minutes=ttl),
+    ))
+    db.commit()
+    return user.email, raw
+
+
+def reset_password_with_token(db: Session, raw_token: str, new_password: str) -> Optional[dict]:
+    """Consume a reset token and set the new password.
+
+    Returns the user's auth dict (so the caller can sign them in) on success, or
+    ``None`` if the token is unknown, already used, or expired.
+    """
+    from models.db_models import User, PasswordResetToken
+
+    row = db.scalar(
+        select(PasswordResetToken).where(PasswordResetToken.token_hash == _hash_reset_token(raw_token))
+    )
+    now = datetime.now(timezone.utc)
+    if row is None or row.used_at is not None:
+        return None
+    # expires_at is stored naive (UTC); compare on naive UTC.
+    if row.expires_at < now.replace(tzinfo=None):
+        return None
+
+    user = db.scalar(select(User).where(User.id == row.user_id))
+    if user is None or not user.hashed_password:
+        return None
+
+    user.hashed_password = hash_password(new_password)
+    row.used_at = now
+    db.commit()
+    db.refresh(user)
+    return user.to_auth_dict()
 
 
 def create_access_token(data: dict) -> str:
