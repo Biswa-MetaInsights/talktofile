@@ -54,7 +54,7 @@ export default function MicButton({ onTranscript, disabled = false, side = 'righ
     ? 'bg-red-50 text-red-600 ring-2 ring-red-200'
     : listening
       ? 'bg-brand-600/10 text-brand-600 ring-2 ring-brand-600/30'
-      : 'bg-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-40'
+      : 'bg-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-40 dark:text-slate-500 dark:hover:text-slate-300 dark:hover:bg-slate-800'
 
   return (
     <div className="relative inline-flex flex-shrink-0">

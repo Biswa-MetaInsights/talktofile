@@ -64,25 +64,25 @@ export default function TranslateView({ session, onStartChat }: Props) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Globe className="w-5 h-5 text-[#E2611B]" />
-          <h2 className="font-brand font-bold text-xl text-slate-900">Translate</h2>
+          <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100">Translate</h2>
         </div>
         <button
           onClick={onStartChat}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all dark:border-slate-700 dark:text-slate-300"
         >
           <MessageSquare className="w-4 h-4" /> Chat instead
         </button>
       </div>
 
       {/* Note about images */}
-      <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700">
+      <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-400">
         <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
         <span>Translation covers text only. Images, charts, and scanned pages cannot be translated.</span>
       </div>
 
       {/* Language picker */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-4">
-        <h3 className="text-sm font-semibold text-slate-700">Translate to</h3>
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-4 dark:bg-slate-900 dark:border-slate-800">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Translate to</h3>
         <div className="flex flex-wrap gap-2">
           {LANGUAGES.map((lang) => (
             <button
@@ -91,7 +91,7 @@ export default function TranslateView({ session, onStartChat }: Props) {
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all border ${
                 targetLang === lang && !customLang
                   ? 'bg-[#E2611B] text-white border-[#E2611B]'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-[#E2611B] hover:text-[#E2611B]'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-[#E2611B] hover:text-[#E2611B] dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
               }`}
             >
               {lang}
@@ -104,7 +104,7 @@ export default function TranslateView({ session, onStartChat }: Props) {
             value={customLang}
             onChange={(e) => setCustomLang(e.target.value)}
             placeholder="Or type any language…"
-            className="flex-1 text-sm border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-[#E2611B] focus:ring-2 focus:ring-[#E2611B]/20 transition-all"
+            className="flex-1 text-sm border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-[#E2611B] focus:ring-2 focus:ring-[#E2611B]/20 transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500"
           />
         </div>
         <button
@@ -118,16 +118,16 @@ export default function TranslateView({ session, onStartChat }: Props) {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+        <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3 dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-400">
           <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
         </div>
       )}
 
       {/* Results */}
       {result && result.documents.map((doc, i) => (
-        <div key={i} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50">
-            <span className="text-sm font-medium text-slate-700">{doc.filename}</span>
+        <div key={i} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm dark:bg-slate-900 dark:border-slate-800">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/60">
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{doc.filename}</span>
             {doc.translated_text && (
               <div className="flex items-center gap-3">
                 <button
@@ -147,9 +147,9 @@ export default function TranslateView({ session, onStartChat }: Props) {
             )}
           </div>
           {doc.error ? (
-            <div className="px-5 py-4 text-sm text-amber-700 bg-amber-50">{doc.error}</div>
+            <div className="px-5 py-4 text-sm text-amber-700 bg-amber-50 dark:text-amber-400 dark:bg-amber-500/10">{doc.error}</div>
           ) : (
-            <div className="px-5 py-4 text-sm text-slate-700 leading-relaxed max-h-80 overflow-y-auto whitespace-pre-wrap font-mono text-xs">
+            <div className="px-5 py-4 text-sm text-slate-700 dark:text-slate-300 leading-relaxed max-h-80 overflow-y-auto whitespace-pre-wrap font-mono text-xs">
               {doc.translated_text}
             </div>
           )}
@@ -157,7 +157,7 @@ export default function TranslateView({ session, onStartChat }: Props) {
       ))}
 
       {result && (
-        <p className="text-xs text-slate-400 text-center">{result.note}</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500 text-center">{result.note}</p>
       )}
 
       <button

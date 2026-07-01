@@ -132,7 +132,7 @@ function AppShell({ showToast }: { showToast: (message: string) => void }) {
   if (view === 'landing' && !session) {
     return (
       <>
-        <Navbar onOpenAuth={openAuth} onHome={goLanding} onHowItWorks={handleHowItWorks} onSignedOut={() => showToast('Sign out successful')} />
+        <Navbar onOpenAuth={openAuth} onHome={goLanding} onHowItWorks={handleHowItWorks} onSignedOut={() => showToast('Sign out successful')} atHome />
         <Landing onEnter={enterWorkspace} onBusyChange={setUploading} />
         {authModal.open && (
           <AuthModal
@@ -147,7 +147,7 @@ function AppShell({ showToast }: { showToast: (message: string) => void }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 bg-grid relative overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 bg-grid relative overflow-x-hidden">
       <Navbar onOpenAuth={openAuth} onHome={handleHome} onHowItWorks={handleHowItWorks} onSignedOut={() => showToast('Sign out successful')} />
 
       <main className="relative z-10 pt-16 min-h-screen flex overflow-x-hidden">
@@ -178,10 +178,10 @@ function AppShell({ showToast }: { showToast: (message: string) => void }) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="flex-1 flex flex-col lg:flex-row gap-0 min-h-0"
+              className="flex-1 flex flex-col lg:flex-row gap-0 min-h-0 h-[calc(100dvh-4rem)] overflow-hidden"
             >
               {/* Left panel: document(s) info */}
-              <div className="hidden lg:flex flex-col w-72 xl:w-80 border-r border-slate-200 bg-white p-5 gap-4 flex-shrink-0 overflow-y-auto scrollbar-thin" style={{ maxHeight: 'calc(100dvh - 4rem)' }}>
+              <div className="hidden lg:flex flex-col w-72 xl:w-80 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 gap-4 flex-shrink-0 overflow-y-auto scrollbar-thin" style={{ maxHeight: 'calc(100dvh - 4rem)' }}>
                 <div className="glass-card rounded-2xl p-4">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-xs font-semibold text-brand-600 uppercase tracking-wider">
@@ -197,7 +197,7 @@ function AppShell({ showToast }: { showToast: (message: string) => void }) {
                     {session.documents.map((d, i) => (
                       <div key={i} className="flex items-center gap-2">
                         <FileText className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                        <span className="text-slate-800 text-sm font-medium truncate flex-1" title={d.filename}>{d.filename}</span>
+                        <span className="text-slate-800 dark:text-slate-200 text-sm font-medium truncate flex-1" title={d.filename}>{d.filename}</span>
                         {d.original_language && d.original_language !== 'en' && (
                           <span className="flex items-center gap-0.5 text-[10px] text-brand-600">
                             <Globe className="w-2.5 h-2.5" />{d.original_language.toUpperCase()}
@@ -221,8 +221,8 @@ function AppShell({ showToast }: { showToast: (message: string) => void }) {
               </div>
 
               {/* Main panel — switches between chat and tool views */}
-              <div className="flex-1 min-w-0 flex flex-col min-h-0 relative bg-slate-50">
-                <div className="flex-1 glass-card m-3 lg:m-4 rounded-2xl flex flex-col min-h-0 overflow-hidden" style={{ height: 'calc(100dvh - 5.5rem)' }}>
+              <div className="flex-1 min-w-0 flex flex-col min-h-0 relative bg-slate-50 dark:bg-slate-950">
+                <div className="flex-1 glass-card m-3 lg:m-4 rounded-2xl flex flex-col min-h-0 overflow-hidden">
                   <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-brand-200 border-t-brand-600 rounded-full animate-spin" /></div>}>
                     {viewMode === 'summary' ? (
                       <SummaryView session={session} onStartChat={() => setViewMode('chat')} />
@@ -306,19 +306,19 @@ export default function App() {
   let content: ReactNode
   if (isLoading) {
     content = (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
       </div>
     )
   } else if (!user) {
     content = (
-      <div className="min-h-screen bg-slate-50 bg-grid relative flex items-center justify-center px-4">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 bg-grid relative flex items-center justify-center px-4">
         <div className="relative z-10 glass-card rounded-2xl p-8 max-w-md text-center">
-          <div className="w-12 h-12 rounded-xl bg-brand-50 border border-brand-200 flex items-center justify-center mx-auto mb-4">
-            <FileText className="w-6 h-6 text-brand-600" />
+          <div className="w-12 h-12 rounded-xl bg-brand-50 border border-brand-200 flex items-center justify-center mx-auto mb-4 dark:bg-brand-600/15 dark:border-brand-600/30">
+            <FileText className="w-6 h-6 text-brand-600 dark:text-brand-400" />
           </div>
-          <h2 className="text-slate-900 font-semibold text-lg mb-2">Can't reach Talktofile</h2>
-          <p className="text-slate-500 text-sm mb-5">
+          <h2 className="text-slate-900 dark:text-slate-100 font-semibold text-lg mb-2">Can't reach Talktofile</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mb-5">
             We couldn't start a session. Please check your connection and try again.
           </p>
           <button

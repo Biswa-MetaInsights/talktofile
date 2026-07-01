@@ -56,18 +56,18 @@ export default function SlidesView({ session, onStartChat }: Props) {
           <Crown className="w-8 h-8 text-amber-500" />
         </div>
         <div>
-          <h2 className="font-brand font-bold text-xl text-slate-900 mb-2">Slide Deck Generation</h2>
-          <p className="text-slate-500 text-sm max-w-sm">
+          <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100 mb-2">Slide Deck Generation</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">
             Create a downloadable, editable PowerPoint presentation from your document.
             This feature is available on the Pro plan.
           </p>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm">
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-400">
           <Lock className="w-4 h-4" /> Upgrade to Pro to unlock slide generation
         </div>
         <button
           onClick={onStartChat}
-          className="text-sm text-slate-500 hover:text-[#E2611B] flex items-center gap-1.5"
+          className="text-sm text-slate-500 dark:text-slate-400 hover:text-[#E2611B] flex items-center gap-1.5"
         >
           <MessageSquare className="w-4 h-4" /> Start chatting instead
         </button>
@@ -81,21 +81,21 @@ export default function SlidesView({ session, onStartChat }: Props) {
         <Presentation className="w-8 h-8 text-[#E2611B]" />
       </div>
       <div>
-        <h2 className="font-brand font-bold text-xl text-slate-900 mb-2">Create Slide Deck</h2>
-        <p className="text-slate-500 text-sm max-w-sm">
+        <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100 mb-2">Create Slide Deck</h2>
+        <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">
           Generate a PowerPoint presentation from your document with a title slide, content slides
           for each key section, and speaker notes. Download and edit in PowerPoint or Google Slides.
         </p>
       </div>
 
       {error && (
-        <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3 max-w-sm">
+        <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3 max-w-sm dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-400">
           {error}
         </p>
       )}
 
       {generated && !error && (
-        <div className="flex items-center gap-2 text-green-600 text-sm bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+        <div className="flex items-center gap-2 text-green-600 text-sm bg-green-50 border border-green-200 rounded-xl px-4 py-3 dark:bg-green-500/10 dark:border-green-500/30 dark:text-green-400">
           <Download className="w-4 h-4" /> Presentation downloaded!
         </div>
       )}
@@ -111,13 +111,13 @@ export default function SlidesView({ session, onStartChat }: Props) {
         </button>
         <button
           onClick={onStartChat}
-          className="flex items-center gap-2 px-5 py-3 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:border-[#E2611B] hover:text-[#E2611B] transition-all"
+          className="flex items-center gap-2 px-5 py-3 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:border-[#E2611B] hover:text-[#E2611B] transition-all dark:border-slate-700 dark:text-slate-300"
         >
           <MessageSquare className="w-4 h-4" /> Chat with your document
         </button>
       </div>
 
-      <p className="text-xs text-slate-400 max-w-sm">
+      <p className="text-xs text-slate-400 dark:text-slate-500 max-w-sm">
         The presentation is generated from the document content. Open in PowerPoint or Google Slides
         to edit, add branding, or rearrange slides.
       </p>

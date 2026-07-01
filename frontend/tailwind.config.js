@@ -1,6 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  // Class strategy: a `dark` class on <html> flips every `dark:` variant.
+  // The class is set by ThemeContext (and pre-set by an inline script in
+  // index.html to avoid a light flash before React mounts).
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
