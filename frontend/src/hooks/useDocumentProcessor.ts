@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { PipelineUpdate, SessionInfo, Plan } from '../types'
+import type { PipelineUpdate, SessionInfo, SessionMode, Plan } from '../types'
 import { documentApi, createProcessWebSocket } from '../api/client'
 import { track } from '../lib/analytics'
 
@@ -16,8 +16,10 @@ export interface DocumentProcessor {
   files: File[]
   session: SessionInfo | null
   processing: boolean
+  removing: boolean
   processFiles: (selected: File[]) => void
   processUrl: (url: string) => void
+  removeFile: (filename: string) => void
   reset: () => void
 }
 
@@ -28,6 +30,10 @@ export function useDocumentProcessor(token: string | null, plan: Plan): Document
   const [error, setError] = useState('')
   const [progress, setProgress] = useState(0)
   const [session, setSession] = useState<SessionInfo | null>(null)
+  // True while a server-side file removal is in flight (the UI has already updated
+  // optimistically; this tracks the backend catching up). The caller can gate actions
+  // that need the server to be consistent — e.g. entering the chat.
+  const [removing, setRemoving] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => () => wsRef.current?.close(), [])
@@ -171,7 +177,52 @@ export function useDocumentProcessor(token: string | null, plan: Plan): Document
     }
   }, [token, plan])
 
+  // Remove a single file from the upload.
+  //  • If a session already exists (processing finished), drop the file from the UI
+  //    *immediately* and optimistically trim the session — the survivors keep their
+  //    built indexes server-side, so nothing is re-processed. We then call the server
+  //    in the background to actually drop the document and swap in its authoritative
+  //    response (refreshed suggested questions, etc.). Because the session stays
+  //    `ready` throughout, the surviving rows never flash back to "processing".
+  //  • If processing hasn't produced a session yet, there's nothing server-side to
+  //    trim, so fall back to re-running the pipeline on the remaining files.
+  //  • Removing the last file clears everything.
+  const removeFile = useCallback(async (filename: string) => {
+    const remaining = files.filter((f) => f.name !== filename)
+    if (remaining.length === 0) {
+      reset()
+      return
+    }
+    if (!session) {
+      processFiles(remaining)
+      return
+    }
+
+    const prevSession = session
+    const prevFiles = files
+    const mode: SessionMode = remaining.length <= 1 ? 'single' : remaining.length === 2 ? 'compare' : 'multi'
+    // Optimistic update — instant, no await, session stays ready.
+    setFiles(remaining)
+    setSession({
+      ...session,
+      documents: session.documents.filter((d) => d.filename !== filename),
+      mode,
+    })
+    setRemoving(true)
+    try {
+      const res = await documentApi.removeFile(prevSession.session_id, filename)
+      setSession(res.data)
+    } catch (err: any) {
+      // Roll back the optimistic change so the UI matches the server again.
+      setFiles(prevFiles)
+      setSession(prevSession)
+      setError(err.response?.data?.detail || err.message || 'Could not remove that file.')
+    } finally {
+      setRemoving(false)
+    }
+  }, [files, session, processFiles, reset])
+
   const processing = !!stage && stage !== 'error' && stage !== 'ready'
 
-  return { stage, stageMsg, progress, error, files, session, processing, processFiles, processUrl, reset }
+  return { stage, stageMsg, progress, error, files, session, processing, removing, processFiles, processUrl, removeFile, reset }
 }

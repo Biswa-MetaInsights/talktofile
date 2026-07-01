@@ -51,7 +51,7 @@ export default function TranslateView({ session, onStartChat }: Props) {
     const lang = result?.target_language ?? ''
     const how = await shareOrCopy(
       withAttribution(doc.translated_text),
-      `${doc.filename}${lang ? ` — ${lang}` : ''} — TalkToFile`,
+      `${doc.filename}${lang ? ` — ${lang}` : ''} — Talktofile`,
     )
     setSharedIdx(idx)
     setTimeout(() => setSharedIdx((c) => (c === idx ? null : c)), 2000)

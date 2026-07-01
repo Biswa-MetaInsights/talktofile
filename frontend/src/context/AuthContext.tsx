@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { authApi, setAuthToken } from '../api/client'
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react'
+import { authApi, setAuthToken, setUnauthorizedHandler } from '../api/client'
 import { supabase, SUPABASE_ENABLED } from '../lib/supabase'
 import { identifyUser, track, resetAnalytics } from '../lib/analytics'
 import type { User, UserProfile } from '../types'
@@ -22,6 +22,10 @@ interface AuthContextValue {
   clearRecovery: () => void
   // Save editable profile details (everything except email/username).
   saveProfile: (profile: UserProfile) => Promise<void>
+  // True when an authenticated request 401'd (the session expired). The app
+  // re-bootstraps a guest under the hood and uses this to prompt a fresh sign in.
+  sessionExpired: boolean
+  clearSessionExpired: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -42,6 +46,28 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [recoveryMode, setRecoveryMode] = useState(false)
+  const [sessionExpired, setSessionExpired] = useState(false)
+
+  // Latest user, readable from the (render-independent) 401 handler below.
+  const userRef = useRef<User | null>(null)
+  useEffect(() => { userRef.current = user }, [user])
+
+  // Graceful handling of an expired/invalid session (a 401 on an authed request).
+  // Supabase normally auto-refreshes its token, so this is a safety net: re-sync to
+  // a guest session and, if the user was actually signed in, prompt a fresh sign in.
+  useEffect(() => {
+    const handlingRef = { current: false }
+    setUnauthorizedHandler(() => {
+      if (handlingRef.current) return
+      handlingRef.current = true
+      if (userRef.current && !userRef.current.is_guest) setSessionExpired(true)
+      supabase!.auth.signOut()
+        .then(() => supabase!.auth.signInAnonymously())
+        .catch(() => {})
+        .finally(() => { handlingRef.current = false })
+    })
+    return () => setUnauthorizedHandler(null)
+  }, [])
 
   const hydrate = async (accessToken: string, isAnonymous: boolean) => {
     setAuthToken(accessToken)
@@ -162,7 +188,7 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, setPersona, isLoading, resetPassword, updatePassword, recoveryMode, clearRecovery, saveProfile }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, setPersona, isLoading, resetPassword, updatePassword, recoveryMode, clearRecovery, saveProfile, sessionExpired, clearSessionExpired: () => setSessionExpired(false) }}>
       {children}
     </AuthContext.Provider>
   )
@@ -174,12 +200,53 @@ function LegacyAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(localStorage.getItem(TOKEN_KEY))
   const [isLoading, setIsLoading] = useState(true)
+  const [sessionExpired, setSessionExpired] = useState(false)
+
+  // Latest user, readable from the (render-independent) 401 handler below.
+  const userRef = useRef<User | null>(null)
+  useEffect(() => { userRef.current = user }, [user])
 
   const applyToken = (accessToken: string) => {
     localStorage.setItem(TOKEN_KEY, accessToken)
     setAuthToken(accessToken)
     setToken(accessToken)
   }
+
+  // Graceful handling of an expired/invalid token (a 401 on an authed request).
+  // Instead of a jarring full-page reload, transparently re-bootstrap a guest so
+  // the app stays usable, and — if the user had actually been signed in — flip
+  // `sessionExpired` so the app can invite them to sign in again (their unsaved
+  // edits stay on screen rather than vanishing on reload).
+  useEffect(() => {
+    const handlingRef = { current: false }
+    setUnauthorizedHandler(() => {
+      if (handlingRef.current) return
+      handlingRef.current = true
+      const wasSignedIn = !!userRef.current && !userRef.current.is_guest
+      localStorage.removeItem(TOKEN_KEY)
+      setAuthToken(null)
+      setToken(null)
+      authApi.guest()
+        .then((res) => {
+          applyToken(res.data.access_token)
+          setUser({ username: res.data.username, plan: res.data.plan, is_guest: res.data.is_guest, persona: null })
+        })
+        .catch(() => {})
+        .finally(() => { handlingRef.current = false })
+      if (wasSignedIn) setSessionExpired(true)
+    })
+    return () => setUnauthorizedHandler(null)
+  }, [])
+
+  // While signed in, slide the token's expiry forward periodically so a long-lived
+  // tab never expires mid-use. Guests are ephemeral by design, so skip them.
+  useEffect(() => {
+    if (!user || user.is_guest) return
+    const id = window.setInterval(() => {
+      authApi.refresh().then((res) => applyToken(res.data.access_token)).catch(() => {})
+    }, 6 * 60 * 60 * 1000) // every 6 hours
+    return () => window.clearInterval(id)
+  }, [user?.is_guest, user?.username])
 
   useEffect(() => {
     let cancelled = false
@@ -264,7 +331,7 @@ function LegacyAuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, setPersona, isLoading, resetPassword, updatePassword, recoveryMode: false, clearRecovery: () => {}, saveProfile }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, setPersona, isLoading, resetPassword, updatePassword, recoveryMode: false, clearRecovery: () => {}, saveProfile, sessionExpired, clearSessionExpired: () => setSessionExpired(false) }}>
       {children}
     </AuthContext.Provider>
   )

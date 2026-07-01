@@ -12,7 +12,7 @@ export function initAnalytics() {
     capture_pageview: true,
     capture_pageleave: true,
     autocapture: true,
-    // Privacy-first: TalkToFile never stores documents, so we never record their
+    // Privacy-first: Talktofile never stores documents, so we never record their
     // content either. Mask all text + inputs in session replays — we capture
     // layout/interactions, never the document or chat text.
     session_recording: {

@@ -27,7 +27,7 @@ export default function SummaryView({ session, onStartChat }: Props) {
       return lines.join('\n')
     })
     const body = `DOCUMENT SUMMARY\n\n${parts.filter(Boolean).join('\n\n———\n\n')}`
-    const how = await shareOrCopy(withAttribution(body), 'Document summary — TalkToFile')
+    const how = await shareOrCopy(withAttribution(body), 'Document summary — Talktofile')
     setShared(how)
     setTimeout(() => setShared(null), 2000)
   }

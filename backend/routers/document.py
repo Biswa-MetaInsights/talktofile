@@ -229,6 +229,73 @@ async def delete_session(session_id: str, current_user: dict = Depends(get_curre
     return {"message": "Session cleared"}
 
 
+class RemoveFileRequest(BaseModel):
+    filename: str
+
+
+@router.post("/{session_id}/remove-file", response_model=SessionInfo)
+async def remove_file(
+    session_id: str,
+    body: RemoveFileRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Drop a single document from a ready multi-file session.
+
+    The surviving documents keep their already-built FAISS indexes — nothing is
+    re-extracted or re-embedded. Only the suggested questions are refreshed for the
+    new document set (the session mode is derived from the document count, so it
+    updates on its own). To clear the last document, use DELETE /document/{id}.
+    """
+    session = session_store.get(session_id)
+    if not session or session.username != current_user["username"]:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    idx = next((i for i, d in enumerate(session.documents) if d.filename == body.filename), None)
+    if idx is None:
+        raise HTTPException(status_code=404, detail=f"'{body.filename}' is not part of this session.")
+    if len(session.documents) <= 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Can't remove the only document — clear the session instead.",
+        )
+
+    session.documents.pop(idx)
+
+    # Refresh suggested questions for the new set. Best-effort: a failure here must
+    # not undo the removal, so we keep the (now slightly stale) old suggestions.
+    try:
+        from openai import AsyncOpenAI
+        from agents.analyst_agent import (
+            generate_suggested_questions,
+            generate_multi_doc_questions,
+            summary_to_text,
+        )
+        client = AsyncOpenAI(api_key=get_settings().openai_api_key)
+        if len(session.documents) == 1:
+            session.suggested_questions = await generate_suggested_questions(
+                session.documents[0].raw_text, client
+            )
+        else:
+            summaries = [(d.filename, summary_to_text(d.summary)) for d in session.documents]
+            session.suggested_questions = await generate_multi_doc_questions(
+                summaries, session.mode, client
+            )
+    except Exception:
+        import traceback
+        traceback.print_exc()
+
+    return SessionInfo(
+        session_id=session.session_id,
+        documents=[
+            DocumentInfo(filename=d.filename, original_language=d.original_language, summary=d.summary)
+            for d in session.documents
+        ],
+        mode=session.mode,
+        suggested_questions=session.suggested_questions,
+        ready=session.ready,
+    )
+
+
 # ── URL ingestion ─────────────────────────────────────────────────────────────
 
 class URLIngestRequest(BaseModel):
@@ -266,7 +333,7 @@ async def _fetch_webpage_text(url: str) -> tuple[str, str]:
     from bs4 import BeautifulSoup
     try:
         async with httpx.AsyncClient(follow_redirects=True, timeout=20) as client:
-            resp = await client.get(url, headers={"User-Agent": "TalkToFile/1.0 (+https://talktofile.com)"})
+            resp = await client.get(url, headers={"User-Agent": "Talktofile/1.0 (+https://talktofile.com)"})
             resp.raise_for_status()
             content_type = resp.headers.get("content-type", "")
             if "text/html" not in content_type and "text/plain" not in content_type:
