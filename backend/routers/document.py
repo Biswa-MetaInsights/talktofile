@@ -313,10 +313,13 @@ def _extract_video_id(url: str) -> str | None:
 
 
 async def _fetch_youtube_transcript(video_id: str) -> tuple[str, str]:
+    # youtube-transcript-api 1.x: instance-based API (the old static
+    # YouTubeTranscriptApi.get_transcript was removed, and 0.6.x is broken
+    # against current YouTube — it returns an empty body / ParseError).
     from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
     try:
-        transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
-        text = " ".join(entry["text"] for entry in transcript_list)
+        fetched = YouTubeTranscriptApi().fetch(video_id)
+        text = " ".join(entry["text"] for entry in fetched.to_raw_data())
         return text, f"youtube_{video_id}.txt"
     except (NoTranscriptFound, TranscriptsDisabled):
         raise HTTPException(

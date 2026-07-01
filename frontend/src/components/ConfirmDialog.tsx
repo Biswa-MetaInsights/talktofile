@@ -45,22 +45,22 @@ export default function ConfirmDialog({
             exit={{ opacity: 0, scale: 0.95, y: 16 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             onClick={(e) => e.stopPropagation()}
-            className="relative rounded-2xl w-full max-w-sm p-6 bg-white border border-slate-200 shadow-2xl shadow-slate-900/10"
+            className="relative rounded-2xl w-full max-w-sm p-6 bg-white border border-slate-200 shadow-2xl shadow-slate-900/10 dark:bg-slate-900 dark:border-slate-800"
           >
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-200 flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="w-5 h-5 text-brand-600" />
+              <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-200 flex items-center justify-center flex-shrink-0 dark:bg-brand-600/15 dark:border-brand-600/30">
+                <AlertTriangle className="w-5 h-5 text-brand-600 dark:text-brand-400" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-slate-900 font-semibold">{title}</h2>
-                <p className="text-sm text-slate-500 mt-1 leading-relaxed">{message}</p>
+                <h2 className="text-slate-900 font-semibold dark:text-slate-100">{title}</h2>
+                <p className="text-sm text-slate-500 mt-1 leading-relaxed dark:text-slate-400">{message}</p>
               </div>
             </div>
 
             <div className="flex gap-2 mt-5">
               <button
                 onClick={onCancel}
-                className="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all"
+                className="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all dark:text-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
               >
                 {cancelLabel}
               </button>

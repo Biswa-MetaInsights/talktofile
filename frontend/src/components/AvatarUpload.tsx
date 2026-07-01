@@ -112,13 +112,13 @@ export default function AvatarUpload({
             <button
               type="button"
               onClick={() => onChange('')}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors dark:text-slate-400 dark:hover:bg-red-500/10"
             >
               Remove
             </button>
           )}
         </div>
-        <p className="mt-1.5 text-xs text-slate-400">JPG, PNG or GIF. Max 5 MB.</p>
+        <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">JPG, PNG or GIF. Max 5 MB.</p>
       </div>
 
       <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
