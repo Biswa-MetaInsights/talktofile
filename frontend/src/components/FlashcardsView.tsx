@@ -91,12 +91,12 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
           <Trophy className="w-8 h-8 text-[#E2611B]" />
         </div>
         <div>
-          <h2 className="font-brand font-bold text-xl text-slate-900 mb-2">Flashcards</h2>
-          <p className="text-slate-500 text-sm max-w-sm">
+          <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100 mb-2">Flashcards</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">
             Generate Q&amp;A flashcards from your document to test your knowledge.
           </p>
         </div>
-        {error && <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>}
+        {error && <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3 dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-400">{error}</p>}
         <div className="flex flex-col items-center gap-3">
           <button
             onClick={generate}
@@ -104,7 +104,7 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
           >
             Generate flashcards
           </button>
-          <button onClick={onStartChat} className="text-sm text-slate-500 hover:text-[#E2611B] flex items-center gap-1.5">
+          <button onClick={onStartChat} className="text-sm text-slate-500 dark:text-slate-400 hover:text-[#E2611B] flex items-center gap-1.5">
             <MessageSquare className="w-4 h-4" /> Start chatting instead
           </button>
         </div>
@@ -116,7 +116,7 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <Loader2 className="w-8 h-8 text-[#E2611B] animate-spin" />
-        <p className="text-slate-600 text-sm">Generating flashcards from your document…</p>
+        <p className="text-slate-600 dark:text-slate-300 text-sm">Generating flashcards from your document…</p>
       </div>
     )
   }
@@ -129,20 +129,20 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
           <Trophy className="w-10 h-10 text-[#E2611B]" />
         </div>
         <div>
-          <h2 className="font-brand font-bold text-2xl text-slate-900 mb-1">Session Complete!</h2>
+          <h2 className="font-brand font-bold text-2xl text-slate-900 dark:text-slate-100 mb-1">Session Complete!</h2>
           <p className="text-4xl font-bold text-[#E2611B] my-3">{correctCount}/{totalCards}</p>
-          <p className="text-slate-500 text-sm">
+          <p className="text-slate-500 dark:text-slate-400 text-sm">
             {pct >= 80 ? 'Excellent work! 🎉' : pct >= 60 ? 'Good job! Keep practising.' : 'Keep going. You\'ll get there!'}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
-          <button onClick={restart} className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:border-[#E2611B] hover:text-[#E2611B] transition-all">
+          <button onClick={restart} className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:border-[#E2611B] hover:text-[#E2611B] transition-all dark:border-slate-700 dark:text-slate-300">
             <RotateCcw className="w-4 h-4" /> Try again
           </button>
-          <button onClick={generate} className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:border-[#E2611B] hover:text-[#E2611B] transition-all">
+          <button onClick={generate} className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:border-[#E2611B] hover:text-[#E2611B] transition-all dark:border-slate-700 dark:text-slate-300">
             New set
           </button>
-          <button onClick={shareSet} className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:border-[#E2611B] hover:text-[#E2611B] transition-all">
+          <button onClick={shareSet} className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:border-[#E2611B] hover:text-[#E2611B] transition-all dark:border-slate-700 dark:text-slate-300">
             {shared ? <Check className="w-4 h-4 text-green-600" /> : <Share2 className="w-4 h-4" />}
             {shared === 'copied' ? 'Copied' : shared === 'shared' ? 'Shared' : 'Share set'}
           </button>
@@ -157,11 +157,11 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
   return (
     <div className="flex flex-col h-full p-5 gap-4">
       {/* Progress bar */}
-      <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
         <span>Card {currentIdx + 1} of {totalCards}</span>
-        <span className="text-green-600 font-medium">{correctCount} correct</span>
+        <span className="text-green-600 dark:text-green-400 font-medium">{correctCount} correct</span>
       </div>
-      <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+      <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
         <motion.div
           className="h-full bg-[#E2611B] rounded-full"
           animate={{ width: `${((currentIdx) / totalCards) * 100}%` }}
@@ -176,25 +176,25 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="flex-1 flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden"
+          className="flex-1 flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden dark:bg-slate-900 dark:border-slate-800"
         >
-          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 dark:border-slate-800">
             {card?.difficulty && (
               <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${DIFF_COLOR[card.difficulty] || 'text-slate-500 bg-slate-50 border-slate-200'}`}>
                 {card.difficulty}
               </span>
             )}
-            <span className="text-xs text-slate-400 ml-auto">Question</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto">Question</span>
           </div>
 
           <div className="flex-1 flex flex-col justify-between p-6">
-            <p className="text-slate-900 font-medium text-base leading-relaxed">{card?.question}</p>
+            <p className="text-slate-900 dark:text-slate-100 font-medium text-base leading-relaxed">{card?.question}</p>
 
             {showHint && card?.hint && (
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="mt-4 text-sm text-slate-500 italic bg-slate-50 rounded-xl px-4 py-2.5 border border-slate-100"
+                className="mt-4 text-sm text-slate-500 italic bg-slate-50 rounded-xl px-4 py-2.5 border border-slate-100 dark:text-slate-400 dark:bg-slate-800/60 dark:border-slate-700"
               >
                 Hint: {card.hint}
               </motion.p>
@@ -204,10 +204,10 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mt-4 border-t border-slate-100 pt-4"
+                className="mt-4 border-t border-slate-100 dark:border-slate-800 pt-4"
               >
-                <p className="text-xs font-semibold text-brand-600 uppercase tracking-wide mb-2">Answer</p>
-                <p className="text-slate-800 text-sm leading-relaxed">{card?.answer}</p>
+                <p className="text-xs font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-wide mb-2">Answer</p>
+                <p className="text-slate-800 dark:text-slate-200 text-sm leading-relaxed">{card?.answer}</p>
               </motion.div>
             )}
           </div>
@@ -221,7 +221,7 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
             {card?.hint && (
               <button
                 onClick={() => setShowHint((s) => !s)}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all dark:border-slate-700 dark:text-slate-300"
               >
                 {showHint ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 {showHint ? 'Hide hint' : 'Show hint'}
@@ -229,7 +229,7 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
             )}
             <button
               onClick={() => setShowAnswer(true)}
-              className="flex-1 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-all"
+              className="flex-1 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-all dark:bg-slate-700 dark:hover:bg-slate-600"
             >
               Reveal answer
             </button>
@@ -251,7 +251,7 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
           </div>
         )}
 
-        <div className="flex justify-between items-center text-xs text-slate-400">
+        <div className="flex justify-between items-center text-xs text-slate-400 dark:text-slate-500">
           <div className="flex items-center gap-3">
             <button onClick={onStartChat} className="flex items-center gap-1 hover:text-[#E2611B] transition-colors">
               <MessageSquare className="w-3.5 h-3.5" /> Chat
@@ -262,10 +262,10 @@ export default function FlashcardsView({ session, onStartChat }: Props) {
             </button>
           </div>
           <div className="flex gap-1">
-            <button onClick={() => { if (currentIdx > 0) { setCurrentIdx(i => i - 1); setShowAnswer(false); setShowHint(false) } }} disabled={currentIdx === 0} className="p-1 rounded-lg hover:bg-slate-100 disabled:opacity-30 transition-colors">
+            <button onClick={() => { if (currentIdx > 0) { setCurrentIdx(i => i - 1); setShowAnswer(false); setShowHint(false) } }} disabled={currentIdx === 0} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-colors">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <button onClick={() => { if (currentIdx < totalCards - 1) { setCurrentIdx(i => i + 1); setShowAnswer(false); setShowHint(false) } }} disabled={currentIdx === totalCards - 1} className="p-1 rounded-lg hover:bg-slate-100 disabled:opacity-30 transition-colors">
+            <button onClick={() => { if (currentIdx < totalCards - 1) { setCurrentIdx(i => i + 1); setShowAnswer(false); setShowHint(false) } }} disabled={currentIdx === totalCards - 1} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-colors">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>

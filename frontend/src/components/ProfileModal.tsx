@@ -73,7 +73,7 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
           initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           onClick={(e) => e.stopPropagation()}
-          className="relative rounded-2xl w-full max-w-lg p-6 my-auto bg-white border border-slate-200 shadow-2xl shadow-slate-900/10"
+          className="relative rounded-2xl w-full max-w-lg p-6 my-auto bg-white border border-slate-200 shadow-2xl shadow-slate-900/10 dark:bg-slate-900 dark:border-slate-800"
         >
           {/* Header */}
           <div className="flex items-start justify-between mb-5">
@@ -82,20 +82,20 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
                 <User className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-slate-900 font-semibold flex items-center gap-2">
+                <h2 className="text-slate-900 font-semibold flex items-center gap-2 dark:text-slate-100">
                   Your profile
                   {user?.plan === 'pro' && (
-                    <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-brand-50 border border-brand-200 text-brand-600">
+                    <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-brand-50 border border-brand-200 text-brand-600 dark:bg-brand-600/15 dark:border-brand-600/30 dark:text-brand-300">
                       <Crown className="w-2.5 h-2.5" /> PRO
                     </span>
                   )}
                 </h2>
-                <p className="text-xs text-slate-500">View and update your details</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">View and update your details</p>
               </div>
             </div>
             <button
               onClick={onClose} aria-label="Close" title="Close"
-              className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-red-50 hover:border-red-200 transition-all"
+              className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-red-50 hover:border-red-200 transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-red-500/10 dark:hover:border-red-500/30"
             >
               <X className="w-4 h-4" />
             </button>
@@ -103,12 +103,12 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
 
           {/* Read-only account email */}
           <div className="mb-5">
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
-            <div className="flex items-center gap-2 input-field bg-slate-50 text-slate-500 cursor-not-allowed">
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Email</label>
+            <div className="flex items-center gap-2 input-field bg-slate-50 text-slate-500 cursor-not-allowed dark:bg-slate-800 dark:text-slate-400">
               <Lock className="w-3.5 h-3.5 flex-shrink-0" />
               <span className="truncate">{accountEmail}</span>
             </div>
-            <p className="text-xs text-slate-400 mt-1">Your email and username can’t be changed.</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Your email and username can’t be changed.</p>
           </div>
 
           <form onSubmit={handleSave} className="space-y-4">

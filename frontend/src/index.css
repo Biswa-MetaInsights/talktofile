@@ -15,6 +15,14 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* Dark theme base (flipped by the `dark` class on <html>). Surfaces use a deep
+     slate; text lifts to slate-200 for comfortable contrast. */
+  html.dark body {
+    background-color: #0b1120;
+    color: #e2e8f0;
   }
 
   ::-webkit-scrollbar {
@@ -31,15 +39,18 @@
   ::-webkit-scrollbar-thumb:hover {
     background: rgba(226, 97, 27, 0.4);
   }
+  html.dark ::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.5);
+  }
 }
 
 @layer components {
   .glass-card {
-    @apply bg-white border border-slate-200 shadow-sm;
+    @apply bg-white border border-slate-200 shadow-sm dark:bg-slate-900 dark:border-slate-800;
   }
 
   .input-field {
-    @apply w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E2611B] focus:ring-2 focus:ring-[#E2611B]/20 transition-all;
+    @apply w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E2611B] focus:ring-2 focus:ring-[#E2611B]/20 transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-500;
   }
 
   .btn-primary {
@@ -49,7 +60,7 @@
   .prose-custom h1,
   .prose-custom h2,
   .prose-custom h3 {
-    @apply text-slate-900 font-semibold mt-3 mb-1.5;
+    @apply text-slate-900 font-semibold mt-3 mb-1.5 dark:text-slate-100;
   }
 
   .prose-custom h1 { @apply text-base; }
@@ -57,12 +68,12 @@
   .prose-custom h3 { @apply text-sm; }
 
   .prose-custom p {
-    @apply text-slate-700 mb-2 leading-relaxed;
+    @apply text-slate-700 mb-2 leading-relaxed dark:text-slate-300;
   }
 
   .prose-custom ul,
   .prose-custom ol {
-    @apply text-slate-700 pl-4 mb-2 space-y-1;
+    @apply text-slate-700 pl-4 mb-2 space-y-1 dark:text-slate-300;
   }
 
   .prose-custom li { @apply leading-relaxed; }
@@ -70,25 +81,25 @@
   .prose-custom ol li { @apply list-decimal; }
 
   .prose-custom strong {
-    @apply text-slate-900 font-semibold;
+    @apply text-slate-900 font-semibold dark:text-slate-100;
   }
 
-  .prose-custom em { @apply text-slate-700 italic; }
+  .prose-custom em { @apply text-slate-700 italic dark:text-slate-300; }
 
   .prose-custom code {
-    @apply text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded text-xs font-mono;
+    @apply text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded text-xs font-mono dark:bg-brand-600/15 dark:text-brand-300;
   }
 
   .prose-custom pre {
-    @apply bg-slate-100 border border-slate-200 rounded-xl p-4 overflow-x-auto my-3 max-w-full;
+    @apply bg-slate-100 border border-slate-200 rounded-xl p-4 overflow-x-auto my-3 max-w-full dark:bg-slate-800 dark:border-slate-700;
   }
 
   .prose-custom pre code {
-    @apply bg-transparent px-0 py-0 text-slate-700 text-xs;
+    @apply bg-transparent px-0 py-0 text-slate-700 text-xs dark:text-slate-300;
   }
 
   .prose-custom blockquote {
-    @apply border-l-2 border-brand-400/60 pl-3 text-slate-500 italic my-2;
+    @apply border-l-2 border-brand-400/60 pl-3 text-slate-500 italic my-2 dark:text-slate-400;
   }
 
   .prose-custom table {
@@ -96,15 +107,15 @@
   }
 
   .prose-custom th {
-    @apply text-left text-slate-700 font-medium pb-2 border-b border-slate-200;
+    @apply text-left text-slate-700 font-medium pb-2 border-b border-slate-200 dark:text-slate-300 dark:border-slate-700;
   }
 
   .prose-custom td {
-    @apply py-1.5 text-slate-600 border-b border-slate-100;
+    @apply py-1.5 text-slate-600 border-b border-slate-100 dark:text-slate-400 dark:border-slate-800;
   }
 
   .prose-custom a {
-    @apply text-brand-600 underline underline-offset-2 hover:text-brand-700;
+    @apply text-brand-600 underline underline-offset-2 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300;
   }
 
   .scrollbar-thin {

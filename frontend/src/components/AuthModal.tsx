@@ -19,7 +19,7 @@ const GoogleIcon = () => (
   </svg>
 )
 const AppleIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0 text-slate-900" fill="currentColor" aria-hidden="true">
+  <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0 text-slate-900 dark:text-slate-100" fill="currentColor" aria-hidden="true">
     <path d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43zm4.565 15.71c-.03.08-.46 1.58-1.518 3.12-.911 1.33-1.86 2.66-3.36 2.69-1.474.03-1.948-.87-3.63-.87-1.68 0-2.2.84-3.61.9-1.45.06-2.55-1.43-3.47-2.75-1.88-2.72-3.32-7.69-1.39-11.05.96-1.67 2.67-2.72 4.53-2.75 1.42-.03 2.75.96 3.63.96.87 0 2.49-1.18 4.2-1.01.71.03 2.72.29 4.01 2.18-.1.06-2.39 1.4-2.37 4.16.03 3.3 2.91 4.4 2.94 4.41z" />
   </svg>
 )
@@ -49,19 +49,19 @@ function Shell({ icon, title, subtitle, onClose, children }: {
         <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           onClick={(e) => e.stopPropagation()}
-          className="relative rounded-2xl w-full max-w-md p-6 my-auto bg-white border border-slate-200 shadow-2xl shadow-slate-900/10">
+          className="relative rounded-2xl w-full max-w-md p-6 my-auto bg-white border border-slate-200 shadow-2xl shadow-slate-900/10 dark:bg-slate-900 dark:border-slate-800">
           <div className="flex items-start justify-between mb-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#E2611B] flex items-center justify-center shadow-sm">
                 {icon}
               </div>
               <div>
-                <h2 className="text-slate-900 font-semibold">{title}</h2>
-                <p className="text-xs text-slate-500">{subtitle}</p>
+                <h2 className="text-slate-900 font-semibold dark:text-slate-100">{title}</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>
               </div>
             </div>
             <button onClick={onClose} aria-label="Close" title="Close"
-              className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-red-50 hover:border-red-200 transition-all">
+              className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-red-50 hover:border-red-200 transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-red-500/10 dark:hover:border-red-500/30">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -191,13 +191,13 @@ export default function AuthModal({
         subtitle="Choose a new password for your account" onClose={() => { clearRecovery(); onClose() }}>
         <form onSubmit={handleSetNewPassword} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">New password <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">New password <span className="text-red-500">*</span></label>
             <div className="relative">
               <input type={showPassword ? 'text' : 'password'} value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)} placeholder="Min 8 characters" required
                 autoComplete="new-password" className="input-field pr-10" />
               <button type="button" onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
@@ -223,7 +223,7 @@ export default function AuthModal({
         subtitle="We'll email you a link to set a new password" onClose={onClose}>
         <form onSubmit={handleSendReset} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Email <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Email <span className="text-red-500">*</span></label>
             <input value={username} onChange={(e) => setUsername(e.target.value)} type="email"
               placeholder="you@company.com" required autoComplete="email" className="input-field" />
           </div>
@@ -242,7 +242,7 @@ export default function AuthModal({
               : <><Mail className="w-4 h-4" /> Send reset link</>}
           </button>
           <button type="button" onClick={() => { setMode('login'); setError(''); setInfo('') }}
-            className="w-full text-center text-sm text-slate-500 hover:text-slate-900 transition-colors">
+            className="w-full text-center text-sm text-slate-500 hover:text-slate-900 transition-colors dark:text-slate-400 dark:hover:text-slate-100">
             ← Back to sign in
           </button>
         </form>
@@ -264,7 +264,7 @@ export default function AuthModal({
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           onClick={(e) => e.stopPropagation()}
-          className="relative rounded-2xl w-full max-w-xl p-6 my-auto bg-white border border-slate-200 shadow-2xl shadow-slate-900/10"
+          className="relative rounded-2xl w-full max-w-xl p-6 my-auto bg-white border border-slate-200 shadow-2xl shadow-slate-900/10 dark:bg-slate-900 dark:border-slate-800"
         >
           {/* Header */}
           <div className="flex items-start justify-between mb-5">
@@ -273,8 +273,8 @@ export default function AuthModal({
                 {mode === 'subscribe' ? <Sparkles className="w-5 h-5 text-white" /> : <LogIn className="w-5 h-5 text-white" />}
               </div>
               <div>
-                <h2 className="text-slate-900 font-semibold">{mode === 'subscribe' ? 'Create your account' : 'Welcome back'}</h2>
-                <p className="text-xs text-slate-500 sm:whitespace-nowrap">
+                <h2 className="text-slate-900 font-semibold dark:text-slate-100">{mode === 'subscribe' ? 'Create your account' : 'Welcome back'}</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 sm:whitespace-nowrap">
                   {mode === 'subscribe'
                     ? 'Free account: Have access to a personalised assistant.'
                     : 'Sign in to your account'}
@@ -285,7 +285,7 @@ export default function AuthModal({
               onClick={onClose}
               aria-label="Close"
               title="Close"
-              className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-red-50 hover:border-red-200 transition-all"
+              className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-red-50 hover:border-red-200 transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-red-500/10 dark:hover:border-red-500/30"
             >
               <X className="w-4 h-4" />
             </button>
@@ -312,13 +312,13 @@ export default function AuthModal({
           )}
 
           {/* Tabs */}
-          <div className="flex rounded-xl bg-slate-100 p-1 mb-5">
+          <div className="flex rounded-xl bg-slate-100 p-1 mb-5 dark:bg-slate-800">
             {([['subscribe', 'Sign up'], ['login', 'Sign in']] as const).map(([key, label]) => (
               <button
                 key={key}
                 onClick={() => { setMode(key); setError('') }}
                 className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-                  mode === key ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-900'
+                  mode === key ? 'bg-white text-slate-900 shadow-sm border border-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'
                 }`}
               >
                 {label}
@@ -329,7 +329,7 @@ export default function AuthModal({
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">{SUPABASE_ENABLED ? 'Email' : 'Username'} <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">{SUPABASE_ENABLED ? 'Email' : 'Username'} <span className="text-red-500">*</span></label>
                 <input
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -341,7 +341,7 @@ export default function AuthModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Password <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Password <span className="text-red-500">*</span></label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -352,7 +352,7 @@ export default function AuthModal({
                     autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                     className="input-field pr-10"
                   />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
@@ -393,7 +393,7 @@ export default function AuthModal({
 
                 <div>
                   <p className="text-xs font-semibold text-[#E2611B] uppercase tracking-wider mb-2">
-                    Company <span className="text-slate-400 normal-case font-normal">(optional)</span>
+                    Company <span className="text-slate-400 dark:text-slate-500 normal-case font-normal">(optional)</span>
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Company name" className="input-field" />
@@ -450,10 +450,10 @@ export default function AuthModal({
             {/* Divider + social sign-in / sign-up (frontend only) */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                <span className="w-full border-t border-slate-200" />
+                <span className="w-full border-t border-slate-200 dark:border-slate-700" />
               </div>
               <div className="relative flex justify-center">
-                <span className="bg-white px-3 text-xs text-slate-400">or {mode === 'subscribe' ? 'sign up' : 'continue'} with</span>
+                <span className="bg-white px-3 text-xs text-slate-400 dark:bg-slate-900 dark:text-slate-500">or {mode === 'subscribe' ? 'sign up' : 'continue'} with</span>
               </div>
             </div>
 
@@ -463,7 +463,7 @@ export default function AuthModal({
                   key={name}
                   type="button"
                   onClick={() => handleSocial(name)}
-                  className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                  className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:border-slate-600"
                 >
                   <Icon />
                   {mode === 'subscribe' ? `Sign up with ${name} account` : `Continue with ${name} account`}

@@ -148,7 +148,7 @@ export default function ChartsView({ session, onStartChat }: Props) {
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-full gap-4">
       <Loader2 className="w-8 h-8 text-[#E60026] animate-spin" />
-      <p className="text-slate-600 text-sm">Analysing your data…</p>
+      <p className="text-slate-600 dark:text-slate-300 text-sm">Analysing your data…</p>
     </div>
   )
 
@@ -158,14 +158,14 @@ export default function ChartsView({ session, onStartChat }: Props) {
         <BarChart2 className="w-8 h-8 text-[#E60026]" />
       </div>
       <div>
-        <h2 className="font-brand font-bold text-xl text-slate-900 mb-2">Visualise Your Data</h2>
-        <p className="text-slate-500 text-sm max-w-sm">
+        <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100 mb-2">Visualise Your Data</h2>
+        <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">
           Choose a chart type and we'll turn your spreadsheet into a visual. Works with Excel (.xlsx) and CSV files.
         </p>
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3 max-w-sm text-left">
+        <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3 max-w-sm text-left dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-400">
           <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
           <span>{error}</span>
         </div>
@@ -179,12 +179,12 @@ export default function ChartsView({ session, onStartChat }: Props) {
             className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 text-center transition-all ${
               chartType === id
                 ? 'border-[#E60026] bg-[#E60026]/5 text-[#E60026]'
-                : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'
             }`}
           >
             <Icon className="w-6 h-6" />
             <span className="text-sm font-medium">{label}</span>
-            <span className="text-[10px] text-slate-400 leading-tight">{desc}</span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight">{desc}</span>
           </button>
         ))}
       </div>
@@ -196,7 +196,7 @@ export default function ChartsView({ session, onStartChat }: Props) {
         >
           <BarChart2 className="w-4 h-4" /> Generate {CHART_TYPES.find(c => c.id === chartType)?.label} Chart
         </button>
-        <button onClick={onStartChat} className="text-sm text-slate-500 hover:text-[#E60026] flex items-center gap-1.5">
+        <button onClick={onStartChat} className="text-sm text-slate-500 dark:text-slate-400 hover:text-[#E60026] flex items-center gap-1.5">
           <MessageSquare className="w-4 h-4" /> Chat with your data instead
         </button>
       </div>
@@ -208,21 +208,21 @@ export default function ChartsView({ session, onStartChat }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="font-brand font-bold text-xl text-slate-900">{chart.title}</h2>
+          <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100">{chart.title}</h2>
           {(chart.x_label || chart.y_label) && (
-            <p className="text-xs text-slate-400 mt-0.5">{chart.x_label}{chart.x_label && chart.y_label ? ' · ' : ''}{chart.y_label}</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{chart.x_label}{chart.x_label && chart.y_label ? ' · ' : ''}{chart.y_label}</p>
           )}
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setChart(null)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E60026] hover:text-[#E60026] transition-all"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E60026] hover:text-[#E60026] transition-all dark:border-slate-700 dark:text-slate-300"
           >
             <RefreshCw className="w-4 h-4" /> Change chart
           </button>
           <button
             onClick={onStartChat}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E60026] hover:text-[#E60026] transition-all"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E60026] hover:text-[#E60026] transition-all dark:border-slate-700 dark:text-slate-300"
           >
             <MessageSquare className="w-4 h-4" /> Chat
           </button>
@@ -238,7 +238,7 @@ export default function ChartsView({ session, onStartChat }: Props) {
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
               chart.chart_type === id
                 ? 'border-[#E60026] bg-[#E60026]/5 text-[#E60026]'
-                : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                : 'border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-600'
             }`}
           >
             <Icon className="w-3.5 h-3.5" /> {label}
@@ -246,13 +246,14 @@ export default function ChartsView({ session, onStartChat }: Props) {
         ))}
       </div>
 
-      {/* Chart */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-4">
+      {/* Chart — kept on a light surface so the Recharts axes/legend stay legible in
+          dark mode (their text/grid colours are light-theme defaults). */}
+      <div className="bg-white rounded-2xl border border-slate-100 p-4 dark:border-slate-700">
         <ChartRenderer chart={chart} />
       </div>
 
       {error && (
-        <p className="text-red-600 text-sm text-center bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>
+        <p className="text-red-600 text-sm text-center bg-red-50 border border-red-200 rounded-xl px-4 py-3 dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-400">{error}</p>
       )}
     </div>
   )

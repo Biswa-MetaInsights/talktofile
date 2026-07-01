@@ -108,7 +108,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           onClick={(e) => e.stopPropagation()}
-          className="relative rounded-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto scrollbar-thin bg-white border border-slate-200 shadow-2xl shadow-slate-900/10"
+          className="relative rounded-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto scrollbar-thin bg-white border border-slate-200 shadow-2xl shadow-slate-900/10 dark:bg-slate-900 dark:border-slate-800"
         >
           {/* Header */}
           <div className="flex items-start justify-between mb-5">
@@ -117,28 +117,28 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-slate-900 font-semibold">Personalise your assistant</h2>
-                <p className="text-xs text-slate-500">Teach your assistant to speak your domain's language</p>
+                <h2 className="text-slate-900 font-semibold dark:text-slate-100">Personalise your assistant</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Teach your assistant to speak your domain's language</p>
               </div>
             </div>
             <button
               onClick={onClose}
               aria-label="Close"
               title="Close"
-              className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-red-50 hover:border-red-200 transition-all"
+              className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-red-50 hover:border-red-200 transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-red-500/10 dark:hover:border-red-500/30"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
           {/* Active persona display */}
-          <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200">
+          <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden dark:border-slate-700 dark:bg-slate-800/60">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
               <span className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
                 {user?.persona ? (
-                  <><span className="w-1.5 h-1.5 rounded-full bg-green-500" /><span className="text-green-600">Active persona</span></>
+                  <><span className="w-1.5 h-1.5 rounded-full bg-green-500" /><span className="text-green-600 dark:text-green-400">Active persona</span></>
                 ) : (
-                  <><span className="w-1.5 h-1.5 rounded-full bg-slate-400" /><span className="text-slate-500">Default</span></>
+                  <><span className="w-1.5 h-1.5 rounded-full bg-slate-400" /><span className="text-slate-500 dark:text-slate-400">Default</span></>
                 )}
               </span>
               {user?.persona && (
@@ -147,9 +147,9 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
             </div>
             <div className="px-4 py-3">
               {user?.persona ? (
-                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{user.persona}</p>
+                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap dark:text-slate-300">{user.persona}</p>
               ) : (
-                <p className="text-sm text-slate-500 leading-relaxed">
+                <p className="text-sm text-slate-500 leading-relaxed dark:text-slate-400">
                   Your assistant answers as a neutral expert document assistant. Personalise it below to match your role, domain, and tone.
                 </p>
               )}
@@ -157,7 +157,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
           </div>
 
           {/* Tabs */}
-          <div className="flex rounded-xl bg-slate-100 p-1 mb-5">
+          <div className="flex rounded-xl bg-slate-100 p-1 mb-5 dark:bg-slate-800">
             {([
               ['guided', 'Guided', Wand2],
               ['manual', 'Edit prompt', Pencil],
@@ -166,7 +166,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
                 key={key}
                 onClick={() => { setTab(key); setError(''); setHint(false) }}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg transition-all ${
-                  tab === key ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-900'
+                  tab === key ? 'bg-white text-slate-900 shadow-sm border border-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" /> {label}
@@ -177,7 +177,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
           {tab === 'guided' ? (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">What best describes your work?</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">What best describes your work?</label>
                 <div className="flex flex-wrap gap-2">
                   {ROLE_PRESETS.map((p) => (
                     <button
@@ -186,7 +186,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
                       className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
                         role === p.role
                           ? 'bg-[#E2611B]/10 border-[#E2611B]/20 text-[#E2611B]'
-                          : 'border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50'
+                          : 'border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:border-slate-600 dark:hover:bg-slate-800'
                       }`}
                     >
                       {p.label}
@@ -196,7 +196,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Your role / field</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Your role / field</label>
                 <input
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
@@ -206,7 +206,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Specialty or focus</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Specialty or focus</label>
                 <input
                   value={specialty}
                   onChange={(e) => setSpecialty(e.target.value)}
@@ -216,7 +216,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">What should your assistant call you? <span className="text-slate-400">(optional)</span></label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">What should your assistant call you? <span className="text-slate-400 dark:text-slate-500">(optional)</span></label>
                 <input
                   value={addressAs}
                   onChange={(e) => setAddressAs(e.target.value)}
@@ -240,7 +240,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
           ) : (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Your assistant's persona</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Your assistant's persona</label>
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
@@ -249,7 +249,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
                   placeholder="You are a legal analyst specialising in Belgian contract law. Respond in precise, formal legal language and cite article numbers where possible..."
                   className="input-field resize-none font-mono text-xs leading-relaxed"
                 />
-                <p className="text-right text-xs text-slate-400 mt-1">{draft.length}/1200</p>
+                <p className="text-right text-xs text-slate-400 dark:text-slate-500 mt-1">{draft.length}/1200</p>
               </div>
 
               <AnimatePresence>
@@ -269,7 +269,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
                 <button
                   onClick={handleReset}
                   disabled={loading}
-                  className="flex items-center justify-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-xl px-4 py-2.5 transition-all"
+                  className="flex items-center justify-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-xl px-4 py-2.5 transition-all dark:text-slate-400 dark:hover:text-slate-100 dark:border-slate-700 dark:hover:border-slate-600 dark:hover:bg-slate-800"
                 >
                   <RotateCcw className="w-4 h-4" /> Reset to default
                 </button>
@@ -311,7 +311,7 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
             )}
           </AnimatePresence>
 
-          <p className="text-center text-slate-400 text-xs mt-5">
+          <p className="text-center text-slate-400 dark:text-slate-500 text-xs mt-5">
             Your assistant still answers only from your document. The persona only changes how it speaks.
           </p>
         </motion.div>

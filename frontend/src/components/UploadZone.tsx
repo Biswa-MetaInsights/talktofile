@@ -161,15 +161,15 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
         className="w-full max-w-xl"
       >
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
             {selectedMode && selectedMode !== 'chat'
               ? MODE_LABELS[selectedMode]
               : plan === 'pro' ? 'Upload Your Documents' : 'Upload Your Document'}
           </h2>
-          <p className="text-slate-500 text-sm">
+          <p className="text-slate-500 dark:text-slate-400 text-sm">
             PDF, Word, Excel, PowerPoint, HTML, JSON, CSV, text, any language
           </p>
-          <p className="text-slate-400 text-xs mt-1">
+          <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">
             {plan === 'pro'
               ? `Up to ${limits.maxFiles} files · ${limits.maxSizeMb}MB each · compare & analyse`
               : `${limits.maxFiles} file · up to ${limits.maxSizeMb}MB`}
@@ -186,7 +186,7 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
               ? 'border-red-400 bg-red-50'
               : isDragActive
               ? 'border-brand-400 bg-brand-50 scale-[1.02]'
-              : 'border-slate-300 bg-white hover:border-brand-400 hover:bg-brand-50/30'
+              : 'border-slate-300 bg-white hover:border-brand-400 hover:bg-brand-50/30 dark:border-slate-600 dark:bg-slate-900 dark:hover:border-brand-500 dark:hover:bg-brand-600/10'
           }`}
         >
           <input {...getInputProps()} />
@@ -203,12 +203,12 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
                   </div>
                 </div>
                 <div>
-                  <p className="text-slate-800 font-medium text-sm truncate">
+                  <p className="text-slate-800 dark:text-slate-100 font-medium text-sm truncate">
                     {files.length > 1 ? `${files.length} files` : files[0]?.name}
                   </p>
-                  <p className="text-brand-600 text-xs mt-1">{stageMsg}</p>
+                  <p className="text-brand-600 dark:text-brand-400 text-xs mt-1">{stageMsg}</p>
                 </div>
-                <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
                   <motion.div className="h-full bg-gradient-to-r from-brand-500 to-brand-600 rounded-full" animate={{ width: `${progress}%` }} transition={{ duration: 0.5, ease: 'easeOut' }} />
                 </div>
               </motion.div>
@@ -223,14 +223,14 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
                   <Upload className="w-7 h-7 text-brand-500" />
                 </motion.div>
                 <div>
-                  <p className="text-slate-800 font-medium">
+                  <p className="text-slate-800 dark:text-slate-100 font-medium">
                     {isDragActive ? 'Drop them here!' : plan === 'pro' ? 'Drag & drop your files' : 'Drag & drop your file'}
                   </p>
-                  <p className="text-slate-400 text-sm mt-1">or click to browse</p>
+                  <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">or click to browse</p>
                 </div>
                 <div className="flex flex-wrap justify-center gap-2">
                   {['PDF', 'DOCX', 'XLSX', 'PPTX', 'HTML', 'JSON', 'TXT', 'CSV', 'MD'].map((t) => (
-                    <span key={t} className="px-2 py-0.5 text-xs bg-slate-100 text-slate-500 rounded-md font-mono border border-slate-200">.{t.toLowerCase()}</span>
+                    <span key={t} className="px-2 py-0.5 text-xs bg-slate-100 text-slate-500 rounded-md font-mono border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">.{t.toLowerCase()}</span>
                   ))}
                 </div>
                 {plan === 'pro' && (
@@ -250,18 +250,18 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="mt-4 flex items-start gap-3 bg-brand-50 rounded-xl px-4 py-3 border border-brand-200"
+              className="mt-4 flex items-start gap-3 bg-brand-50 rounded-xl px-4 py-3 border border-brand-200 dark:bg-brand-600/10 dark:border-brand-600/30"
             >
               <Crown className="w-5 h-5 text-brand-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm text-slate-700">{upgradeHint}</p>
+                <p className="text-sm text-slate-700 dark:text-slate-300">{upgradeHint}</p>
                 {user?.is_guest && (
                   <button onClick={onRequireUpgrade} className="mt-2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-all">
                     Create a free account
                   </button>
                 )}
               </div>
-              <button onClick={() => setUpgradeHint('')} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+              <button onClick={() => setUpgradeHint('')} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"><X className="w-4 h-4" /></button>
             </motion.div>
           )}
           {error && (

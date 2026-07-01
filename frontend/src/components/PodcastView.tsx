@@ -80,13 +80,13 @@ export default function PodcastView({ session, onStartChat }: Props) {
           <Radio className="w-8 h-8 text-[#E2611B]" />
         </div>
         <div>
-          <h2 className="font-brand font-bold text-xl text-slate-900 mb-2">Podcast Script</h2>
-          <p className="text-slate-500 text-sm max-w-sm">
+          <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100 mb-2">Podcast Script</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">
             Generate a two-person conversation between a HOST and an EXPERT discussing the key ideas
             from your document. Perfect for preparing a talk or deepening understanding.
           </p>
         </div>
-        {error && <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>}
+        {error && <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3 dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-400">{error}</p>}
         <div className="flex flex-col items-center gap-3">
           <button
             onClick={generate}
@@ -94,7 +94,7 @@ export default function PodcastView({ session, onStartChat }: Props) {
           >
             <Mic className="w-4 h-4" /> Generate podcast script
           </button>
-          <button onClick={onStartChat} className="text-sm text-slate-500 hover:text-[#E2611B] flex items-center gap-1.5">
+          <button onClick={onStartChat} className="text-sm text-slate-500 dark:text-slate-400 hover:text-[#E2611B] flex items-center gap-1.5">
             <MessageSquare className="w-4 h-4" /> Start chatting instead
           </button>
         </div>
@@ -106,7 +106,7 @@ export default function PodcastView({ session, onStartChat }: Props) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <Loader2 className="w-8 h-8 text-[#E2611B] animate-spin" />
-        <p className="text-slate-600 text-sm">Writing your podcast script…</p>
+        <p className="text-slate-600 dark:text-slate-300 text-sm">Writing your podcast script…</p>
       </div>
     )
   }
@@ -117,25 +117,25 @@ export default function PodcastView({ session, onStartChat }: Props) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Radio className="w-5 h-5 text-[#E2611B]" />
-          <h2 className="font-brand font-bold text-xl text-slate-900">Podcast Script</h2>
+          <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100">Podcast Script</h2>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={shareScript}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E60026] hover:text-[#E60026] transition-all"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E60026] hover:text-[#E60026] transition-all dark:border-slate-700 dark:text-slate-300"
           >
             {shared ? <Check className="w-4 h-4 text-green-600" /> : <Share2 className="w-4 h-4" />}
             {shared === 'copied' ? 'Copied' : shared === 'shared' ? 'Shared' : 'Share'}
           </button>
           <button
             onClick={downloadScript}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all dark:border-slate-700 dark:text-slate-300"
           >
             <Download className="w-4 h-4" /> Download
           </button>
           <button
             onClick={onStartChat}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all dark:border-slate-700 dark:text-slate-300"
           >
             <MessageSquare className="w-4 h-4" /> Chat
           </button>
@@ -143,7 +143,7 @@ export default function PodcastView({ session, onStartChat }: Props) {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 text-xs text-slate-500">
+      <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#E2611B]" /> HOST: interviewer</span>
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-400" /> EXPERT: domain specialist</span>
       </div>
@@ -154,12 +154,12 @@ export default function PodcastView({ session, onStartChat }: Props) {
           const isHost = line.speaker === 'HOST'
           return (
             <div key={i} className={`flex gap-3 ${isHost ? '' : 'flex-row-reverse'}`}>
-              <div className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border ${isHost ? 'bg-[#E2611B]/10 border-[#E2611B]/20 text-[#E2611B]' : 'bg-slate-100 border-slate-200 text-slate-500'}`}>
+              <div className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border ${isHost ? 'bg-[#E2611B]/10 border-[#E2611B]/20 text-[#E2611B]' : 'bg-slate-100 border-slate-200 text-slate-500 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'}`}>
                 {isHost ? 'H' : 'E'}
               </div>
               <div className={`max-w-[80%] ${isHost ? '' : 'text-right'}`}>
-                <p className={`text-[10px] font-semibold mb-1 ${isHost ? 'text-[#E2611B]' : 'text-slate-500'}`}>{line.speaker}</p>
-                <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed border ${isHost ? 'bg-[#E2611B]/5 border-[#E2611B]/10 text-slate-800 rounded-tl-sm' : 'bg-slate-50 border-slate-100 text-slate-700 rounded-tr-sm'}`}>
+                <p className={`text-[10px] font-semibold mb-1 ${isHost ? 'text-[#E2611B]' : 'text-slate-500 dark:text-slate-400'}`}>{line.speaker}</p>
+                <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed border ${isHost ? 'bg-[#E2611B]/5 border-[#E2611B]/10 text-slate-800 rounded-tl-sm dark:bg-[#E2611B]/10 dark:border-[#E2611B]/20 dark:text-slate-200' : 'bg-slate-50 border-slate-100 text-slate-700 rounded-tr-sm dark:bg-slate-800/60 dark:border-slate-700 dark:text-slate-300'}`}>
                   {line.text}
                 </div>
               </div>
@@ -169,8 +169,8 @@ export default function PodcastView({ session, onStartChat }: Props) {
       </div>
 
       {/* Extend conversation */}
-      <div className="border-t border-slate-100 pt-4 mt-2">
-        <p className="text-xs text-slate-400 mb-2 text-center">Want to go deeper? Ask the hosts to continue.</p>
+      <div className="border-t border-slate-100 dark:border-slate-800 pt-4 mt-2">
+        <p className="text-xs text-slate-400 dark:text-slate-500 mb-2 text-center">Want to go deeper? Ask the hosts to continue.</p>
         <div className="flex gap-2">
           <input
             type="text"
@@ -179,7 +179,7 @@ export default function PodcastView({ session, onStartChat }: Props) {
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && extend()}
             placeholder="e.g. Go deeper on the key findings…"
             disabled={extending}
-            className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#E60026] focus:ring-1 focus:ring-[#E60026]/30 disabled:opacity-50"
+            className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#E60026] focus:ring-1 focus:ring-[#E60026]/30 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500"
           />
           <button
             onClick={extend}
@@ -195,7 +195,7 @@ export default function PodcastView({ session, onStartChat }: Props) {
       <div className="flex justify-center gap-3 pt-2">
         <button
           onClick={generate}
-          className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all"
+          className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all dark:border-slate-700 dark:text-slate-300"
         >
           <Mic className="w-4 h-4" /> Regenerate
         </button>

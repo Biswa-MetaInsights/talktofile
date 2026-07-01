@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import ReactMarkdown from 'react-markdown'
+import { useState, useMemo, useCallback, Children, cloneElement, createElement, isValidElement, type ReactNode } from 'react'
+import { motion } from 'framer-motion'
+import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { ShieldAlert, User, Copy, Check, ThumbsUp, ThumbsDown, Sparkles, Quote, ChevronDown } from 'lucide-react'
+import { ShieldAlert, User, Copy, Check, ThumbsUp, ThumbsDown, Sparkles, Quote } from 'lucide-react'
 import type { Message, Source } from '../types'
 import { feedbackApi } from '../api/client'
+import { buildCitations } from '../lib/citations'
+import CitationMarker from './CitationMarker'
 
 interface Props {
   message: Message
@@ -12,9 +14,11 @@ interface Props {
   sessionId?: string
   onCiteSource?: (source: Source) => void
   autoOpenSources?: boolean
+  /** True while this finished answer's citation passages are still being fetched. */
+  awaitingSources?: boolean
 }
 
-export default function MessageBubble({ message, username, sessionId, onCiteSource, autoOpenSources }: Props) {
+export default function MessageBubble({ message, username, sessionId, onCiteSource, autoOpenSources, awaitingSources }: Props) {
   const isUser = message.role === 'user'
   const isGuard = message.isGuardReject
   const isPeriodicFeedback = message.isPeriodicFeedback
@@ -67,10 +71,53 @@ export default function MessageBubble({ message, username, sessionId, onCiteSour
     }).catch(() => {})
   }
 
-  const [sourcesOpen, setSourcesOpen] = useState(false)
-  useEffect(() => { if (autoOpenSources) setSourcesOpen(true) }, [autoOpenSources])
   const showActions = !isUser && !isGuard && !isPeriodicFeedback && !message.isStreaming && message.content.trim().length > 0
   const hasSources = showActions && message.sources && message.sources.length > 0
+
+  // Match each returned passage to its best-fit sentence and inject `⟦C{n}⟧` tokens.
+  // Only for a finished Sage answer with sources — never while streaming.
+  const { markedMarkdown, citations } = useMemo(() => {
+    if (!hasSources) return { markedMarkdown: message.content, citations: [] }
+    return buildCitations(message.content, message.sources!)
+  }, [hasSources, message.content, message.sources])
+
+  // Walk rendered markdown children, replacing citation tokens with hover markers.
+  const injectMarkers = useCallback((children: ReactNode): ReactNode => {
+    if (citations.length === 0) return children
+    return Children.map(children, (child, ci) => {
+      if (typeof child === 'string') {
+        if (!child.includes('⟦C')) return child
+        const parts = child.split(/⟦C(\d+)⟧/)
+        return parts.map((part, i) => {
+          if (i % 2 === 0) return part
+          const n = Number(part)
+          const cite = citations.find((c) => c.marker === n)
+          return cite ? (
+            <CitationMarker key={`${ci}-${i}`} cite={cite} onJump={onCiteSource} />
+          ) : null
+        })
+      }
+      if (isValidElement(child) && (child.props as { children?: ReactNode })?.children != null) {
+        return cloneElement(
+          child as React.ReactElement<{ children?: ReactNode }>,
+          undefined,
+          injectMarkers((child.props as { children?: ReactNode }).children),
+        )
+      }
+      return child
+    })
+  }, [citations, onCiteSource])
+
+  const mdComponents = useMemo<Components | undefined>(() => {
+    if (citations.length === 0) return undefined
+    const wrap = (Tag: string) =>
+      ({ node: _node, children, ...props }: { node?: unknown; children?: ReactNode }) =>
+        createElement(Tag, props, injectMarkers(children))
+    return {
+      p: wrap('p'), li: wrap('li'), h1: wrap('h1'), h2: wrap('h2'),
+      h3: wrap('h3'), h4: wrap('h4'), td: wrap('td'), blockquote: wrap('blockquote'),
+    } as Components
+  }, [citations, injectMarkers])
 
   if (isPeriodicFeedback) {
     return (
@@ -80,32 +127,32 @@ export default function MessageBubble({ message, username, sessionId, onCiteSour
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
         className="flex items-end gap-2.5"
       >
-        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center flex-shrink-0 text-xs font-bold text-white shadow-sm shadow-brand-200">
-          S
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center flex-shrink-0 text-xs font-bold text-white shadow-sm shadow-brand-200/60">
+          T
         </div>
-        <div className="max-w-[78%] bg-brand-50 border border-brand-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
+        <div className="max-w-[78%] bg-brand-50 border border-brand-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm dark:bg-brand-600/10 dark:border-brand-600/25">
           <div className="flex items-center gap-1.5 mb-2">
             <Sparkles className="w-3.5 h-3.5 text-brand-500" />
-            <p className="text-sm font-medium text-slate-800">How am I doing so far?</p>
+            <p className="text-sm font-medium text-slate-800 dark:text-slate-100">How am I doing so far?</p>
           </div>
-          <p className="text-xs text-slate-500 mb-3">Your feedback helps us keep improving.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Your feedback helps us keep improving.</p>
           {periodicVote === null ? (
             <div className="flex gap-2">
               <button
                 onClick={() => handlePeriodicVote(1)}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:border-green-300 hover:bg-green-50 hover:text-green-700 transition-all shadow-sm"
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:border-green-300 hover:bg-green-50 hover:text-green-700 transition-all shadow-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-green-500/10 dark:hover:border-green-500/40 dark:hover:text-green-400"
               >
                 <ThumbsUp className="w-3.5 h-3.5" /> Helpful
               </button>
               <button
                 onClick={() => handlePeriodicVote(-1)}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:border-red-300 hover:bg-red-50 hover:text-red-600 transition-all shadow-sm"
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:border-red-300 hover:bg-red-50 hover:text-red-600 transition-all shadow-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-red-500/10 dark:hover:border-red-500/40 dark:hover:text-red-400"
               >
                 <ThumbsDown className="w-3.5 h-3.5" /> Not helpful
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
               <Check className="w-3.5 h-3.5 text-green-500" />
               Thanks for your feedback!
             </div>
@@ -124,11 +171,11 @@ export default function MessageBubble({ message, username, sessionId, onCiteSour
     >
       {/* Avatar */}
       <div
-        className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold shadow-sm ${
+        className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold shadow-sm ${
           isUser
             ? 'bg-gradient-to-br from-brand-500 to-brand-700 text-white'
             : isGuard
-            ? 'bg-brand-100 border border-brand-300 text-brand-600'
+            ? 'bg-brand-100 border border-brand-300 text-brand-600 dark:bg-brand-600/15 dark:border-brand-600/40'
             : 'bg-gradient-to-br from-brand-500 to-brand-700 text-white'
         }`}
       >
@@ -137,7 +184,7 @@ export default function MessageBubble({ message, username, sessionId, onCiteSour
         ) : isGuard ? (
           <ShieldAlert className="w-3.5 h-3.5" />
         ) : (
-          'S'
+          'T'
         )}
       </div>
 
@@ -146,18 +193,18 @@ export default function MessageBubble({ message, username, sessionId, onCiteSour
       <div
         className={`min-w-0 ${
           isUser
-            ? 'bg-gradient-to-br from-brand-600 to-brand-700 text-white rounded-2xl rounded-br-sm shadow-sm shadow-brand-200'
+            ? 'bg-gradient-to-br from-brand-600 to-brand-700 text-white rounded-2xl rounded-br-md shadow-sm shadow-brand-200 px-4 py-3'
             : isGuard
-            ? 'bg-brand-50 border border-brand-200 rounded-2xl rounded-bl-sm shadow-sm'
-            : 'bg-white border border-slate-200 rounded-2xl rounded-bl-sm shadow-sm'
-        } px-4 py-3`}
+            ? 'bg-brand-50 border border-brand-200 rounded-2xl rounded-bl-md shadow-sm dark:bg-brand-600/10 dark:border-brand-600/30 px-4 py-3'
+            : 'bg-white border border-slate-200 rounded-2xl rounded-bl-md shadow-sm shadow-slate-200/50 dark:bg-slate-800 dark:border-slate-700 dark:shadow-none px-4 py-3.5'
+        }`}
       >
         {isUser ? (
           <p className="text-sm leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</p>
         ) : (
-          <div className={`prose-custom text-sm leading-relaxed break-words [overflow-wrap:anywhere] ${isGuard ? 'text-brand-700' : ''}`}>
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {message.content}
+          <div className={`prose-custom text-sm leading-relaxed break-words [overflow-wrap:anywhere] ${isGuard ? 'text-brand-700 dark:text-brand-300' : ''}`}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+              {markedMarkdown}
             </ReactMarkdown>
             {message.isStreaming && (
               <span className="inline-block w-0.5 h-4 bg-brand-500 animate-pulse ml-0.5 align-middle" />
@@ -170,7 +217,7 @@ export default function MessageBubble({ message, username, sessionId, onCiteSour
               <button
                 onClick={handleCopy}
                 title={copied ? 'Copied!' : 'Copy'}
-                className="flex items-center gap-1 text-xs text-slate-400 hover:text-brand-600 transition-colors"
+                className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
               >
                 {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
                 {copied ? 'Copied' : 'Copy'}
@@ -193,54 +240,35 @@ export default function MessageBubble({ message, username, sessionId, onCiteSour
               </button>
             </div>
           )}
-          <p className={`text-xs ${isUser ? 'text-brand-200' : 'text-slate-400'} text-right`}>
+          <p className={`text-xs ${isUser ? 'text-brand-200' : 'text-slate-400 dark:text-slate-500'} text-right`}>
             {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
       </div>
 
-      {/* Source excerpts — collapsible, shown below Sage answers */}
-      {hasSources && (
-        <div className="min-w-0">
-          <button
-            onClick={() => setSourcesOpen((o) => !o)}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-brand-600 transition-colors px-1"
-          >
-            <Quote className="w-3 h-3" />
-            {sourcesOpen ? 'Hide sources' : `View sources (${message.sources!.length})`}
-            <ChevronDown className={`w-3 h-3 transition-transform ${sourcesOpen ? 'rotate-180' : ''}`} />
-          </button>
-          <AnimatePresence>
-            {sourcesOpen && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden mt-1.5 space-y-1.5"
-              >
-                {message.sources!.map((src, i) => (
-                  <button
-                    key={i}
-                    onClick={() => onCiteSource?.(src)}
-                    className="w-full text-left bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 hover:border-indigo-300 hover:bg-indigo-50/50 transition-colors"
-                    title="View in document"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-semibold text-brand-600 uppercase tracking-wider truncate max-w-[200px]" title={src.filename}>
-                        {src.filename}
-                      </span>
-                      <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">
-                        {Math.round(src.score * 100)}% match
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">{src.text}</p>
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+      {/* Sources are fetched after the answer finishes, so briefly show a hint while
+          the passages (and their ¹²³ markers) are still on their way. */}
+      {showActions && !hasSources && awaitingSources && (
+        <span className="flex items-center gap-1.5 px-1 text-slate-400 dark:text-slate-500 animate-pulse" style={{ fontSize: '0.7rem' }}>
+          <Quote className="h-3 w-3" /> Finding sources…
+        </span>
+      )}
+
+      {/* Citation footer — the passages are now surfaced inline via the ¹²³ markers.
+          This just tells the reader they're there. Clicking opens the full excerpt. */}
+      {hasSources && citations.length > 0 && (
+        <button
+          onClick={() => onCiteSource?.(message.sources![0])}
+          className="group/cite mt-0.5 flex w-full items-center gap-1.5 border-t border-slate-100 px-1 pt-2 text-slate-400 transition-colors hover:text-brand-600 dark:border-slate-700/60 dark:text-slate-500 dark:hover:text-brand-400"
+          style={{ fontSize: '0.8rem' }}
+          title="Open the full passages"
+        >
+          <Quote className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            Cited from your document.
+            <span className="ml-1 text-slate-400 dark:text-slate-500 group-hover/cite:text-brand-500">Hover ¹²³ to view where the source material.</span>
+          </span>
+        </button>
       )}
       </div>
     </motion.div>

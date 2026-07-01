@@ -50,7 +50,7 @@ const AUDIENCES = [
   { icon: GraduationCap, title: 'Students and researchers', body: 'Turn dense textbooks, lecture slides, and papers into summaries, flashcards, and quick answers, without reading every page.' },
   { icon: Scale, title: 'Legal and contracts', body: 'Pull clauses, deadlines, and obligations out of contracts, leases, and policies. Nothing you upload is stored, so client-sensitive files stay private.' },
   { icon: LineChart, title: 'Finance and analysts', body: 'Question your spreadsheets and reports, turn the tables into charts, and pull out the figures that matter. Every number comes straight from your file, never invented.' },
-  { icon: HeartPulse, title: 'Healthcare and personal docs', body: 'Make sense of lab results, medical letters, and insurance documents in plain English, privately, with no account.' },
+  { icon: HeartPulse, title: 'Medical and health records', body: 'Make sense of lab results, medical letters, and insurance documents in plain English, privately, with no account.' },
   { icon: Briefcase, title: 'Professionals and consultants', body: 'Get through long reports, manuals, and meeting notes fast, and ask exactly what you need to know.' },
   { icon: ScrollText, title: 'Anyone reading the fine print', body: 'Terms of service, warranties, rental agreements. Find out what you are actually agreeing to in seconds.' },
 ]
@@ -97,7 +97,7 @@ function SourceRow({
   const error = status === 'error'
   const uploading = status === 'uploading'
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/60">
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-[#E2611B]/10 flex items-center justify-center flex-shrink-0">
           {error ? <AlertCircle className="w-4 h-4 text-red-500" />
@@ -105,7 +105,7 @@ function SourceRow({
             : <FileText className="w-4 h-4 text-[#E2611B]" />}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-slate-800 truncate" title={label}>{label}</p>
+          <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate" title={label}>{label}</p>
           <p className={`text-xs ${error ? 'text-red-500' : 'text-[#E2611B]'}`}>
             {error ? 'Upload failed' : ready ? 'Ready' : (statusMsg || 'Processing…')}
           </p>
@@ -117,7 +117,7 @@ function SourceRow({
               <button
                 onClick={onRemove}
                 aria-label="Remove"
-                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -126,7 +126,7 @@ function SourceRow({
         </div>
       </div>
       {uploading && (
-        <div className="mt-3 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+        <div className="mt-3 w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
           <motion.div
             className="h-full bg-gradient-to-r from-[#E2611B]/70 to-[#E2611B] rounded-full"
             animate={{ width: `${progress}%` }}
@@ -507,7 +507,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
   // *between* the two surfaces, which is wrong — each surface keeps its own pill.
   const renderModeTabs = (pillBg: string, spotlightId: string) => (
     <>
-      <div className={`flex flex-wrap items-center justify-center gap-1 rounded-3xl border border-[#303030] p-1 ${pillBg}`}>
+      <div className={`flex flex-wrap items-center justify-center gap-1 rounded-3xl border border-[#303030] dark:border-slate-700 p-1 ${pillBg}`}>
         {MODES.map(({ value, label }) => {
           const isActive = selectedMode === value
           return (
@@ -523,7 +523,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                   transition={{ type: 'spring', stiffness: 500, damping: 34 }}
                 />
               )}
-              <span className={`relative z-10 transition-colors ${isActive ? 'text-white' : 'text-slate-700 hover:text-[#E2611B]'}`}>
+              <span className={`relative z-10 transition-colors ${isActive ? 'text-white' : 'text-slate-700 dark:text-slate-300 hover:text-[#E2611B] dark:hover:text-[#E2611B]'}`}>
                 {label}
               </span>
             </button>
@@ -535,7 +535,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
         initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
-        className="mt-4 text-center text-sm text-[#E2611B]"
+        className="mt-4 text-center text-[18px] text-[#E2611B]"
       >
         {MODES.find((m) => m.value === selectedMode)?.blurb}
       </motion.p>
@@ -543,7 +543,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
   )
 
   return (
-    <div className="min-h-screen bg-slate-50 bg-grid">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 bg-grid">
       {/* Hero */}
       <section className="relative px-6 pt-32 pb-20 max-w-5xl mx-auto text-center">
         <motion.div
@@ -557,22 +557,72 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
               it larger than the 18px body at every width.
 
               The break is a single, monotonic transition:
-                • lg and up  → line 1 "Upload files. Paste Website links." / line 2 "Ask anything."
-                • below lg   → line 1 "Upload files. Paste Website" / line 2 "links. Ask anything."
+                • lg and up  → line 1 "Upload files. Paste website links." / line 2 "Ask anything."
+                • below lg   → line 1 "Upload files. Paste website" / line 2 "links. Ask anything."
               Because the break below lg is forced (the mobile <br/>), narrowing the
               window never moves "links." back up to line 1 — it stays on line 2 the
               whole way down. Font steps are sized to keep each forced line on one row. */}
-          <h1 className="font-merriweather font-extrabold tracking-[-0.03em] text-[#303030] leading-[1.1] text-[20px] min-[360px]:text-[23px] min-[420px]:text-[27px] min-[520px]:text-[34px] sm:text-[44px] md:text-[56px]">
-            {'Upload files. Paste Website'}
+          <h1 className="font-merriweather font-extrabold tracking-[-0.03em] text-[#303030] dark:text-slate-100 leading-[1.1] text-[20px] min-[360px]:text-[23px] min-[420px]:text-[27px] min-[520px]:text-[34px] sm:text-[44px] md:text-[56px]">
+            {'Upload files. Paste website'}
             <br className="lg:hidden" />
             {' links.'}
             <br className="hidden lg:block" />
             {' '}
             <span className="italic text-[#E2611B] whitespace-nowrap">Ask anything.</span>
           </h1>
-          <p className="mt-6 font-merriweather text-lg text-[#303030] mx-auto leading-relaxed lg:whitespace-nowrap">
+          {/* Trust medallions — circular icon-over-label version. Kept commented out in
+              favour of the hairline-divider row below; re-enable if we want the medallions.
+          <div className="mt-8 flex flex-wrap items-start justify-center gap-x-10 gap-y-6">
+            <div className="flex flex-col items-center w-28">
+              <div className="w-14 h-14 rounded-full bg-[#E2611B]/10 flex items-center justify-center">
+                <Lock className="w-6 h-6 text-[#E2611B]" strokeWidth={2.25} />
+              </div>
+              <span className="mt-3 font-merriweather font-medium text-[15px] text-slate-700 text-center leading-snug">Nothing stored</span>
+            </div>
+            <div className="flex flex-col items-center w-28">
+              <div className="w-14 h-14 rounded-full bg-[#E2611B]/10 flex items-center justify-center">
+                <Zap className="w-6 h-6 text-[#E2611B]" strokeWidth={2.25} />
+              </div>
+              <span className="mt-3 font-merriweather font-medium text-[15px] text-slate-700 text-center leading-snug">No sign-up needed</span>
+            </div>
+            <div className="flex flex-col items-center w-28">
+              <div className="w-14 h-14 rounded-full bg-[#E2611B]/10 flex items-center justify-center">
+                <CheckCircle className="w-6 h-6 text-[#E2611B]" strokeWidth={2.25} />
+              </div>
+              <span className="mt-3 font-merriweather font-medium text-[15px] text-slate-700 text-center leading-snug">Answers only from your file</span>
+            </div>
+            <div className="flex flex-col items-center w-28">
+              <div className="w-14 h-14 rounded-full bg-[#E2611B]/10 flex items-center justify-center">
+                <Globe className="w-6 h-6 text-[#E2611B]" strokeWidth={2.25} />
+              </div>
+              <span className="mt-3 font-merriweather font-medium text-[15px] text-slate-700 text-center leading-snug">15+ languages</span>
+            </div>
+          </div>
+          */}
+          {/* Trust row — four reassurance signals as inline orange-icon + label items,
+              separated by whitespace only (no dividers). Labels use the headline's font
+              treatment (Merriweather extrabold, tight tracking, near-black) at a smaller
+              size. Wraps on narrow screens. Sits between the headline and (a hidden)
+              subheading. */}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-8 gap-y-2 sm:gap-y-3 font-merriweather tracking-[-0.03em] text-[#303030] dark:text-slate-200 text-sm min-[420px]:text-base sm:text-lg md:text-xl lg:text-2xl">
+            <span className="inline-flex items-center gap-2 sm:gap-2.5">
+              <Lock className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-[#E2611B] shrink-0" strokeWidth={2.25} />
+              <span>Nothing stored</span>
+            </span>
+            <span className="inline-flex items-center gap-2 sm:gap-2.5">
+              <Zap className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-[#E2611B] shrink-0" strokeWidth={2.25} />
+              <span>No sign-up needed</span>
+            </span>
+            <span className="inline-flex items-center gap-2 sm:gap-2.5">
+              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-[#E2611B] shrink-0" strokeWidth={2.25} />
+              <span>Answers only from your file</span>
+            </span>
+          </div>
+          {/* Subline hidden for now — re-enable if the hero feels like it needs it.
+          <p className="mt-4 font-merriweather text-lg text-[#303030] mx-auto leading-relaxed lg:whitespace-nowrap">
             Upload anything in any language. Get answers in seconds, drawn only from your file.
           </p>
+          */}
 
           {/* Upload card — before an upload starts: drop a file or paste a link.
               Once an upload begins, this morphs into the chat box (below). Widened to
@@ -596,19 +646,19 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                     {...getRootProps()}
                     id="hero-dropzone"
                     className={`scroll-mt-24 rounded-2xl border-2 border-dashed px-6 py-12 text-center cursor-pointer transition-all ${
-                      isDragActive || dropHighlight ? 'border-[#E2611B] bg-[#E2611B]/5 ring-2 ring-[#E2611B]/30' : 'border-[#303030] bg-white hover:border-[#E2611B] hover:bg-[#E2611B]/5'
+                      isDragActive || dropHighlight ? 'border-[#E2611B] bg-[#E2611B]/5 ring-2 ring-[#E2611B]/30' : 'border-[#303030] dark:border-slate-600 bg-white dark:bg-slate-900 hover:border-[#E2611B] dark:hover:border-[#E2611B] hover:bg-[#E2611B]/5 dark:hover:bg-[#E2611B]/10'
                     }`}
                   >
                     <input {...getInputProps()} />
                     <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#E2611B]/10 mb-4">
                       <ArrowUp className="w-6 h-6 text-[#E2611B]" />
                     </div>
-                    <p className="text-slate-800 font-medium">
+                    <p className="text-slate-800 dark:text-slate-200 font-medium">
                       {isDragActive
                         ? 'Drop your document here'
                         : <>Drop a document, or <span className="text-[#E2611B] underline underline-offset-2">browse to upload</span></>}
                     </p>
-                    <p className="mt-1.5 text-sm text-slate-400">PDF · Word · Excel · PowerPoint</p>
+                    <p className="mt-1.5 text-sm text-slate-400 dark:text-slate-500">PDF · Word · Excel · PowerPoint</p>
                   </div>
 
                   {heroError && (
@@ -619,15 +669,15 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
 
                   {/* OR divider */}
                   <div className="my-5 flex items-center gap-3">
-                    <div className="flex-1 h-px bg-slate-200" />
-                    <span className="text-xs font-medium text-slate-400 tracking-wider">OR</span>
-                    <div className="flex-1 h-px bg-slate-200" />
+                    <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+                    <span className="text-xs font-medium text-slate-400 dark:text-slate-500 tracking-wider">OR</span>
+                    <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
                   </div>
 
                   {/* Paste a link */}
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-stretch gap-2">
-                      <div className="flex-1 min-w-0 flex items-center gap-2 rounded-xl border border-[#303030] bg-white px-4 hover:border-[#E2611B] focus-within:border-[#E2611B] focus-within:ring-2 focus-within:ring-[#E2611B]/20 transition-all">
+                      <div className="flex-1 min-w-0 flex items-center gap-2 rounded-xl border border-[#303030] dark:border-slate-600 bg-white dark:bg-slate-900 px-4 hover:border-[#E2611B] dark:hover:border-[#E2611B] focus-within:border-[#E2611B] focus-within:ring-2 focus-within:ring-[#E2611B]/20 transition-all">
                         <input
                           id="hero-url-input"
                           type="text"
@@ -635,7 +685,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                           onChange={(e) => { setUrlInput(e.target.value); setUrlError('') }}
                           onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()}
                           placeholder="Paste a webpage or video link"
-                          className="flex-1 min-w-0 bg-transparent py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none"
+                          className="flex-1 min-w-0 bg-transparent py-3 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none"
                         />
                       </div>
                       <button
@@ -652,7 +702,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
 
                   {/* Mode selection — sits below the drop zone / URL box before upload */}
                   <div className="mt-8">
-                    {renderModeTabs('bg-[#F8FAFC]', 'mode-spotlight-hero')}
+                    {renderModeTabs('bg-[#F8FAFC] dark:bg-slate-900', 'mode-spotlight-hero')}
                   </div>
                 </motion.div>
               ) : (
@@ -664,7 +714,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                   initial={{ opacity: 0, y: 16, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                  className="rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/60 p-5 sm:p-6"
+                  className="rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/60 p-5 sm:p-6 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/40"
                 >
                   {/* Source rows — every source (the first upload and any added
                       file/URL) uses the same SourceRow look: grey card body, a tick
@@ -734,7 +784,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                           {/* Add controls: two "+" buttons, or the URL input box */}
                           {addingUrl ? (
                             <div className="flex items-stretch gap-2">
-                              <div className="flex-1 min-w-0 flex items-center rounded-xl border border-[#303030] bg-white px-3 focus-within:border-[#E2611B] focus-within:ring-2 focus-within:ring-[#E2611B]/20 transition-all">
+                              <div className="flex-1 min-w-0 flex items-center rounded-xl border border-[#303030] dark:border-slate-600 bg-white dark:bg-slate-800 px-3 focus-within:border-[#E2611B] focus-within:ring-2 focus-within:ring-[#E2611B]/20 transition-all">
                                 <input
                                   type="text"
                                   value={extraUrl}
@@ -742,7 +792,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveExtraUrl() } }}
                                   placeholder="Paste a webpage or video link"
                                   autoFocus
-                                  className="flex-1 min-w-0 bg-transparent py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none"
+                                  className="flex-1 min-w-0 bg-transparent py-2 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none"
                                 />
                               </div>
                               <button
@@ -754,7 +804,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                               <button
                                 onClick={() => { setAddingUrl(false); setExtraUrl('') }}
                                 aria-label="Cancel"
-                                className="w-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
+                                className="w-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex-shrink-0"
                               >
                                 <X className="w-4 h-4" />
                               </button>
@@ -795,7 +845,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
 
                       {/* Chat input + the orange "proceed" button. All guidance lives
                           in the input placeholder (mode-dependent). */}
-                      <div className="mt-4 flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 focus-within:border-[#E2611B] focus-within:ring-2 focus-within:ring-[#E2611B]/20 transition-all">
+                      <div className="mt-4 flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 focus-within:border-[#E2611B] focus-within:ring-2 focus-within:ring-[#E2611B]/20 transition-all dark:border-slate-700 dark:bg-slate-800/60">
                         <textarea
                           value={prompt}
                           onChange={(e) => setPrompt(e.target.value)}
@@ -809,7 +859,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                           placeholder={effectiveMode === 'chat'
                             ? 'Type your first question here.'
                             : 'Add specific instructions here (optional).'}
-                          className="flex-1 min-w-0 bg-transparent px-2 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none resize-none leading-relaxed"
+                          className="flex-1 min-w-0 bg-transparent px-2 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none resize-none leading-relaxed"
                           style={{ maxHeight: '120px' }}
                         />
                         <MicButton
@@ -818,7 +868,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                           }
                         />
                         <Tooltip
-                          label={proceedPending ? 'Finishing up, one moment…' : canProceed ? 'Proceed' : !session ? 'Hang on, still reading your document' : 'Type what you want to do first'}
+                          label={proceedPending ? 'Finishing up, one moment…' : canProceed ? 'Proceed' : !session ? 'Hang on, still reading your document' : 'Please enter your first chat on the chatbox.'}
                           side="right"
                         >
                           <motion.button
@@ -839,7 +889,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                       {/* Mode selection — now lives inside the white box (white pill
                           background so it blends with the card) */}
                       <div className="mt-5">
-                        {renderModeTabs('bg-white', 'mode-spotlight-chat')}
+                        {renderModeTabs('bg-white dark:bg-slate-900', 'mode-spotlight-chat')}
                       </div>
                     </>
                   )}
@@ -850,14 +900,14 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
       </section>
 
       {/* Features */}
-      <section className="px-6 py-16 max-w-5xl mx-auto">
+      <section className="px-6 pt-6 pb-16 max-w-5xl mx-auto">
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-3 mb-4">
             <span className="h-px w-8 bg-[#E2611B]/40" />
             <span className="text-xs font-semibold tracking-[0.25em] text-[#E2611B] uppercase">Features</span>
             <span className="h-px w-8 bg-[#E2611B]/40" />
           </div>
-          <h2 className="font-merriweather font-bold text-3xl sm:text-4xl md:text-5xl text-[#303030] tracking-[-0.02em]">
+          <h2 className="font-merriweather font-bold text-3xl sm:text-4xl md:text-5xl text-[#303030] dark:text-slate-100 tracking-[-0.02em]">
             Built to be <span className="italic text-[#E2611B]">trusted.</span>
           </h2>
           <div className="mt-5 flex items-center justify-center gap-3">
@@ -865,7 +915,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
             <span className="w-1.5 h-1.5 rotate-45 bg-[#E2611B]" />
             <span className="h-px w-10 bg-[#E2611B]/30" />
           </div>
-          <p className="mt-3 text-slate-500 italic">Grounded answers, zero storage, no account required.</p>
+          <p className="mt-3 text-[18px] text-slate-500 dark:text-slate-400 italic">Grounded answers, zero storage, no account required.</p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {FEATURES.map((f, i) => (
@@ -875,7 +925,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: (i % 4) * 0.08 }}
-              className="group font-merriweather bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:bg-[#E2611B] hover:border-[#E2611B] hover:shadow-md transition-all"
+              className="group font-merriweather bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm hover:bg-[#E2611B] dark:hover:bg-[#E2611B] hover:border-[#E2611B] dark:hover:border-[#E2611B] hover:shadow-md transition-all"
             >
               {/* Mobile (single column): icon + title sit side by side. From sm up
                   (multi-column) they stack, icon on top. */}
@@ -883,9 +933,9 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                 <div className="w-10 h-10 shrink-0 rounded-xl bg-[#E2611B]/10 border border-[#E2611B]/20 group-hover:bg-white/15 group-hover:border-white/30 flex items-center justify-center sm:mb-4 transition-colors">
                   <f.icon className="w-5 h-5 text-[#E2611B] group-hover:text-white transition-colors" />
                 </div>
-                <h3 className="font-semibold text-slate-900 group-hover:text-white sm:mb-1.5 transition-colors">{f.title}</h3>
+                <h3 className="text-[18px] font-semibold text-slate-900 dark:text-slate-100 group-hover:text-white dark:group-hover:text-white sm:mb-1.5 transition-colors">{f.title}</h3>
               </div>
-              <p className="text-sm text-slate-600 group-hover:text-white leading-relaxed transition-colors">{f.body}</p>
+              <p className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-white dark:group-hover:text-white leading-relaxed transition-colors">{f.body}</p>
             </motion.div>
           ))}
         </div>
@@ -899,7 +949,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
             <span className="text-xs font-semibold tracking-[0.25em] text-[#E2611B] uppercase">How it works</span>
             <span className="h-px w-8 bg-[#E2611B]/40" />
           </div>
-          <h2 className="font-merriweather font-bold text-3xl sm:text-4xl md:text-5xl text-[#303030] tracking-[-0.02em]">
+          <h2 className="font-merriweather font-bold text-3xl sm:text-4xl md:text-5xl text-[#303030] dark:text-slate-100 tracking-[-0.02em]">
             Three steps. <span className="italic text-[#E2611B]">No setup.</span>
           </h2>
           <div className="mt-5 flex items-center justify-center gap-3">
@@ -907,7 +957,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
             <span className="w-1.5 h-1.5 rotate-45 bg-[#E2611B]" />
             <span className="h-px w-10 bg-[#E2611B]/30" />
           </div>
-          <p className="mt-3 text-slate-500 italic">No learning curve, no account, no waiting.</p>
+          <p className="mt-3 text-[18px] text-slate-500 dark:text-slate-400 italic">No learning curve, no account, no waiting.</p>
         </div>
         <div className="grid md:grid-cols-3 gap-5">
           {STEPS.map((s, i) => (
@@ -917,7 +967,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: i * 0.1 }}
-              className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:bg-[#E2611B] hover:border-[#E2611B] hover:shadow-md transition-all"
+              className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm hover:bg-[#E2611B] dark:hover:bg-[#E2611B] hover:border-[#E2611B] dark:hover:border-[#E2611B] hover:shadow-md transition-all"
             >
               {/* Mobile (single column): the number+icon pair and the title sit side
                   by side. From md up (multi-column) the title drops below. */}
@@ -929,9 +979,9 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                     <s.icon className="w-5 h-5 text-[#E2611B] group-hover:text-white transition-colors" />
                   </div>
                 </div>
-                <h3 className="font-semibold text-slate-900 group-hover:text-white md:mb-1.5 transition-colors">{s.title}</h3>
+                <h3 className="text-[18px] font-semibold text-slate-900 dark:text-slate-100 group-hover:text-white dark:group-hover:text-white md:mb-1.5 transition-colors">{s.title}</h3>
               </div>
-              <p className="text-sm text-slate-600 group-hover:text-white leading-relaxed transition-colors">
+              <p className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-white dark:group-hover:text-white leading-relaxed transition-colors">
                 {i === 0 ? (
                   <>
                     Have a file? Drop it into the{' '}
@@ -973,7 +1023,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
             <span className="text-xs font-semibold tracking-[0.25em] text-[#E2611B] uppercase">Who it's for</span>
             <span className="h-px w-8 bg-[#E2611B]/40" />
           </div>
-          <h2 className="font-merriweather font-bold text-3xl sm:text-4xl md:text-5xl text-[#303030] tracking-[-0.02em]">
+          <h2 className="font-merriweather font-bold text-3xl sm:text-4xl md:text-5xl text-[#303030] dark:text-slate-100 tracking-[-0.02em]">
             One tool, <span className="italic text-[#E2611B]">many use cases.</span>
           </h2>
           <div className="mt-5 flex items-center justify-center gap-3">
@@ -981,7 +1031,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
             <span className="w-1.5 h-1.5 rotate-45 bg-[#E2611B]" />
             <span className="h-px w-10 bg-[#E2611B]/30" />
           </div>
-          <p className="mt-3 text-slate-500 italic">Grounded in your file, private by default, whatever you’re using it for.</p>
+          <p className="mt-3 text-[18px] text-slate-500 dark:text-slate-400 italic">Grounded in your file, private by default, whatever you’re using it for.</p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {AUDIENCES.map((a, i) => (
@@ -991,7 +1041,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: (i % 3) * 0.08 }}
-              className="group font-merriweather bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:bg-[#E2611B] hover:border-[#E2611B] hover:shadow-md transition-all"
+              className="group font-merriweather bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm hover:bg-[#E2611B] dark:hover:bg-[#E2611B] hover:border-[#E2611B] dark:hover:border-[#E2611B] hover:shadow-md transition-all"
             >
               {/* Mobile (single column): icon + title sit side by side. From sm up
                   (multi-column) they stack, icon on top. */}
@@ -999,9 +1049,9 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                 <div className="w-10 h-10 shrink-0 rounded-xl bg-[#E2611B]/10 border border-[#E2611B]/20 group-hover:bg-white/15 group-hover:border-white/30 flex items-center justify-center sm:mb-4 transition-colors">
                   <a.icon className="w-5 h-5 text-[#E2611B] group-hover:text-white transition-colors" />
                 </div>
-                <h3 className="font-semibold text-slate-900 group-hover:text-white sm:mb-1.5 transition-colors">{a.title}</h3>
+                <h3 className="text-[18px] font-semibold text-slate-900 dark:text-slate-100 group-hover:text-white dark:group-hover:text-white sm:mb-1.5 transition-colors">{a.title}</h3>
               </div>
-              <p className="text-sm text-slate-600 group-hover:text-white leading-relaxed transition-colors">{a.body}</p>
+              <p className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-white dark:group-hover:text-white leading-relaxed transition-colors">{a.body}</p>
             </motion.div>
           ))}
         </div>
@@ -1015,7 +1065,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
             <span className="text-xs font-semibold tracking-[0.25em] text-[#E2611B] uppercase">Plans</span>
             <span className="h-px w-8 bg-[#E2611B]/40" />
           </div>
-          <h2 className="font-merriweather font-bold text-3xl sm:text-4xl md:text-5xl text-[#303030] tracking-[-0.02em]">
+          <h2 className="font-merriweather font-bold text-3xl sm:text-4xl md:text-5xl text-[#303030] dark:text-slate-100 tracking-[-0.02em]">
             Start free, <span className="italic text-[#E2611B]">upgrade anytime.</span>
           </h2>
           <div className="mt-5 flex items-center justify-center gap-3">
@@ -1023,15 +1073,15 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
             <span className="w-1.5 h-1.5 rotate-45 bg-[#E2611B]" />
             <span className="h-px w-10 bg-[#E2611B]/30" />
           </div>
-          <p className="mt-3 text-slate-500 italic">Explore the core features for free. Go Pro for more files, bigger uploads, and file comparisons.</p>
+          <p className="mt-3 text-[18px] text-slate-500 dark:text-slate-400 italic">Explore the core features for free. Go Pro for more files, bigger uploads, and file comparisons.</p>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
           {/* Header row */}
-          <div className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-3 items-center bg-white border-b border-slate-200">
-            <div className="px-4 sm:px-6 py-4 text-sm font-bold text-[#303030]">Feature</div>
-            <div className="px-3 sm:px-6 py-4 text-center text-sm font-bold text-[#303030]">Basic plan</div>
-            <div className="px-3 sm:px-6 py-4 text-center text-sm font-bold text-[#E2611B] flex items-center justify-center gap-1.5">
+          <div className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-3 items-center bg-white border-b border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+            <div className="px-4 sm:px-6 py-4 text-[20px] font-bold text-[#303030] dark:text-slate-100">Feature</div>
+            <div className="px-3 sm:px-6 py-4 text-center text-[20px] font-bold text-[#303030] dark:text-slate-100">Basic plan</div>
+            <div className="px-3 sm:px-6 py-4 text-center text-[20px] font-bold text-[#E2611B] flex items-center justify-center gap-1.5">
               <Crown className="w-4 h-4 flex-shrink-0" /> Pro plan
             </div>
           </div>
@@ -1040,9 +1090,9 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
           {PLAN_FEATURES.map((f) => (
             <div
               key={f.name}
-              className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-3 items-center bg-white"
+              className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-3 items-center bg-white dark:bg-slate-900"
             >
-              <div className="px-4 sm:px-6 py-3.5 text-sm font-normal text-slate-700">{f.name}</div>
+              <div className="px-4 sm:px-6 py-3.5 text-sm font-normal text-slate-700 dark:text-slate-300">{f.name}</div>
               <div className="px-3 sm:px-6 py-3.5 flex justify-center">
                 {f.basic
                   ? <Check className="w-5 h-5 text-[#E2611B]" aria-label="Included" />

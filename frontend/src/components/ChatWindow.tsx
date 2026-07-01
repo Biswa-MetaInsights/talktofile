@@ -60,6 +60,11 @@ export default function ChatWindow({ session, onReset, initialPrompt }: Props) {
   const [showSummary, setShowSummary] = useState(false)
   const [citationSource, setCitationSource] = useState<Source | null>(null)
   const [showScrollBtn, setShowScrollBtn] = useState(false)
+  // Id of the just-finished answer we're still fetching citation passages for.
+  // Sources are gathered server-side *after* the answer completes, so there's a
+  // brief gap where the answer is done but the ¹²³ markers haven't arrived yet.
+  const [pendingSourcesId, setPendingSourcesId] = useState<string | null>(null)
+  const sourcesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -78,12 +83,17 @@ export default function ChatWindow({ session, onReset, initialPrompt }: Props) {
   }, [])
 
   const finalizeStreaming = useCallback(() => {
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === streamingIdRef.current ? { ...m, isStreaming: false } : m
-      )
-    )
+    // Clear the streaming flag on whatever message is currently streaming. We do NOT
+    // match against streamingIdRef here on purpose: the ref gets nulled on the same
+    // tick, so an id-based updater could run after the null and match nothing, leaving
+    // the answer stuck "streaming" forever (which hides the Copy button + citations).
+    // There's only ever one streaming message, so clearing by the flag is safe.
     streamingIdRef.current = null
+    setMessages((prev) =>
+      prev.some((m) => m.isStreaming)
+        ? prev.map((m) => (m.isStreaming ? { ...m, isStreaming: false } : m))
+        : prev
+    )
     setIsTyping(false)
   }, [])
 
@@ -132,7 +142,16 @@ export default function ChatWindow({ session, onReset, initialPrompt }: Props) {
         }
       } else if (data.type === 'done') {
         stoppedRef.current = false
+        // Capture the finished answer id before finalizeStreaming clears the ref, so
+        // we can show a "Finding sources…" hint until its passages arrive.
+        const finishedId = streamingIdRef.current
         finalizeStreaming()
+        if (finishedId) {
+          setPendingSourcesId(finishedId)
+          if (sourcesTimerRef.current) clearTimeout(sourcesTimerRef.current)
+          // Safety net: if this answer yields no sources at all, stop waiting.
+          sourcesTimerRef.current = setTimeout(() => setPendingSourcesId(null), 9000)
+        }
       } else if (data.type === 'guard_reject' || data.type === 'limit') {
         streamingIdRef.current = null
         setIsTyping(false)
@@ -148,11 +167,16 @@ export default function ChatWindow({ session, onReset, initialPrompt }: Props) {
           const items = [...prev].map((m, i) => ({ m, i })).filter(({ m }) => m.role === 'assistant' && !m.isPeriodicFeedback && !m.isGuardReject)
           const last = items[items.length - 1]
           if (!last) return prev
-          return prev.map((m, i) => i === last.i ? { ...m, sources: data.excerpts } : m)
+          // Attach passages and also force the answer out of "streaming" — sources
+          // only arrive after the answer is done, so this guarantees the citation
+          // markers render even if finalizeStreaming missed this message.
+          return prev.map((m, i) => i === last.i ? { ...m, sources: data.excerpts, isStreaming: false } : m)
         })
-        if (data.excerpts?.length > 0) {
-          setCitationSource(data.excerpts[0])
-        }
+        // Passages arrived — stop the "Finding sources…" hint. They're surfaced inline
+        // via the ¹²³ hover markers, so we no longer auto-open the CitationPanel; it
+        // still opens on demand from the "Cited from your document" footer.
+        if (sourcesTimerRef.current) clearTimeout(sourcesTimerRef.current)
+        setPendingSourcesId(null)
       } else if (data.type === 'followups') {
         setMessages((prev) => {
           const items = [...prev].map((m, i) => ({ m, i })).filter(({ m }) => m.role === 'assistant' && !m.isPeriodicFeedback && !m.isGuardReject)
@@ -160,6 +184,9 @@ export default function ChatWindow({ session, onReset, initialPrompt }: Props) {
           if (!last) return prev
           return prev.map((m, i) => i === last.i ? { ...m, followups: data.questions } : m)
         })
+        // Follow-ups are sent after sources; if none came, don't keep waiting.
+        if (sourcesTimerRef.current) clearTimeout(sourcesTimerRef.current)
+        setPendingSourcesId(null)
       } else if (data.type === 'feedback_prompt') {
         setMessages((prev) => [...prev, {
           id: nextId(),
@@ -216,6 +243,7 @@ export default function ChatWindow({ session, onReset, initialPrompt }: Props) {
     return () => {
       manualCloseRef.current = true
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current)
+      if (sourcesTimerRef.current) clearTimeout(sourcesTimerRef.current)
       wsRef.current?.close()
     }
   }, [connect])
@@ -379,21 +407,29 @@ ${rows}
       </AnimatePresence>
 
     <div className="flex flex-col flex-1 min-w-0 h-full">
+      {/* Scrollable conversation region. The header is the first child inside it
+          and is `sticky`, so the filename + connection status stay pinned to the
+          top (just under the navbar) while the messages below it scroll. */}
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto min-h-0 scrollbar-thin bg-brand-50/25 dark:bg-slate-950"
+      >
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 flex-shrink-0 bg-white rounded-t-2xl">
+      <div className="sticky top-0 z-20 flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-t-2xl">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center flex-shrink-0 dark:bg-brand-600/15 dark:border-brand-600/30">
             <HeaderIcon className="w-4 h-4 text-brand-500" />
           </div>
           <div className="min-w-0">
-            <p className="text-slate-800 text-sm font-medium truncate" title={docs.map((d) => d.filename).join(', ')}>{headerTitle}</p>
+            <p className="text-slate-800 dark:text-slate-100 text-sm font-medium truncate" title={docs.map((d) => d.filename).join(', ')}>{headerTitle}</p>
             <div className="flex items-center gap-2">
               <span className={`w-1.5 h-1.5 rounded-full ${
                 status === 'connected' ? 'bg-green-500'
                 : status === 'disconnected' ? 'bg-brand-600'
                 : 'bg-brand-400 animate-pulse'
               }`} />
-              <span className="text-xs text-slate-400">{
+              <span className="text-xs text-slate-400 dark:text-slate-500">{
                 status === 'connected' ? 'Connected'
                 : status === 'connecting' ? 'Connecting...'
                 : status === 'reconnecting' ? 'Reconnecting...'
@@ -409,14 +445,14 @@ ${rows}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowSummary(!showSummary)}
-            className="p-1.5 text-slate-400 hover:text-brand-600 transition-colors rounded-lg hover:bg-brand-50"
+            className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-lg hover:bg-brand-50 dark:hover:bg-brand-600/15"
             title="View summaries"
           >
             <BookOpen className="w-4 h-4" />
           </button>
           <button
             onClick={exportReport}
-            className="p-1.5 text-slate-400 hover:text-brand-600 transition-colors rounded-lg hover:bg-brand-50"
+            className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-lg hover:bg-brand-50 dark:hover:bg-brand-600/15"
             title="Export report"
             disabled={messages.filter((m) => !m.isPeriodicFeedback).length < 2}
           >
@@ -424,14 +460,14 @@ ${rows}
           </button>
           <button
             onClick={onReset}
-            className="p-1.5 text-slate-400 hover:text-brand-600 transition-colors rounded-lg hover:bg-brand-50"
+            className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-lg hover:bg-brand-50 dark:hover:bg-brand-600/15"
             title="Upload new file(s)"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
           <button
             onClick={endSession}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 px-2.5 py-1.5 border border-slate-200 hover:border-red-200"
+            className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 hover:border-red-200 dark:hover:border-red-500/30"
             title="End this session"
           >
             <LogOut className="w-3.5 h-3.5" />
@@ -448,20 +484,20 @@ ${rows}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="overflow-hidden border-b border-slate-200 flex-shrink-0"
+            className="overflow-hidden border-b border-slate-200 dark:border-slate-800 flex-shrink-0"
           >
-            <div className="px-5 py-4 bg-brand-50/60 max-h-64 overflow-y-auto scrollbar-thin space-y-4">
+            <div className="px-5 py-4 bg-brand-50/60 dark:bg-brand-600/10 max-h-64 overflow-y-auto scrollbar-thin space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-brand-600 uppercase tracking-wider">
+                <span className="text-xs font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-wider">
                   {docs.length > 1 ? 'Document Summaries' : 'Document Summary'}
                 </span>
-                <button onClick={() => setShowSummary(false)} className="text-slate-400 hover:text-slate-700">
+                <button onClick={() => setShowSummary(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
               {docs.map((d, i) => (
                 <div key={i}>
-                  {docs.length > 1 && <p className="text-xs font-medium text-slate-800 mb-1.5 truncate">{d.filename}</p>}
+                  {docs.length > 1 && <p className="text-xs font-medium text-slate-800 dark:text-slate-200 mb-1.5 truncate">{d.filename}</p>}
                   <SummaryCard summary={d.summary} compact />
                 </div>
               ))}
@@ -471,11 +507,7 @@ ${rows}
       </AnimatePresence>
 
       {/* Messages */}
-      <div
-        ref={messagesContainerRef}
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scrollbar-thin bg-slate-50/80"
-      >
+      <div className="px-4 py-5 space-y-5">
         <AnimatePresence initial={false}>
           {messages.map((msg, i) => {
             const isLastWithSources = msg.role === 'assistant' && !!msg.sources?.length &&
@@ -488,12 +520,14 @@ ${rows}
                 sessionId={session.session_id}
                 onCiteSource={setCitationSource}
                 autoOpenSources={isLastWithSources}
+                awaitingSources={msg.id === pendingSourcesId}
               />
             )
           })}
         </AnimatePresence>
         {isTyping && !streamingIdRef.current && <TypingIndicator />}
         <div ref={messagesEndRef} />
+      </div>
       </div>
 
       {/* Scroll to bottom */}
@@ -513,20 +547,24 @@ ${rows}
 
       {/* Suggested questions (before first exchange) */}
       {messages.length <= 1 && session.suggested_questions.length > 0 && (
-        <div className="px-4 pb-3 flex-shrink-0 bg-white border-t border-slate-100">
+        <div className="px-4 pb-3 flex-shrink-0 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-1.5 mb-2 pt-3">
             <Sparkles className="w-3 h-3 text-brand-500" />
-            <span className="text-xs text-slate-400">Suggested questions</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500">Suggested questions</span>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div
+            className={`grid grid-cols-1 sm:grid-cols-2 gap-2 ${
+              session.suggested_questions.length >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
+            }`}
+          >
             {session.suggested_questions.map((q, i) => (
               <motion.button
                 key={i}
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.08 }}
+                transition={{ delay: i * 0.07 }}
                 onClick={() => handleSuggestion(q)}
-                className="text-xs px-3 py-1.5 rounded-lg bg-brand-50 border border-brand-100 text-brand-600 hover:bg-brand-100 hover:border-brand-200 transition-all truncate max-w-[200px]"
+                className="text-xs px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 hover:bg-brand-50 hover:border-brand-200 hover:text-brand-600 transition-all text-left h-full whitespace-normal break-words dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-brand-600/15 dark:hover:border-brand-600/30 dark:hover:text-brand-300"
                 title={q}
               >
                 {q}
@@ -541,12 +579,16 @@ ${rows}
         const lastSage = [...messages].reverse().find((m) => m.role === 'assistant' && !m.isPeriodicFeedback && !m.isGuardReject && m.followups?.length)
         if (!lastSage?.followups || isTyping) return null
         return (
-          <div className="px-4 pb-3 flex-shrink-0 bg-white border-t border-slate-100">
+          <div className="px-4 pb-3 flex-shrink-0 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-1.5 mb-2 pt-3">
               <Sparkles className="w-3 h-3 text-brand-500" />
-              <span className="text-xs text-slate-400">Follow-up suggestions</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500">Follow-up suggestions</span>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div
+              className={`grid grid-cols-1 sm:grid-cols-2 gap-2 ${
+                lastSage.followups.length >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
+              }`}
+            >
               {lastSage.followups.map((q, i) => (
                 <motion.button
                   key={i}
@@ -554,7 +596,7 @@ ${rows}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.07 }}
                   onClick={() => handleSuggestion(q)}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 hover:bg-brand-50 hover:border-brand-200 hover:text-brand-600 transition-all truncate max-w-[260px]"
+                  className="text-xs px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 hover:bg-brand-50 hover:border-brand-200 hover:text-brand-600 transition-all text-left h-full whitespace-normal break-words dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-brand-600/15 dark:hover:border-brand-600/30 dark:hover:text-brand-300"
                   title={q}
                 >
                   {q}
@@ -586,7 +628,7 @@ ${rows}
       </AnimatePresence>
 
       {/* Input */}
-      <div className="px-4 pb-4 flex-shrink-0 border-t border-slate-200 pt-3 bg-white rounded-b-2xl">
+      <div className="px-4 pb-4 flex-shrink-0 border-t border-slate-200 dark:border-slate-800 pt-3 bg-white dark:bg-slate-900 rounded-b-2xl">
         <div className="flex items-end gap-2">
           <div className="flex-1 relative">
             <textarea
@@ -594,13 +636,13 @@ ${rows}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask anything about the document..."
+              placeholder="Ask anything about the document here."
               rows={1}
               disabled={!isConnected}
-              className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-4 sm:pr-16 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20 resize-none transition-all disabled:opacity-50 leading-relaxed"
+              className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-4 sm:pr-16 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20 resize-none transition-all disabled:opacity-50 leading-relaxed dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-500"
               style={{ minHeight: '44px', maxHeight: '140px' }}
             />
-            <span className="hidden sm:block absolute right-3 bottom-2.5 text-xs text-slate-300 pointer-events-none">
+            <span className="hidden sm:block absolute right-3 bottom-2.5 text-xs text-slate-300 dark:text-slate-600 pointer-events-none">
               ↵ send
             </span>
           </div>
@@ -611,7 +653,7 @@ ${rows}
               whileTap={{ scale: 0.95 }}
               onClick={stopGenerating}
               title="Stop generating"
-              className="w-11 h-11 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center shadow-sm hover:bg-slate-200 transition-all flex-shrink-0"
+              className="w-11 h-11 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center shadow-sm hover:bg-slate-200 transition-all flex-shrink-0 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
             >
               <Square className="w-3.5 h-3.5 fill-current" />
             </motion.button>
@@ -627,7 +669,7 @@ ${rows}
             </motion.button>
           )}
         </div>
-        <p className="text-xs text-slate-400 mt-2 text-center">
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 text-center">
           Answers drawn only from your document · Shift+Enter for new line
         </p>
       </div>

@@ -52,7 +52,7 @@ export default function FeedbackModal({ onClose }: { onClose: () => void }) {
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           onClick={(e) => e.stopPropagation()}
-          className="relative rounded-2xl w-full max-w-md p-6 bg-white border border-slate-200 shadow-2xl shadow-slate-900/10"
+          className="relative rounded-2xl w-full max-w-md p-6 bg-white border border-slate-200 shadow-2xl shadow-slate-900/10 dark:bg-slate-900 dark:border-slate-800"
         >
           <div className="flex items-start justify-between mb-5">
             <div className="flex items-center gap-3">
@@ -60,12 +60,12 @@ export default function FeedbackModal({ onClose }: { onClose: () => void }) {
                 <MessageSquare className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-slate-900 font-semibold">Send feedback</h2>
-                <p className="text-xs text-slate-500">Help us make Talktofile better</p>
+                <h2 className="text-slate-900 font-semibold dark:text-slate-100">Send feedback</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Help us make Talktofile better</p>
               </div>
             </div>
             <button onClick={onClose} aria-label="Close" title="Close"
-              className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-red-50 hover:border-red-200 transition-all">
+              className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-red-50 hover:border-red-200 transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-red-500/10 dark:hover:border-red-500/30">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -73,8 +73,8 @@ export default function FeedbackModal({ onClose }: { onClose: () => void }) {
           {done ? (
             <div className="py-8 text-center">
               <Check className="w-12 h-12 text-green-500 mx-auto mb-3" />
-              <p className="text-slate-900 font-medium">Thank you!</p>
-              <p className="text-slate-500 text-sm">Your feedback was received.</p>
+              <p className="text-slate-900 font-medium dark:text-slate-100">Thank you!</p>
+              <p className="text-slate-500 text-sm dark:text-slate-400">Your feedback was received.</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -83,7 +83,7 @@ export default function FeedbackModal({ onClose }: { onClose: () => void }) {
                 {CATEGORIES.map((c) => (
                   <button key={c.key} onClick={() => setCategory(c.key)}
                     className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                      category === c.key ? 'bg-[#E2611B]/10 border-[#E2611B]/20 text-[#E2611B]' : 'border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50'
+                      category === c.key ? 'bg-[#E2611B]/10 border-[#E2611B]/20 text-[#E2611B]' : 'border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:border-slate-600 dark:hover:bg-slate-800'
                     }`}>
                     {c.label}
                   </button>
@@ -92,12 +92,12 @@ export default function FeedbackModal({ onClose }: { onClose: () => void }) {
 
               {/* Rating */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Rating <span className="text-slate-400">(optional)</span></label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Rating <span className="text-slate-400">(optional)</span></label>
                 <div className="flex gap-1">
                   {[1, 2, 3, 4, 5].map((n) => (
                     <button key={n} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)} onClick={() => setRating(n === rating ? 0 : n)}
                       className="p-0.5" aria-label={`${n} star`}>
-                      <Star className={`w-6 h-6 transition-colors ${(hover || rating) >= n ? 'text-brand-600 fill-brand-600' : 'text-slate-300'}`} />
+                      <Star className={`w-6 h-6 transition-colors ${(hover || rating) >= n ? 'text-brand-600 fill-brand-600' : 'text-slate-300 dark:text-slate-600'}`} />
                     </button>
                   ))}
                 </div>
@@ -105,7 +105,7 @@ export default function FeedbackModal({ onClose }: { onClose: () => void }) {
 
               {/* Message */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Message</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Message</label>
                 <textarea
                   value={message} onChange={(e) => setMessage(e.target.value)} rows={4} maxLength={4000}
                   placeholder="What did you like, or what could be better?"

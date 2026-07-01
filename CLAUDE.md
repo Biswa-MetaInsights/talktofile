@@ -226,11 +226,15 @@ Keep this updated as components are created or significantly changed.
 |---|---|---|
 | `src/App.tsx` | App shell, view + session state, modals | Holds the `beforeunload` refresh guard (active only while a chat session exists). Chat/sidebar heights use `100dvh` for mobile correctness. |
 | `src/components/Landing.tsx` | Marketing landing page (the "front door") **+ the upload/intent flow** | Hero, "how it works", features, privacy band, CTA, footer. **The hero now owns the upload:** dropping a file / adding a URL starts processing in-place (via `useDocumentProcessor`) while the user stays on the page; a chat box then "appears" where they pick a mode (chat/summary/flashcards/…) and type their first request. The orange circular **Proceed** button (`ArrowUp`) enables once the doc is ready (chat mode also needs typed text; other modes don't). On proceed it calls `onEnter(session, mode, prompt)`. Responsive via Tailwind breakpoints. |
-| `src/components/Navbar.tsx` | Top nav inside the app | Feedback, Personalise (Pro), sign up / sign in or user menu. Labels collapse to icons on small screens. The account button shows the user's **saved profile photo** (`user.profile.avatar`) next to the name, falling back to a `User` icon. |
+| `src/components/Navbar.tsx` | Top nav inside the app | Feedback, Personalise (Pro), sign up / sign in or user menu, and the **light/dark `ThemeToggle`**. Labels collapse to icons on small screens. The account button shows the user's **saved profile photo** (`user.profile.avatar`) next to the name, falling back to a `User` icon. Uses **`mark-white.svg`** in dark mode, **`mark-color.svg`** in light. |
+| `src/context/ThemeContext.tsx` | Light/dark theme state (`useTheme`) | Holds `theme` + `toggleTheme`, persists to `localStorage` (`theme`), defaults to OS `prefers-color-scheme` (and follows it until the user chooses explicitly), toggles the `dark` class on `<html>`. Provided in `main.tsx` above `AuthProvider`. Pre-seeded by an inline script in `index.html` (no FOUC). Tailwind is `darkMode: 'class'`. |
+| `src/components/ThemeToggle.tsx` | The navbar light/dark switch | Sun icon in dark mode (→ light), moon in light mode (→ dark). Uses the shared `Tooltip`. |
 | `src/components/UploadZone.tsx` | Drag-and-drop upload + processing UI (in-app fallback, e.g. password-recovery entry) | Enforces plan file-count/size limits client-side; runs the pipeline via `useDocumentProcessor`. No longer the primary upload path — the Landing hero is (see above). |
 | `src/hooks/useDocumentProcessor.ts` | Shared upload→process pipeline hook | Uploads file bytes / a URL, drives the processing WebSocket (`extracting`→`analysing`→`ready`), exposes `{ stage, stageMsg, progress, error, session, processing, processFiles, processUrl, reset }`, and fires the `document_uploaded` analytics event. Used by both `Landing` and `UploadZone`. Does **not** navigate — the caller reacts to `session`. |
 | `src/components/ChatWindow.tsx` | The chat experience | Chat WS lifecycle with auto-reconnect, streaming tokens, stop button, suggested questions, summary panel, scroll-to-bottom. Accepts an optional `initialPrompt` — the first message typed on the landing chat box, auto-sent once connected (guarded against resend on reconnect). |
-| `src/components/MessageBubble.tsx` | Renders one message (markdown) | Used for user + assistant + guard-reject + feedback prompts. |
+| `src/components/MessageBubble.tsx` | Renders one message (markdown) | Used for user + assistant + guard-reject + feedback prompts. **Inline citations:** for a finished Sage answer with sources, it runs `buildCitations` over the answer + passages, renders the marked markdown with `react-markdown` `components` overrides (`p`/`li`/`h*`/`td`/`blockquote`) that swap the injected `⟦C{n}⟧` tokens for `<CitationMarker>` (recursing through nested inline nodes). The old collapsible "View sources" list is replaced by a subtle **"Cited from your document · N passages · hover ¹²³ to view"** footer (clicking it opens the full excerpt in `CitationPanel` via `onCiteSource`). Also shows a brief **"Finding sources…"** hint (`awaitingSources`) between the answer finishing and its passages arriving. |
+| `src/components/CitationMarker.tsx` | One inline citation marker (¹²³) + hover popover | Renders a small **bold brand-orange rounded chip** (`bg-brand-50`, `align-super`, inline `fontSize` to beat the 16px CSS floor) so it reads as a tappable citation. On hover/focus a card pops **above** the marker showing the passage with the matched phrase highlighted (`<mark>`), the `¶` location + `% match`. The card has an **invisible bridge** (`pb-2` transparent padding on the popover wrapper) so the cursor can cross up into it without dismissing (plus a 120ms close delay). **Jump to source** calls `onJump(source)` → opens the full `CitationPanel` excerpt. |
+| `src/lib/citations.ts` | Citation grounding heuristics | `buildCitations(answer, sources)` splits the answer into sentence spans, matches each passage to its best-fit sentence by significant-word overlap (greedy, prefers distinct sentences), injects `⟦C{n}⟧` tokens numbered top→bottom, and returns the matched phrase + `¶` location per citation. Pure text heuristics — never changes answer wording, only marker placement. |
 | `src/components/SummaryCard.tsx` | Document summary display | `compact` variant used in the side panel and summary drawer. |
 | `src/components/FlashcardsView.tsx` | Flashcards study tool | Has a **Share** action (active-card controls + finished screen) that copies/Web-Shares the full Q&A set with a "Made with Talktofile" attribution. |
 | `src/components/SummaryView.tsx` | Full-page document summary | Header **Share** button → copies/Web-Shares the summary with attribution. |
@@ -342,6 +346,203 @@ Not built / known gaps:
 > for small sessions. Keep entries terse (a few bullets), not a blow-by-blow transcript. The
 > detailed "how" belongs in the relevant section above; this log is just the running status so the
 > next session/developer can see at a glance where things stand.
+
+### 2026-07-01 (latest) — Chat header pinned; fixed workspace page-scroll bug
+**Done:**
+- The chat header row (filename + connection status + BookOpen/Download/Restart/**End session**
+  buttons) now **stays fixed under the navbar** while the conversation scrolls.
+- **Root cause was a layout bug, not just missing `sticky`:** the chat card
+  (`App.tsx`, workspace view) carried `flex-1` **and** an inline `height: calc(100dvh - 5.5rem)`.
+  `flex-1` (flex-basis `0%`) won, and no ancestor supplied a definite height (`main` is
+  `min-h-screen`), so on a long conversation the card grew to its content and the **whole page
+  scrolled** — carrying the header away and pushing the chat input off-screen.
+- **Fix (two files):**
+  - `App.tsx` — the workspace `motion.div` is now a definite height
+    `h-[calc(100dvh-4rem)]` (viewport minus the `h-16` navbar) + `overflow-hidden`; removed the
+    conflicting inline `height` on the chat card so `flex-1` fills that bounded parent. Now only the
+    message list scrolls; the input bar stays visible at the bottom. (Landing view is a separate
+    early-return layout and is untouched.)
+  - `ChatWindow.tsx` — moved the header (and the summary panel) **inside** the scrollable region as
+    its first child and made the header `sticky top-0 z-20` (opaque bg already present). The scroll
+    ref/`onScroll` + scroll-to-bottom logic moved onto the new scroll wrapper; behaviour preserved.
+- Type-check (`tsc --noEmit`) passes. Verified working live by the user (desktop Brave).
+
+**Pending / next:**
+- `main` still uses `min-h-screen` (vh, not dvh); on mobile a `100vh`≠`100dvh` gap could reintroduce
+  a small page scroll. Not observed on desktop — re-check the workspace at 320–768px if it bites.
+
+### 2026-07-01 — Dark mode: full-app theme + light/dark navbar toggle
+**Done:**
+- Added a site-wide **dark mode** with a **light/dark switch in the navbar** (sun/moon).
+- **Theme system (new):** `tailwind.config.js` now sets `darkMode: 'class'`. New
+  `src/context/ThemeContext.tsx` (`useTheme`) holds the theme, persists it to `localStorage`
+  (`theme`), defaults to the OS `prefers-color-scheme`, follows OS changes until the user makes an
+  explicit choice, and toggles the `dark` class on `<html>`. `main.tsx` wraps the app in
+  `ThemeProvider` (outside `AuthProvider`). An **inline script in `index.html`** sets the class
+  before React mounts, so there's no light flash on a dark load. New `src/components/ThemeToggle.tsx`
+  is the button (uses the shared `Tooltip`, `side="bottom"` in the navbar).
+- **`index.css`:** dark base body (`#0b1120` bg / slate-200 text via `html.dark body`) + dark
+  scrollbars, and `dark:` variants added to the shared utilities: `.glass-card`, `.input-field`, and
+  every `.prose-custom` rule. Because `glass-card`/`input-field`/`prose-custom` are dark-aware,
+  components using them adapt for free.
+- **Every component dark-styled with Tailwind `dark:` variants** (surfaces → `slate-900/950/800`,
+  borders → `slate-800/700`, body text → `slate-300/400`, headings → `slate-100`; the brand orange
+  `#E2611B` is kept in both themes). Covered: `App` shell, `Navbar` (also swaps to **`mark-white.svg`**
+  in dark — the color mark would vanish on the dark bar), `Landing` (hero, upload/chat box,
+  features/how-it-works/audiences/plans, footer stays orange), `ChatWindow`, `MessageBubble`,
+  `TypingIndicator` (via `glass-card`), `MicButton`, `CitationMarker`, `CitationPanel`, all tool
+  views (`SummaryCard`, `SummaryView`, `FlashcardsView`, `SlidesView`, `PodcastView`, `TranslateView`,
+  `ChartsView`), and all modals/misc (`AuthModal`, `ProfileModal`, `PersonaModal`, `FeedbackModal`,
+  `ConfirmDialog`, `AvatarUpload`, `UploadZone`).
+- **Deliberate exception:** the **Recharts chart panel in `ChartsView` stays on a light surface** in
+  dark mode (its axis/legend/grid colours are light-theme defaults and would be illegible on a dark
+  card). Noted inline.
+- **Convention for the next session:** when adding UI, pair light classes with a `dark:` variant
+  (e.g. `bg-white dark:bg-slate-900`, `text-slate-900 dark:text-slate-100`); prefer the dark-aware
+  `glass-card`/`input-field` utilities so you get dark styling for free.
+- Type-check (`tsc --noEmit`) **and** `npm run build` both pass.
+
+**Pending / next:**
+- **Visual verification not done this session** (needs the app running in a browser). Toggle dark
+  mode and sweep every screen — landing, upload, chat + citations popover, each tool view, and all
+  modals — checking contrast and that nothing is white-on-white / dark-on-dark. Re-check 320–1280px.
+- A few small tinted status boxes (red/amber/green error/success notices) were left with their
+  light-tint backgrounds where they already read fine; revisit if any look too bright in dark mode.
+
+### 2026-07-01 — Chat UI polish toward the mockup (additive; preserves the in-progress dark-mode pass)
+**Done:**
+- Tasteful restyle of the chat toward the requested mockup, **kept to chat-only files** (`MessageBubble`,
+  `ChatWindow`) so it wouldn't collide with the parallel dark-mode edits on `App`/`Landing`/`UploadZone`.
+  **All existing `dark:` variants preserved**; new styles got matching `dark:` variants.
+  - **Rounded-square avatars** (`w-8 h-8 rounded-lg`, was `w-7 h-7 rounded-full`) — the mockup's tile look,
+    for both the Sage and feedback avatars.
+  - More vertical rhythm in the message list (`py-4 space-y-4` → `py-5 space-y-5`); softer bubble tails
+    (`rounded-b*-sm` → `rounded-b*-md`); a touch more padding on the answer card; subtle `shadow-slate-200/50`.
+  - Citation footer now sits under a **faint hairline** (`border-t`) as a quiet "cited from" caption.
+- Type-check + `npm run build` pass. Changes HMR into the running dev server.
+
+**Pending / next:**
+- Visual check at 320–1280px + in dark mode (dark-mode pass is being done in parallel by the other dev).
+
+### 2026-07-01 (later) — Citations: fixed "stuck streaming" bug, marker restyle, Jump-to-source opens passage panel
+**Done:**
+- **Root-caused why citations never appeared live:** finished answers were stuck with
+  `isStreaming=true`, which (by design) hides the Copy button *and* the citation markers. The
+  cause was `finalizeStreaming` clearing the flag inside a `setMessages` updater that matched
+  `streamingIdRef.current` — but the ref is nulled on the same tick, so the async updater matched
+  nothing. Fixed by **clearing the flag on whatever message is currently streaming** (there's only
+  ever one) instead of id-matching, and **belt-and-suspenders**: the `sources` handler now also sets
+  `isStreaming:false` on the message it attaches passages to (sources only arrive post-answer, so
+  it's always safe). Confirmed live via a temporary on-screen DEBUG line (since removed):
+  `streaming=false · showActions=true · sources=2 · citations=2`.
+- **Also this session:** removed the auto-opening `CitationPanel` (it covered the summary on every
+  answer); added a **"Finding sources…"** hint for the ~1–3s gap between the answer finishing and the
+  post-answer passage retrieval arriving (see `pendingSourcesId` in `ChatWindow`); warmed the chat
+  input placeholder copy.
+- **Marker restyle:** the ¹²³ superscripts were nearly invisible → now a small **bold brand-orange
+  rounded chip** (`bg-brand-50`, `align-super`, inline `fontSize` to beat the 16px CSS floor) so
+  they read as tappable citations.
+- **"Jump to source" now opens the full passage** (`CitationPanel` via `onCiteSource`) instead of
+  flashing a summary row — per the user's choice (the summary is a paraphrase; the panel shows the
+  real excerpt with context before/after). **Removed the now-dead amber-flash machinery**:
+  `SummaryCard` reverted to no `flash` prop, `App` lost its `flash` state + `handleJumpToSource`, and
+  `citations.ts` lost `bestKeyPointMatch`/`KeyPointFlash`.
+- Type-check + `npm run build` pass.
+
+**Pending / next:**
+- Verify the restyled markers + "Jump to source → panel" visually at 320–1280px (works on the dev box).
+- Popover-clipping caveat still stands (chat is inside an `overflow-hidden` card).
+- Optional broader "prettier like the mockup" restyle (bubbles/header/spacing) is still not done —
+  this session was citations only.
+
+### 2026-07-01 — Inline citations: hover-popover ¹²³ markers + "Jump to source" amber flash (frontend only)
+**Done:**
+- Reworked how sourced answers show their citations, to match a requested design (kept the brand
+  orange palette). Replaced the collapsible **"View sources"** list under each Sage answer with
+  **inline superscript markers (¹²³)** on the grounded sentences, plus a subtle footer
+  **"Cited from your document · N passages · hover ¹²³ to view"** (clicking it still opens the full
+  excerpt in the existing `CitationPanel`).
+- **Grounding is a frontend heuristic** — the backend returns passages *per answer* (top chunks per
+  doc), not per-sentence. New **`src/lib/citations.ts`** `buildCitations(answer, sources)` splits the
+  answer into sentence spans, matches each passage to its best-fit sentence by significant-word
+  overlap (greedy, prefers distinct sentences), injects `⟦C{n}⟧` tokens numbered top→bottom, and
+  computes the longest shared phrase (to highlight) + a `¶` location from `chunk_index`. Verified the
+  matcher end-to-end with a standalone esbuild+node run on a sample answer (markers landed on the
+  right 3 sentences, correct locations/scores/phrases).
+- **`src/components/CitationMarker.tsx`** (new): the superscript marker + hover/focus popover **above**
+  it showing the passage with the matched phrase highlighted, `¶ location`, and `% match`. Has an
+  **invisible bridge** (`pb-2` transparent padding on the popover wrapper + 120ms close delay) so the
+  cursor can move up into the card without dismissing it. **Jump to source** closes the card and calls
+  `onJumpToSource`.
+- **`MessageBubble`** renders the marked markdown via `react-markdown` `components` overrides
+  (`p`/`li`/`h*`/`td`/`blockquote`) that replace the tokens with `<CitationMarker>`, recursing through
+  nested inline nodes. Threads `onJumpToSource` from `ChatWindow` ← `App`.
+- **"Jump to source" flash:** `App.handleJumpToSource` finds the passage's document, picks the
+  best-matching **Summary/Key-point** row via `bestKeyPointMatch`, and bumps a `flash` nonce.
+  **`SummaryCard`** gained a `flash` prop that pulses that row **amber** (`bg-amber-100 ring-amber-300`)
+  for ~1.5s and scrolls it into view. (Left panel is `lg+` only, so the flash is a no-op on mobile.)
+- Small polish: warmed the chat canvas from `bg-slate-50/80` → `bg-brand-50/25`.
+- Type-check (`tsc --noEmit`) **and** `npm run build` both pass.
+
+**Pending / next:**
+- **Visual verification not done** — needs the backend (OpenAI key) to produce a sourced answer. In a
+  browser, confirm: markers appear on grounded sentences; hovering shows the card above with the
+  highlight/¶/%, and moving up into it doesn't dismiss it; **Jump to source** flashes the right
+  left-panel row amber. Re-check 320–1280px.
+- **Popover clipping:** the chat lives inside an `overflow-hidden` `.glass-card`, so a card above a
+  marker in the very first line could clip at the card's top edge. Acceptable for now; if it bites,
+  render the popover through a portal or flip it below when there's no room above.
+- The sentence→passage and passage→key-point matches are best-effort (word overlap); occasional
+  mismatches are expected. Tune `overlap()`/stopwords in `citations.ts`, or add real per-sentence
+  grounding in `sage_agent` if precision matters.
+
+### 2026-07-01 — Fix: YouTube URL uploads were failing (broken transcript dep)
+**Done:**
+- **Root cause of "can't upload YouTube videos":** the backend was up (health 200) — only the
+  YouTube path was broken. `youtube-transcript-api` was **(a) not installed in this machine's
+  `venv`** (declared in `requirements.txt` but the venv was out of sync), so every YouTube URL hit
+  the generic `except Exception` in `_fetch_youtube_transcript` and returned a 422; and **(b) the
+  pinned `0.6.3` is broken against current YouTube** anyway — a direct fetch returned an empty body
+  (`ParseError: no element found`). Plain web-page URLs were unaffected.
+- **Fix:** upgraded to **`youtube-transcript-api==1.2.4`** (installed into the venv + bumped the
+  `requirements.txt` pin). The 1.x API is **instance-based** — the old static
+  `YouTubeTranscriptApi.get_transcript(id)` was removed — so `routers/document.py`
+  `_fetch_youtube_transcript` now uses `YouTubeTranscriptApi().fetch(video_id).to_raw_data()`. The
+  `NoTranscriptFound` / `TranscriptsDisabled` exception imports are unchanged and still valid in 1.x.
+- **Verified end-to-end:** `import main` OK; calling the real `_fetch_youtube_transcript` on a live
+  video returned a 2089-char transcript.
+
+**Pending / next:**
+- **⚠️ Restart the backend** so the running process loads the fix (new venv package + code change).
+  If it was started with `--reload` it likely already reloaded on the edit; if not, restart it. The
+  other developer must also `pip install -r requirements.txt` in their venv to get 1.2.4.
+- Videos **without captions** still (correctly) return the friendly 422 ("no available transcript").
+  YouTube can also rate-limit / IP-block server-side fetches in production — watch for that on the VM.
+
+### 2026-07-01 — Hero trust row + copy tweaks (frontend only)
+**Done:**
+- **Hero headline:** "Paste **W**ebsite links." → "Paste **w**ebsite links." (visible text +
+  the matching code comment in `Landing.tsx`).
+- **Subline hidden:** the "Upload anything in any language..." `<p>` is **commented out** (kept
+  in place with a note to re-enable if the hero needs it later).
+- **New trust row** between the headline and the (hidden) subline. Went through several
+  iterations with the user and landed on: **three inline items** — 🔒 Nothing stored / ⚡ No
+  sign-up needed / ✓ Answers only from your file — as **orange lucide icons** (`Lock` / `Zap` /
+  `CheckCircle`, `w-6 h-6`, `#E2611B`) + labels, **separated by whitespace only (no dividers)**.
+  Labels use the **headline's font treatment at a smaller size**: `font-merriweather
+  tracking-[-0.03em] text-[#303030] text-2xl`, **normal weight** (tried extrabold, user preferred
+  not-bold but kept the near-black colour). `flex-wrap` so it wraps on narrow screens.
+- **Discarded alternatives (kept commented in `Landing.tsx`):** an earlier **icon-medallion**
+  version (circular `bg-[#E2611B]/10` disc, icon-over-label) and a **hairline-divider** row are
+  both preserved as JSX comments in case we want to switch back. A 4th "15+ languages" point
+  (`Globe`) was added then **removed** at the user's request (Globe import still used by the
+  features section).
+- Type-check passes (`tsc --noEmit`) after each step.
+
+**Pending / next:**
+- **Visual verification not done this session** — run the dev server and confirm the trust row at
+  320/375/768px: three items at 24px normal weight need room, so check the wrap looks intentional
+  (tune `gap-x`/size if it feels tight). Decide later whether to bring the subline back.
 
 ### 2026-06-30 — Profile photo: now persisted + shown in the navbar
 **Done:**
