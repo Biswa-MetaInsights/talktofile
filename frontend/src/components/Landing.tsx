@@ -100,13 +100,13 @@ function SourceRow({
     <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/60">
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-[#E2611B]/10 flex items-center justify-center flex-shrink-0">
-          {error ? <AlertCircle className="w-4 h-4 text-red-500" />
+          {error ? <AlertCircle className="w-4 h-4 text-brand-500" />
             : ready ? <CheckCircle className="w-4 h-4 text-[#E2611B]" />
             : <FileText className="w-4 h-4 text-[#E2611B]" />}
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate" title={label}>{label}</p>
-          <p className={`text-xs ${error ? 'text-red-500' : 'text-[#E2611B]'}`}>
+          <p className={`text-xs ${error ? 'text-brand-500' : 'text-[#E2611B]'}`}>
             {error ? 'Upload failed' : ready ? 'Ready' : (statusMsg || 'Processing…')}
           </p>
         </div>
@@ -543,7 +543,12 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
   )
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 bg-grid">
+    // The whole landing page is rendered at 90% scale so every font (and its
+    // surrounding chrome) is proportionally smaller by default — i.e. it looks the
+    // way the browser does one step down from 100% (Ctrl+-). `zoom` scales all
+    // descendants uniformly, so no per-element font size needs touching and nothing
+    // is missed. (Kept off the shared Navbar, which lives outside Landing.)
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 bg-grid" style={{ zoom: 0.9 }}>
       {/* Hero */}
       <section className="relative px-6 pt-32 pb-20 max-w-5xl mx-auto text-center">
         <motion.div
@@ -662,7 +667,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                   </div>
 
                   {heroError && (
-                    <p className="mt-3 flex items-center gap-1.5 text-sm text-red-500 px-1">
+                    <p className="mt-3 flex items-center gap-1.5 text-sm text-brand-500 px-1">
                       <AlertCircle className="w-4 h-4 flex-shrink-0" /> {heroError}
                     </p>
                   )}
@@ -696,7 +701,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                       </button>
                     </div>
                     {urlError && (
-                      <p className="text-xs text-red-500 px-1">{urlError}</p>
+                      <p className="text-xs text-brand-500 px-1">{urlError}</p>
                     )}
                   </div>
 
@@ -764,7 +769,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
 
                   {error ? (
                     <div className="mt-4 flex flex-col items-start gap-3">
-                      <p className="flex items-center gap-1.5 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5 w-full">
+                      <p className="flex items-center gap-1.5 text-sm text-brand-600 bg-brand-50 border border-brand-200 rounded-xl px-3.5 py-2.5 w-full dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400">
                         <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
                       </p>
                       <button

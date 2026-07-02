@@ -107,6 +107,11 @@ export const documentApi = {
     api.post<{ session_id: string; filenames: string[] }>('/document/url', { url }),
   getSession: (sessionId: string) =>
     api.get(`/document/${sessionId}`),
+  // Fetch one document's full extracted text (backs the "open original document" panel).
+  getContent: (sessionId: string, filename: string) =>
+    api.get<{ filename: string; content: string }>(`/document/${sessionId}/content`, {
+      params: { filename },
+    }),
   deleteSession: (sessionId: string) =>
     api.delete(`/document/${sessionId}`),
   // Remove one document from a ready multi-file session; the survivors keep their
