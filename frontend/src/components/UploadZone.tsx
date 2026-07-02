@@ -181,11 +181,11 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
           {...getRootProps()}
           className={`relative rounded-2xl border-2 border-dashed p-12 text-center cursor-pointer transition-all duration-300 ${
             isProcessing
-              ? 'border-brand-300 bg-brand-50/40 cursor-not-allowed'
+              ? 'border-brand-300 bg-brand-50/40 cursor-not-allowed dark:border-brand-500/50 dark:bg-brand-600/10'
               : isDragReject
-              ? 'border-red-400 bg-red-50'
+              ? 'border-red-400 bg-red-50 dark:border-red-500/50 dark:bg-red-500/10'
               : isDragActive
-              ? 'border-brand-400 bg-brand-50 scale-[1.02]'
+              ? 'border-brand-400 bg-brand-50 scale-[1.02] dark:border-brand-500 dark:bg-brand-600/10'
               : 'border-slate-300 bg-white hover:border-brand-400 hover:bg-brand-50/30 dark:border-slate-600 dark:bg-slate-900 dark:hover:border-brand-500 dark:hover:bg-brand-600/10'
           }`}
         >
@@ -265,12 +265,12 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
             </motion.div>
           )}
           {error && (
-            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-4 flex items-center gap-2 text-red-600 text-sm bg-red-50 rounded-xl px-4 py-3 border border-red-200">
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-4 flex items-center gap-2 text-brand-600 text-sm bg-brand-50 rounded-xl px-4 py-3 border border-brand-200 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400">
               <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
             </motion.div>
           )}
           {dupWarning && (
-            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-4 flex items-start gap-2 text-amber-700 text-sm bg-amber-50 rounded-xl px-4 py-3 border border-amber-200">
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-4 flex items-start gap-2 text-amber-700 text-sm bg-amber-50 rounded-xl px-4 py-3 border border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-400">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /> {dupWarning}
             </motion.div>
           )}

@@ -1,13 +1,21 @@
 import { useState } from 'react'
-import { Globe, Loader2, MessageSquare, Download, AlertCircle, Share2, Check } from 'lucide-react'
-import type { SessionInfo } from '../types'
+import { Globe, Loader2, Download, AlertCircle, Share2, Check } from 'lucide-react'
+import type { SessionInfo, AppMode } from '../types'
 import type { TranslateDoc } from '../api/client'
 import { toolsApi } from '../api/client'
 import { withAttribution, downloadText, shareOrCopy } from '../lib/share'
+import SectionComposer from './SectionComposer'
+import Tooltip from './Tooltip'
 
 interface Props {
   session: SessionInfo
-  onStartChat: () => void
+  // Feature-tab switching (this section renders its own bottom bar with the tabs,
+  // instead of the shared WorkspaceComposer).
+  onSwitchMode: (mode: AppMode) => void
+  engagedModes: Set<AppMode>
+  // Fire once a translation has been produced, so this section earns its "pick up
+  // where you left off" star.
+  onActivity?: () => void
 }
 
 const LANGUAGES = [
@@ -16,7 +24,14 @@ const LANGUAGES = [
   'Turkish', 'Swedish', 'Danish', 'Finnish', 'Norwegian', 'Romanian', 'Greek',
 ]
 
-export default function TranslateView({ session, onStartChat }: Props) {
+// The Translate section renders its own bottom bar (below the results), replacing the
+// shared WorkspaceComposer for this section only. That bar is where the user picks a
+// language and runs the translation: the "Translate to" picker takes the place of the
+// composer's "Follow-up suggestions" row, and a wide "Translate to <language>" button
+// takes the place of the send button. The chat textbox is kept (smaller) alongside it
+// for parity with the other sections — chatting from a tool section isn't wired to the
+// backend yet, so pressing Enter shows a "Coming soon" bubble.
+export default function TranslateView({ session, onSwitchMode, engagedModes, onActivity }: Props) {
   const [targetLang, setTargetLang] = useState('Spanish')
   const [customLang, setCustomLang] = useState('')
   const [result, setResult] = useState<{ target_language: string; documents: TranslateDoc[]; note: string } | null>(null)
@@ -24,14 +39,24 @@ export default function TranslateView({ session, onStartChat }: Props) {
   const [error, setError] = useState('')
   const [sharedIdx, setSharedIdx] = useState<number | null>(null)
 
+  const activeLang = customLang.trim() || targetLang
+  // A typed ("Or type any language…") language is NOT validated by the backend yet,
+  // so running it could ask for a nonexistent language. Gate it off for now: the
+  // Translate button is disabled and shows a "Coming soon" tooltip instead of
+  // advancing to a result. Picking one of the LANGUAGES pills clears customLang, so
+  // this is only true while the user has typed a custom language.
+  const isCustomLang = customLang.trim().length > 0
+
   const handleTranslate = async () => {
-    const lang = customLang.trim() || targetLang
+    // Guard: typed languages aren't wired up yet (see isCustomLang) — don't proceed.
+    if (isCustomLang) return
     setLoading(true)
     setError('')
     setResult(null)
     try {
-      const res = await toolsApi.translate(session.session_id, lang)
+      const res = await toolsApi.translate(session.session_id, activeLang)
       setResult(res.data)
+      onActivity?.()
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Translation failed. Please try again.')
     } finally {
@@ -59,114 +84,129 @@ export default function TranslateView({ session, onStartChat }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto p-5 gap-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Globe className="w-5 h-5 text-[#E2611B]" />
-          <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100">Translate</h2>
-        </div>
-        <button
-          onClick={onStartChat}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all dark:border-slate-700 dark:text-slate-300"
-        >
-          <MessageSquare className="w-4 h-4" /> Chat instead
-        </button>
-      </div>
-
-      {/* Note about images */}
-      <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-400">
-        <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-        <span>Translation covers text only. Images, charts, and scanned pages cannot be translated.</span>
-      </div>
-
-      {/* Language picker */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-4 dark:bg-slate-900 dark:border-slate-800">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Translate to</h3>
-        <div className="flex flex-wrap gap-2">
-          {LANGUAGES.map((lang) => (
-            <button
-              key={lang}
-              onClick={() => { setTargetLang(lang); setCustomLang('') }}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all border ${
-                targetLang === lang && !customLang
-                  ? 'bg-[#E2611B] text-white border-[#E2611B]'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-[#E2611B] hover:text-[#E2611B] dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
-              }`}
-            >
-              {lang}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={customLang}
-            onChange={(e) => setCustomLang(e.target.value)}
-            placeholder="Or type any language…"
-            className="flex-1 text-sm border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-[#E2611B] focus:ring-2 focus:ring-[#E2611B]/20 transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500"
-          />
-        </div>
-        <button
-          onClick={handleTranslate}
-          disabled={loading}
-          className="self-start flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 disabled:opacity-50 transition-all"
-        >
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
-          {loading ? 'Translating…' : `Translate to ${customLang.trim() || targetLang}`}
-        </button>
-      </div>
-
-      {error && (
-        <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3 dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-400">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
-        </div>
-      )}
-
-      {/* Results */}
-      {result && result.documents.map((doc, i) => (
-        <div key={i} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm dark:bg-slate-900 dark:border-slate-800">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/60">
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{doc.filename}</span>
-            {doc.translated_text && (
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => shareDoc(doc, i)}
-                  className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-[#E2611B] font-medium transition-colors"
-                >
-                  {sharedIdx === i ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Share2 className="w-3.5 h-3.5" />}
-                  {sharedIdx === i ? 'Done' : 'Share'}
-                </button>
-                <button
-                  onClick={() => downloadDoc(doc)}
-                  className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-[#E2611B] font-medium transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5" /> Download .txt
-                </button>
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Results / content — scrolls above the pinned translate bar */}
+      <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
+        {/* The "text only" scope note now lives next to the section title (WorkspaceHeader). */}
+        {/* Empty state — centered "what this does" blurb (mirrors ChartsView's), shown until
+            a translation has been produced. A failed translate clears the result, so the
+            error surfaces here too. */}
+        {!result && (
+          <div className="flex flex-col items-center justify-center h-full gap-6 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-[#E2611B]/10 flex items-center justify-center">
+              <Globe className="w-8 h-8 text-[#E2611B]" />
+            </div>
+            <div>
+              <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100 mb-2">Translate Your Document</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">
+                Pick a language below and we'll translate your document into it. Supports 20+ languages.
+              </p>
+            </div>
+            {error && (
+              <div className="flex items-start gap-2 text-sm text-brand-700 bg-brand-50 border border-brand-200 rounded-xl px-4 py-3 max-w-sm text-left dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span>{error}</span>
               </div>
             )}
           </div>
-          {doc.error ? (
-            <div className="px-5 py-4 text-sm text-amber-700 bg-amber-50 dark:text-amber-400 dark:bg-amber-500/10">{doc.error}</div>
-          ) : (
-            <div className="px-5 py-4 text-sm text-slate-700 dark:text-slate-300 leading-relaxed max-h-80 overflow-y-auto whitespace-pre-wrap font-mono text-xs">
-              {doc.translated_text}
+        )}
+
+        {/* Results */}
+        {result && result.documents.map((doc, i) => (
+          <div key={i} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm dark:bg-slate-900 dark:border-slate-800">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/60">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{doc.filename}</span>
+              {doc.translated_text && (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => shareDoc(doc, i)}
+                    className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-[#E2611B] font-medium transition-colors"
+                  >
+                    {sharedIdx === i ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Share2 className="w-3.5 h-3.5" />}
+                    {sharedIdx === i ? 'Done' : 'Share'}
+                  </button>
+                  <button
+                    onClick={() => downloadDoc(doc)}
+                    className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-[#E2611B] font-medium transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Download .txt
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      ))}
+            {doc.error ? (
+              <div className="px-5 py-4 text-sm text-amber-700 bg-amber-50 dark:text-amber-400 dark:bg-amber-500/10">{doc.error}</div>
+            ) : (
+              <div className="px-5 py-4 text-sm text-slate-700 dark:text-slate-300 leading-relaxed max-h-80 overflow-y-auto whitespace-pre-wrap font-mono text-xs">
+                {doc.translated_text}
+              </div>
+            )}
+          </div>
+        ))}
 
-      {result && (
-        <p className="text-xs text-slate-400 dark:text-slate-500 text-center">{result.note}</p>
-      )}
+        {result && (
+          <p className="text-xs text-slate-400 dark:text-slate-500 text-center">{result.note}</p>
+        )}
+      </div>
 
-      <button
-        onClick={onStartChat}
-        className="self-center flex items-center gap-2 px-6 py-3 rounded-xl bg-[#E2611B] text-white font-medium text-sm hover:bg-[#E2611B]/90 transition-all shadow-md shadow-[#E2611B]/20"
-      >
-        <MessageSquare className="w-4 h-4" />
-        Chat with your document
-      </button>
+      {/* Bottom bar — the shared composer. The "Translate to" picker takes the place of the
+          composer's "Follow-up suggestions" row (via pickerRow), and the wide "Translate to
+          <language>" button takes the place of the send button. */}
+      <SectionComposer
+        active="translate"
+        onSwitch={onSwitchMode}
+        engaged={engagedModes}
+        placeholder="Add your preferences here."
+        pickerRow={
+          <div className="px-4 pb-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-1.5 mb-2 pt-3">
+              <Globe className="w-3.5 h-3.5 text-brand-500" />
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Translate to</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {LANGUAGES.map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => { setTargetLang(lang); setCustomLang('') }}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all border ${
+                    targetLang === lang && !customLang
+                      ? 'bg-[#E2611B] text-white border-[#E2611B]'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-[#E2611B] hover:text-[#E2611B] dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                  }`}
+                >
+                  {lang}
+                </button>
+              ))}
+              <input
+                type="text"
+                value={customLang}
+                onChange={(e) => setCustomLang(e.target.value)}
+                placeholder="Or type any language here"
+                className="w-64 text-sm border border-slate-200 rounded-full px-4 py-1.5 focus:outline-none focus:border-[#E2611B] focus:ring-2 focus:ring-[#E2611B]/20 transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500"
+              />
+            </div>
+          </div>
+        }
+        proceedButton={(() => {
+          // A typed custom language isn't supported by the backend yet, so the button is
+          // disabled and shows a "Coming soon" tooltip (see isCustomLang).
+          const btn = (
+            <button
+              onClick={handleTranslate}
+              disabled={loading || isCustomLang}
+              className="flex items-center gap-2 h-11 px-5 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+              {loading ? 'Translating…' : `Translate to ${activeLang}`}
+            </button>
+          )
+          return isCustomLang ? (
+            <Tooltip label="Coming soon" side="top" className="flex-shrink-0">{btn}</Tooltip>
+          ) : (
+            <span className="flex-shrink-0 inline-flex">{btn}</span>
+          )
+        })()}
+      />
     </div>
   )
 }

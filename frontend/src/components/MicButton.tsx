@@ -51,7 +51,7 @@ export default function MicButton({ onTranscript, disabled = false, side = 'righ
       : 'Click to dictate your instructions'
 
   const colorClasses = error
-    ? 'bg-red-50 text-red-600 ring-2 ring-red-200'
+    ? 'bg-red-50 text-red-600 ring-2 ring-red-200 dark:bg-red-500/10 dark:text-red-400 dark:ring-red-500/30'
     : listening
       ? 'bg-brand-600/10 text-brand-600 ring-2 ring-brand-600/30'
       : 'bg-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-40 dark:text-slate-500 dark:hover:text-slate-300 dark:hover:bg-slate-800'
