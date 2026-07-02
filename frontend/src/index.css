@@ -42,6 +42,37 @@
   html.dark ::-webkit-scrollbar-thumb {
     background: rgba(100, 116, 139, 0.5);
   }
+
+  /* Browser autofill override. When a value is picked from the browser's saved
+     suggestions (e.g. a previously entered URL), Chromium paints its own light
+     background over the input and ignores our Tailwind classes — which made
+     inputs flash white in dark mode. We repaint it: an inset box-shadow the size
+     of the field forces the field's own background colour, and text-fill-color
+     keeps the text legible. The long transition defers Chromium's repaint so the
+     override sticks. Light inputs sit on white wrappers; dark inputs on slate. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  textarea:-webkit-autofill:hover,
+  textarea:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+    box-shadow: 0 0 0 1000px #ffffff inset;
+    -webkit-text-fill-color: #0f172a;
+    caret-color: #0f172a;
+    transition: background-color 9999s ease-in-out 0s;
+  }
+  html.dark input:-webkit-autofill,
+  html.dark input:-webkit-autofill:hover,
+  html.dark input:-webkit-autofill:focus,
+  html.dark textarea:-webkit-autofill,
+  html.dark textarea:-webkit-autofill:hover,
+  html.dark textarea:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #0f172a inset;
+    box-shadow: 0 0 0 1000px #0f172a inset;
+    -webkit-text-fill-color: #e2e8f0;
+    caret-color: #e2e8f0;
+  }
 }
 
 @layer components {

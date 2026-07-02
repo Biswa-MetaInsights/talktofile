@@ -207,7 +207,7 @@ export default function AuthModal({
             </div>
           </div>
           {error && (
-            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 rounded-lg px-3 py-2 border border-red-200">
+            <div className="flex items-center gap-2 text-brand-600 text-sm bg-brand-50 rounded-lg px-3 py-2 border border-brand-200 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400">
               <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
             </div>
           )}
@@ -237,7 +237,7 @@ export default function AuthModal({
             </div>
           )}
           {error && (
-            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 rounded-lg px-3 py-2 border border-red-200">
+            <div className="flex items-center gap-2 text-brand-600 text-sm bg-brand-50 rounded-lg px-3 py-2 border border-brand-200 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400">
               <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
             </div>
           )}
@@ -297,8 +297,8 @@ export default function AuthModal({
 
           {/* Session-expired (or other host) notice */}
           {notice && (
-            <div className="mb-5 bg-amber-50 rounded-xl p-3 border border-amber-200">
-              <p className="flex items-center gap-1.5 text-xs text-amber-800">
+            <div className="mb-5 bg-amber-50 rounded-xl p-3 border border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/30">
+              <p className="flex items-center gap-1.5 text-xs text-amber-800 dark:text-amber-300">
                 <AlertCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                 {notice}
               </p>
@@ -423,9 +423,9 @@ export default function AuthModal({
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="text-sm bg-red-50 rounded-lg px-3 py-2 border border-red-200"
+                  className="text-sm bg-brand-50 rounded-lg px-3 py-2 border border-brand-200 dark:bg-brand-500/10 dark:border-brand-500/30"
                 >
-                  <div className="flex items-center gap-2 text-red-600">
+                  <div className="flex items-center gap-2 text-brand-600 dark:text-brand-400">
                     <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
                   </div>
                   {offerSignup && (

@@ -231,15 +231,22 @@ Keep this updated as components are created or significantly changed.
 | `src/components/ThemeToggle.tsx` | The navbar light/dark switch | Sun icon in dark mode (→ light), moon in light mode (→ dark). Uses the shared `Tooltip`. |
 | `src/components/UploadZone.tsx` | Drag-and-drop upload + processing UI (in-app fallback, e.g. password-recovery entry) | Enforces plan file-count/size limits client-side; runs the pipeline via `useDocumentProcessor`. No longer the primary upload path — the Landing hero is (see above). |
 | `src/hooks/useDocumentProcessor.ts` | Shared upload→process pipeline hook | Uploads file bytes / a URL, drives the processing WebSocket (`extracting`→`analysing`→`ready`), exposes `{ stage, stageMsg, progress, error, session, processing, processFiles, processUrl, reset }`, and fires the `document_uploaded` analytics event. Used by both `Landing` and `UploadZone`. Does **not** navigate — the caller reacts to `session`. |
+| `src/components/WorkspaceHeader.tsx` | Shared top bar for the **non-chat** sections (summary/flashcards/slides/translate/podcast/charts) | A self-contained **copy** of the chat header row (file icon + title, status line, View-summaries drawer, Share, Export, Add files/URLs menu, End session) so those sections match the chat. Chat keeps its own inline header (the reference) — this is not extracted from it. Share/Export act on the **document summary** (no chat transcript in these views); status is a static "Ready". Rendered by `App.tsx` above each tool view; End session runs `endWorkspaceSession`. |
+| `src/components/ModeSwitcher.tsx` | The feature-tab bar (Chat / Summary / … / Charts) | Single source of truth for the tab set (`SWITCH_MODES`), the header labels (`MODE_LABELS`), and the `<ModeSwitcher active onSwitch engaged>` pill row. Rendered by `SectionComposer` at the bottom of every section (chat + the six tool views). An **engaged-but-not-active** tab shows a **filled amber `Star` badge** (top-right) + a `Tooltip` ("Click to pick up where you left off") — the reminder that you have content waiting in that section. |
+| `src/components/SectionComposer.tsx` | **The single shared bottom composer used by EVERY section** (chat + the six tool views) | The one source of the input row (textarea + `MicButton` + proceed button + `ModeSwitcher` tabs), so every section is **pixel-identical**. **The only intended per-section differences are props:** `proceedButton` (the send/stop button for chat, the `Generate …` / `Translate …` button for tools — this is what "differs" between sections and also drives the chatbox width), `placeholder`, and an optional `pickerRow` rendered above the input (the Charts chart-type picker, the Translate language picker). Owns the shared boilerplate: auto-grow (min 44 / **max 120px** everywhere), mic-append, and the Enter behaviour. **Input modes:** pass `value`/`onChange`/`onSubmit`/`disabled`/`showEnterHint`/`inputRef` to control it (chat does this — send-on-Enter, the `↵ send` hint, the connection-gated disable); omit them and the composer owns its own input state and pressing Enter shows a **"Coming soon"** bubble (the tool sections — chatting from a tool view isn't wired yet, `TODO(coming-soon)`). **⚠️ When cross-section chatting is implemented, pass `onSubmit` from the tool views (wired to the real pipeline) so the "Coming soon" branch is never hit** (see `TODO(coming-soon)` in the file). **Follow-up suggestions + Preferences boxes:** renders two **blank** (label-only) headers above the input — **Follow-up suggestions** (`Sparkles`) then **Preferences** (`SlidersHorizontal`) directly below it — **only for the tool sections and only once that section is in `engaged`** (i.e. used at least once — e.g. after the summary is generated). Chat is excluded (`active !== 'chat'`) because it renders its own **populated** follow-ups in `ChatWindow`. Both are placeholders (each wrapped in a `Tooltip label="Coming soon" side="right"`) — no suggestion/preference buttons yet (TODO: populate each with per-item boxes). Replaced the old per-section copies (2026-07-03). |
+| `src/components/WorkspaceComposer.tsx` | Old shared bottom composer — **fully superseded by `SectionComposer` and unused** (not imported anywhere). Safe to delete; kept only as historical reference. | Was a self-contained copy of the chat's bottom area. Its role is now `SectionComposer`'s. |
 | `src/components/ChatWindow.tsx` | The chat experience | Chat WS lifecycle with auto-reconnect, streaming tokens, stop button, suggested questions, summary panel, scroll-to-bottom. Accepts an optional `initialPrompt` — the first message typed on the landing chat box, auto-sent once connected (guarded against resend on reconnect). |
 | `src/components/MessageBubble.tsx` | Renders one message (markdown) | Used for user + assistant + guard-reject + feedback prompts. **Inline citations:** for a finished Sage answer with sources, it runs `buildCitations` over the answer + passages, renders the marked markdown with `react-markdown` `components` overrides (`p`/`li`/`h*`/`td`/`blockquote`) that swap the injected `⟦C{n}⟧` tokens for `<CitationMarker>` (recursing through nested inline nodes). The old collapsible "View sources" list is replaced by a subtle **"Cited from your document · N passages · hover ¹²³ to view"** footer (clicking it opens the full excerpt in `CitationPanel` via `onCiteSource`). Also shows a brief **"Finding sources…"** hint (`awaitingSources`) between the answer finishing and its passages arriving. |
 | `src/components/CitationMarker.tsx` | One inline citation marker (¹²³) + hover popover | Renders a small **bold brand-orange rounded chip** (`bg-brand-50`, `align-super`, inline `fontSize` to beat the 16px CSS floor) so it reads as a tappable citation. On hover/focus a card pops **above** the marker showing the passage with the matched phrase highlighted (`<mark>`), the `¶` location + `% match`. The card has an **invisible bridge** (`pb-2` transparent padding on the popover wrapper) so the cursor can cross up into it without dismissing (plus a 120ms close delay). **Jump to source** calls `onJump(source)` → opens the full `CitationPanel` excerpt. |
 | `src/lib/citations.ts` | Citation grounding heuristics | `buildCitations(answer, sources)` splits the answer into sentence spans, matches each passage to its best-fit sentence by significant-word overlap (greedy, prefers distinct sentences), injects `⟦C{n}⟧` tokens numbered top→bottom, and returns the matched phrase + `¶` location per citation. Pure text heuristics — never changes answer wording, only marker placement. |
+| `src/components/DocumentPanel.tsx` | Slide-in panel showing a document's **full original text** | The sidebar analogue of the citation `CitationPanel` "Jump to source", but for the whole document. **Sits in-flow** (styled like `CitationPanel`: `fixed lg:relative`, `lg:w-96`) between the left sidebar and the main panel, so the chat/tool view **shrinks** to make room rather than being covered; mobile gets a tap-to-dismiss backdrop. Fetches lazily on open via `documentApi.getContent(sessionId, filename)` → backend `GET /document/{id}/content` (`DocumentData.raw_text`). **Toggled** (open/close) either by clicking a filename in `App.tsx`'s left panel (with a `Tooltip`) or via a `ScrollText` icon in the header row of `ChatWindow` + `WorkspaceHeader` (`docPanelOpen`/`onToggleDocPanel` props) — so it's reachable from every section. `openDoc` state + `toggleDocPanel` live in `AppShell`. |
 | `src/components/SummaryCard.tsx` | Document summary display | `compact` variant used in the side panel and summary drawer. |
-| `src/components/FlashcardsView.tsx` | Flashcards study tool | Has a **Share** action (active-card controls + finished screen) that copies/Web-Shares the full Q&A set with a "Made with Talktofile" attribution. |
-| `src/components/SummaryView.tsx` | Full-page document summary | Header **Share** button → copies/Web-Shares the summary with attribution. |
-| `src/components/PodcastView.tsx` | Podcast script tool | **Share** + **Download** both emit the script with the attribution footer. |
-| `src/components/TranslateView.tsx` | Translate tool | Per-document **Share** + **Download .txt**, both with the attribution footer. |
+| `src/components/FlashcardsView.tsx` | Flashcards study tool | Has a **Share** action (active-card controls + finished screen) that copies/Web-Shares the full Q&A set with a "Made with Talktofile" attribution. **Renders its own bottom bar** (like Translate): the **"Generate flashcards"** button sits in the send-button spot and runs the real generation; the cards/progress/results live in the scroll region above. Chat textbox/mic kept for parity. Takes `onSwitchMode` + `engagedModes`; `App.tsx` hides `WorkspaceComposer` for it. |
+| `src/components/SummaryView.tsx` | Full-page document summary | **No longer auto-shown** — starts on an empty hero and reveals the summary only when the user clicks **"Generate summary"** in its **own bottom bar** (like Translate; chat textbox/mic for parity, tabs below). The summary is precomputed by the upload pipeline (`doc.summary`); there's no backend regenerate endpoint, so `generate` reveals it after a brief "Summarising…" beat. `onActivity` fires on generate (not mount). Takes `onSwitchMode` + `engagedModes`. |
+| `src/components/PodcastView.tsx` | Podcast script tool | **Share** + **Download** both emit the script with the attribution footer. **Renders its own bottom bar** (like Translate): the **"Generate podcast script"** button sits in the send-button spot and runs the real generation; the chat textbox/mic are kept for parity ("Coming soon" on send). Takes `onSwitchMode` + `engagedModes` and renders its own `ModeSwitcher`, so `App.tsx` hides `WorkspaceComposer` for it. |
+| `src/components/SlidesView.tsx` | Slide-deck (PPTX) tool (Pro) | **Renders its own bottom bar** (like Translate): the **"Generate slides"** button sits in the send-button spot; for non-Pro it's **disabled with a "Pro only" tooltip** (content shows the upgrade message). Chat textbox/mic kept for parity. Takes `onSwitchMode` + `engagedModes`; `App.tsx` hides `WorkspaceComposer` for it. |
+| `src/components/ChartsView.tsx` | Data-visualisation tool (Recharts) | **Renders its own bottom bar** (like Translate): the **chart-type picker** occupies Translate's language-picker slot and the **"Generate `<Type>` Chart"** button sits in the send-button spot. Old in-content type switcher + "Change chart" removed. Chat textbox/mic kept for parity. Takes `onSwitchMode` + `engagedModes`; `App.tsx` hides `WorkspaceComposer` for it. |
+| `src/components/TranslateView.tsx` | Translate tool | Per-document **Share** + **Download .txt**, both with the attribution footer. **Renders its own bottom bar** (results scroll above; a pinned composer below) instead of using the shared `WorkspaceComposer` — so `App.tsx` **hides `WorkspaceComposer` when `viewMode === 'translate'`**. That bar replaces the composer's "Follow-up suggestions" row with a **"Translate to"** picker (label + language pills with the custom-language input inline to their right, 2 lines) and replaces the send button with a wide **"Translate to `<language>`"** button that runs the translation. The chat textbox + mic are kept (smaller) for parity — sending still shows "Coming soon" (`TODO(coming-soon)`). Renders its own `ModeSwitcher` tabs (takes `onSwitchMode` + `engagedModes`). No inner "Translate" heading (the `WorkspaceHeader` title already says it). |
 | `src/lib/share.ts` | Share/export helpers | `withAttribution()` appends a "Made with Talktofile — <runtime origin>" footer; `downloadText()` (local .txt) and `shareOrCopy()` (Web Share API → clipboard fallback). Used by the four tool views above. Link target is `window.location.origin` — no hardcoded domain. |
 | `src/components/AuthModal.tsx` | Login / signup / password reset | |
 | `src/components/PersonaModal.tsx` | Pro persona configuration | |
@@ -431,7 +438,523 @@ Not built / known gaps:
 - **Visual verification of dark mode not done** — needs the dev server + browser: check brand orange
   reads in dark theme across Landing/Navbar/ChatWindow, the `ThemeToggle`, and 320–1280px.
 
-### 2026-07-01 (latest) — Chat header pinned; fixed workspace page-scroll bug
+### 2026-07-03 (latest) — Blank "Preferences" box added below the follow-up box
+**Done:**
+- Added a second placeholder header, **"Preferences"** (`SlidersHorizontal` icon), to the tool
+  sections in **`SectionComposer.tsx`**, directly **below the follow-up box and above the input**.
+  Same gate (`active !== 'chat' && engaged.has(active)`), same blank label-only treatment, and the
+  same **"Coming soon"** tooltip (right side). Intended to eventually render each user-entered
+  preference as its own box (like a follow-up suggestion); blank for now. Type-check passes.
+
+**Pending / next:**
+- **Populate Preferences** (and Follow-up suggestions) with per-item boxes when that data exists.
+- **Visual verification not done** — confirm the two stacked headers (Follow-up suggestions →
+  Preferences → input) appear only after first Generate, tooltips open right un-clipped (light/dark).
+
+### 2026-07-03 — Blank "Follow-up suggestions" box added to the tool sections
+**Done:**
+- Every **tool section** (Summary/Flashcards/Slides/Translate/Podcast/Charts) now shows a
+  **"Follow-up suggestions"** header (the `Sparkles` + label, matching the chat's box) above the
+  input — but **only after that section has been used at least once**, and **blank for now** (no
+  suggestion buttons yet). Requested to mirror the chat's follow-up box across the other sections.
+- Implemented entirely in **`SectionComposer.tsx`** (the shared bottom composer). Gated on
+  `active !== 'chat' && engaged.has(active)`: the existing **`engaged` set** already tracks
+  "produced content in this section at least once" (fires via each view's `onActivity` →
+  `markEngaged`), so e.g. the box appears the moment the user first clicks **Generate summary** and
+  stays for the session; before that it's hidden. **Chat is excluded** because it renders its own
+  **populated** follow-ups in `ChatWindow` (this would double it up).
+- Placed **above** the optional `pickerRow` (Charts type picker / Translate language picker), so
+  those sections show follow-up header → picker → input → tabs. Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Populate the suggestions** — the box is intentionally empty; when per-section follow-up
+  questions exist, render suggestion buttons under the header (see the chat's grid in
+  `ChatWindow.tsx` ~L717 for the pattern).
+- **Visual verification not done** — confirm each tool section: no box until first Generate, then a
+  blank "Follow-up suggestions" header appears (light/dark, 320–1280px); chat's own box unchanged.
+
+### 2026-07-03 — Unified the bottom composer into one shared `SectionComposer`
+**Done:**
+- **Every section (chat + the six tool views) now renders the same `SectionComposer`**, so the input
+  row is pixel-identical everywhere. This replaces the six near-identical per-section copies (and the
+  chat's own slightly-different copy) that had drifted apart — the user reported the chatbox size/
+  position differing across sections and the mic/proceed button not sitting on the input's row.
+- **New `src/components/SectionComposer.tsx`** owns the shared markup + boilerplate: the textarea
+  (auto-grow, min 44 / **max 120px** everywhere — chat was 140), the live `MicButton`, the proceed
+  button slot, the `↵ send` hint slot, the "Coming soon" bubble, and the `ModeSwitcher` tabs. **The
+  only per-section differences are props:** `proceedButton` (chat's send/stop vs each tool's
+  `Generate …`/`Translate …` button — also what drives the chatbox width), `placeholder`, and an
+  optional `pickerRow` above the input (Charts chart-type picker, Translate language picker).
+- **Two input modes:** chat passes `value`/`onChange`/`onSubmit`/`disabled`/`showEnterHint`/`inputRef`
+  (send-on-Enter, `↵ send` hint, connection-gated disable, keeps its focus-after-send via the shared
+  ref); the tool views pass none of those, so the composer owns its own input state and Enter shows the
+  **"Coming soon"** bubble (`TODO(coming-soon)` unchanged — cross-section chat still isn't wired).
+- **Chat now matches the tools** (per the user's choice): normalised its textarea to `min-w-0` + max
+  120px; it keeps its send/stop button and `↵ send` hint (those are the intended differences). Removed
+  chat's own auto-grow effect / `appendTranscript` / keydown handler (the composer owns them now).
+- Wired all seven: `ChatWindow`, `SummaryView`, `FlashcardsView`, `PodcastView`, `SlidesView`,
+  `ChartsView`, `TranslateView` — each deleted its duplicated input/mic/coming-soon boilerplate and now
+  renders `<SectionComposer …>`. Charts/Translate pass their picker via `pickerRow`; Slides keeps its
+  Pro-gate tooltip on `proceedButton`. `WorkspaceComposer.tsx` was already unused and is now fully
+  superseded (safe to delete).
+- **Follow-up polish (verified live with the user):**
+  - **Row alignment:** the input row is `items-center` (was `items-end`) so the mic + proceed button
+    sit level with the textarea instead of a few px low.
+  - **Textarea height:** `py-2.5` + `leading-normal` so the collapsed single-line height matches the
+    44px mic/button.
+  - **Removed the send/stop button `shadow-sm`** (chat only had it; the tool buttons never did) — no
+    section's composer casts a shadow now.
+  - **Hid the textarea scrollbar** (`[scrollbar-width:none] [&::-webkit-scrollbar]:hidden`). The
+    auto-grow already fits the box to content, so the thin scrollbar on the right edge (the "white
+    mark" the user saw in dark mode) was just noise.
+- **Dev-server gotcha that cost time this session:** the user's browser showed a stale layout across
+  several edits even after a hard refresh + a fresh browser, while `curl http://localhost:5173/src/
+  components/SectionComposer.tsx` proved Vite was serving the new code. A temporary on-screen `DEBUG
+  v3` banner + a mount `console.log` confirmed the browser *was* finally loading the live build (the
+  earlier staleness was a dead HMR socket / cached tab). Both debug markers have been removed. **If a
+  change "isn't applying," curl the module straight from Vite to isolate server vs. browser before
+  chasing the code.**
+- Type-check (`tsc --noEmit`) passes; verified visually with the user (light + dark).
+
+### 2026-07-03 — Summary: no longer auto-shown; "Generate summary" button + own bottom bar
+**Done:**
+- **Summary is no longer displayed automatically.** `SummaryView.tsx` now starts on an empty-state hero
+  and only reveals the summary when the user clicks **"Generate summary"** — matching Flashcards/Podcast/
+  Slides/Charts. The button lives in the section's **own pinned bottom bar** (chat textbox + mic for
+  parity, wide generate button in the send-button spot, `ModeSwitcher` tabs); once revealed it reads
+  "Regenerate summary".
+- **Important nuance:** the summary is still **produced by the upload pipeline** (analyst agent) and lives
+  on `session.documents[i].summary` — there is **no backend regenerate endpoint**. So `generate` here
+  **reveals the precomputed summary** after a brief (~500ms) "Summarising…" beat for parity; it does not
+  re-run anything server-side. Added a "No summary available for this file." fallback. If a real on-demand
+  (re)summarise is wanted, add a backend `/tools/summary/{id}` endpoint + `toolsApi.summary` and call it
+  from `generate`.
+- **`onActivity` star now fires on generate** (was: on mount), so Summary only earns its "pick up where you
+  left off" star once the user has revealed it — consistent with the other sections.
+- Props switched to `onSwitchMode` + `engagedModes`. **All six tool sections now render their own bottom
+  bar**, so the shared **`WorkspaceComposer` is no longer used** — removed its render + import from
+  `App.tsx` (the `WorkspaceComposer.tsx` file is left in place, now unused, as a reference composer).
+  The **left-panel "Overview" card and the WorkspaceHeader "View summaries"/Share/Export still read
+  `doc.summary` directly** and are unaffected (they still show/act on the precomputed summary).
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Visual verification not done** — check Summary (single + multi-file, light/dark, 320–1280px): empty
+  hero → click Generate → brief spinner → summary cards appear; button flips to "Regenerate summary".
+- Consider whether the left-panel Overview showing the summary while the Summary tab is button-gated is
+  the desired behaviour (slight inconsistency, out of scope here).
+
+### 2026-07-03 — Flashcards too: generate button moved into a Translate-style bottom bar
+**Done:**
+- Extended the same-day change below to **Flashcards**: the **"Generate flashcards"** button moved out of
+  the centered empty-state hero into a **pinned bottom bar `FlashcardsView.tsx` now renders itself**
+  (chat textbox + mic for parity, the wide generate button in the send-button spot, `ModeSwitcher` tabs),
+  matching Translate/Podcast/Slides/Charts. The button runs the real generation (says "Regenerate
+  flashcards" once a set exists). The cards state (fixed progress header + scrollable card list +
+  completion panel) now lives in the scroll region above the bar. Props switched to
+  `onSwitchMode` + `engagedModes`; **`App.tsx`** passes them and **added `flashcards`** to the set of
+  modes for which the shared `WorkspaceComposer` is hidden. **Summary is now the only section still on
+  the shared `WorkspaceComposer`.** Type-check (`tsc --noEmit`) passes.
+
+### 2026-07-03 — Podcast/Slides/Charts: generate button moved into a Translate-style bottom bar
+**Done:**
+- Moved the primary action button of **Podcast** ("Generate podcast script"), **Slides** ("Generate
+  slides") and **Charts** ("Generate `<Type>` Chart") out of the centered empty-state hero and into a
+  **pinned bottom bar each view now renders itself**, exactly where Translate's "Translate to `<lang>`"
+  button sits (the send-button spot). The button **still runs the real generation** (not "Coming soon").
+- Each of `PodcastView.tsx`, `SlidesView.tsx`, `ChartsView.tsx` was restructured to
+  `flex flex-col h-full overflow-hidden`: a scrollable content region on top (the hero/description,
+  results, chart, dialogue, etc.) and a `flex-shrink-0` bottom bar mirroring `TranslateView`'s — the
+  chat textbox + live `MicButton` (parity; sending still shows the **"Coming soon"** bubble,
+  `TODO(coming-soon)`), the wide **brand-orange generate button** in place of send, and the
+  `ModeSwitcher` tabs. **Charts** additionally puts its **chart-type picker** in the bottom bar (pills,
+  in the slot Translate uses for its language picker); its old in-content chart-type switcher +
+  "Change chart" button were removed as redundant. **Slides** keeps its Pro gate: for non-Pro the
+  content shows the upgrade message and the bottom-bar generate button is **disabled with a "Pro only"
+  tooltip**.
+- **Props change:** these three views now take `onSwitchMode` + `engagedModes` (like Translate) instead
+  of `onStartChat`, so they render their own tabs; the in-view "Chat" buttons now call
+  `onSwitchMode('chat')`. **`App.tsx`** passes those props and **hides the shared `WorkspaceComposer`**
+  for `translate | podcast | slides | charts` (the condition was generalised from translate-only).
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Visual verification not done** — run the dev server and check each section (light/dark, 320–1280px):
+  the generate button sits in the same spot as Translate's, actually generates, the textbox shrinks as
+  the button widens, Charts' type pills wrap cleanly and drive the button label, Slides shows the
+  "Pro only" tooltip for free users, and the tabs still switch sections.
+
+### 2026-07-02 — Translate: typed custom language gated off ("Coming soon")
+**Done:**
+- The Translate section's **"Or type any language…"** input is now non-functional on purpose: the
+  backend doesn't validate arbitrary typed languages yet, so running one could request a nonexistent
+  language. In `TranslateView.tsx`, when the user has typed a custom language (`isCustomLang =
+  customLang.trim().length > 0`):
+  - the **"Translate to `<language>`" button is disabled** (`disabled-cursor-not-allowed`) and
+    wrapped in the shared `Tooltip` showing **"Coming soon"** on hover (`side="top"`); picking one
+    of the `LANGUAGES` pills clears `customLang`, so the button re-enables.
+  - `handleTranslate` **early-returns** if `isCustomLang`, so clicking never advances to a result.
+- Only when a **preset pill** is selected does translation run. Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Backend still needs to validate the target language** before the typed input can be re-enabled
+  (remove the `isCustomLang` gate + `handleTranslate` guard when that lands).
+- **Visual verification not done** — type a language → button greys out + "Coming soon" tooltip on
+  hover, click does nothing; pick a pill → button re-enables and translates (light/dark, 320–1280px).
+
+### 2026-07-02 — Original-document panel: tooltip, click-to-toggle, header icon across all sections
+**Done:**
+- **Sidebar filename now toggles** the original-document panel (click to show, click again to hide),
+  and carries a shared `Tooltip` (`side="bottom"`): *"Click here to see the original document"* →
+  flips to *"…hide the original document"* while open (`App.tsx`).
+- **Added a `ScrollText` toggle icon to the header row** (next to the sidebar-collapse toggle), in
+  **both** `ChatWindow` (chat) and `WorkspaceHeader` (summary/flashcards/slides/translate/podcast/
+  charts) — so the original document is reachable from **every** section, not just via the sidebar.
+  It highlights brand-orange while the panel is open; `title` flips *See/Hide the original document*.
+- **Wiring:** `App.tsx` owns the toggle — `toggleDocPanel()` closes the panel if any doc is open, else
+  opens the **active-overview** document (`activeDocName`, first file when single). New props
+  `docPanelOpen` + `onToggleDocPanel` threaded into `ChatWindow` and `WorkspaceHeader`.
+- **Smoother open/close animation.** The panel now animates its **width** (not an `x`-slide), so the
+  chat reflows gracefully as it opens *and* closes instead of snapping back when the old slide-out
+  unmounted. Fixed-width content is anchored left inside an `overflow-hidden` shell (clean reveal, no
+  squish); slow easeOutQuint ease (`[0.22,1,0.36,1]`, ~0.45s) + a subtle content fade/slide and a
+  soft right-edge shadow. See `DocumentPanel.tsx`.
+- Type-check (`tsc --noEmit`) passes. No backend change (uses the existing `/content` route).
+
+**Pending / next:**
+- **Visual verification not done** — confirm the sidebar tooltip + toggle, the width-reveal
+  open/close feels smooth (chat reflows, no snap), and that the header `ScrollText` icon opens/closes
+  the panel from chat and each tool section (light/dark, its active state highlights). On mobile the
+  header icon is the only way in (sidebar is `lg+`).
+
+### 2026-07-02 — Translate section: controls moved into its own bottom bar
+**Done:**
+- Reworked the **Translate** section so its language controls live in a **bottom bar it renders
+  itself** (results scroll above, controls pinned below), instead of a picker card in the scroll area
+  + the shared `WorkspaceComposer`. Per the user's choice, this is **translate-only**: `App.tsx` now
+  **hides `WorkspaceComposer` when `viewMode === 'translate'`** and passes `TranslateView`
+  `onSwitchMode` + `engagedModes` (it renders its own `ModeSwitcher` tabs). `onStartChat` prop dropped.
+- **`TranslateView.tsx`** restructured (`flex flex-col h-full`; scroll region + `flex-shrink-0` bar):
+  - **Removed the inner "Translate" heading** (Globe + `<h2>`) — redundant with the `WorkspaceHeader`
+    title. Kept the amber image-only note + the results list.
+  - Bottom bar: a **"Translate to"** picker replaces the composer's "Follow-up suggestions" row —
+    label, then language pills with the **"Or type any language…" input inline to their right** (2
+    lines, no separate row for the custom input). The **wide "Translate to `<language>`" button**
+    replaces the send button; the chat textbox is kept but **smaller** (`flex-1 min-w-0`, so the wider
+    button squeezes it) with the live mic. Sending still shows the **"Coming soon"** bubble
+    (`TODO(coming-soon)` — chatting from tool sections isn't wired yet).
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Visual verification not done** — run the dev server and check the Translate bar (light/dark,
+  320–1280px): pills + custom input wrap cleanly to ~2 lines, the "Translate to X" button label
+  updates with the selection, the textbox shrinks as the button widens, translation still runs +
+  results render, and the tabs still switch sections. Confirm the other five sections still show the
+  normal shared composer.
+
+### 2026-07-02 — Left panel: filename is now a clickable link that opens the full original document
+**Done:**
+- **Removed the "DOCUMENT" heading + mode badge** from the left panel's first card (`App.tsx`). The
+  card now just lists the file(s); each **filename is rendered in brand orange as a clickable button**
+  (hover underline) instead of plain slate text.
+- **Clicking a filename opens the full original document** in a slide-in panel (`DocumentPanel`,
+  new) — the sidebar analogue of the citation "Jump to source" panel, but showing the **whole**
+  extracted text rather than one passage. Slides in from the left over a dim backdrop; tap the
+  backdrop or the X to close. Fetches lazily on open (loading spinner → text; brand-orange error if
+  the session expired).
+- **New backend endpoint** `GET /document/{session_id}/content?filename=…` (`routers/document.py`)
+  returns `{ filename, content }` from the in-memory session's `DocumentData.raw_text` (auth-scoped;
+  404 if the file isn't in the session). For a URL/YouTube source this is the fetched page text /
+  transcript. Nothing is written to disk — served straight from memory.
+- **Frontend wiring:** `documentApi.getContent(sessionId, filename)` (`api/client.ts`); `App.tsx`
+  gains `openDoc` state (reset on `handleReset`/`enterWorkspace`) and renders `<DocumentPanel>` via
+  `AnimatePresence` inside the workspace. Removed the now-dead `modeBadge` (+ its `GitCompare`/`Files`
+  imports).
+- Type-check (`tsc --noEmit`) passes; backend `import main` OK.
+
+**Pending / next:**
+- **⚠️ Restart the backend** so the new `/content` route registers (the `--reload` gotcha — a stale
+  uvicorn returns 404). Quick check:
+  `curl -s "http://localhost:9099/api/document/x/content?filename=y" -o /dev/null -w "%{http_code}"`
+  → 401/403 = live, 404 = restart.
+- **Visual verification not done** — click a filename in the left panel (single + multi-file, light/
+  dark), confirm the panel slides in with the full text, scrolls, closes via backdrop/X, and that a
+  long transcript renders readably. Left panel is `lg+` only.
+
+### 2026-07-02 — Left document panel: "Overview" heading + switchable per-file overview
+**Done:**
+- Renamed the **left document panel's summary card heading from "Summary" to "Overview"** (the
+  single-file case in `App.tsx`). Only that left-column heading changed; the **Summary feature tab,
+  the main-section header, and the chat are all untouched** (still read "Summary").
+- Made the left-panel **overview switchable when there's more than one file.** Previously it stacked
+  one overview card per document; now it renders a **single card with a button row (one pill per file,
+  labelled with the filename + a `FileText` icon)** that swaps which file's overview `SummaryCard` is
+  shown. The **button row only renders when `documents.length > 1`** (single-file view is unchanged —
+  no buttons, heading "Overview"). New `activeOverview` index state in `AppShell`, clamped via
+  `Math.min(activeOverview, docs.length - 1)` so it stays valid if a file is removed; active pill is
+  brand-orange (matches `ModeSwitcher`). Falls back to "No overview available for this file." if the
+  selected doc has no summary.
+- (Discarded earlier this session, per user correction: a first pass renamed the *main-section* header
+  via `WorkspaceHeader` and put the switcher in `SummaryView` — both **reverted**. The rename + switch
+  belong to the **left column** only.)
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Visual verification not done** — with 2+ files (Pro), confirm the left-panel pills appear, swap the
+  shown overview, truncate long filenames (they have `max-w-full` + `truncate` + a `title` tooltip),
+  and wrap cleanly in the narrow `w-72`/`xl:w-80` panel (light/dark). Single-file: no pills, heading
+  reads "Overview". Left panel is `lg+` only.
+
+### 2026-07-02 — Header "Add files/URLs": right-aligned URL box, then made it "Coming soon"
+**Done:**
+- The mid-session **Add files / Add URLs** control (the `+` menu in the chat header **and** the
+  shared `WorkspaceHeader` for summary/flashcards/etc.) was confirmed to be **frontend-only** —
+  added sources were never uploaded/merged (no backend add-to-session endpoint exists; only
+  `remove-file`). Two-phase change per the user:
+  - **Phase 1 — URL box alignment.** Made the whole right-hand **button group** the positioning
+    context (`relative` on the `flex items-center gap-2` group; removed `relative` from the inner
+    `+` wrapper) so the dropdown's `right-0` edge coincides exactly with the **End session** button's
+    right edge (End session is the group's last child). The URL-input popover widens to `w-80` while
+    adding a URL (`w-64` for the plain menu). Robust across breakpoints (no hardcoded px offset that
+    would drift when the "End session" label hides below `sm`). **Side effect (accepted by user):**
+    the plain Add-files/URLs menu now also anchors flush-right under End session, not under the `+`.
+  - **Phase 2 — non-functional "Coming soon".** `openAddFiles` / `startAddUrl` in both
+    `ChatWindow.tsx` and `WorkspaceHeader.tsx` now just `setAddHint('Coming soon!')` — no file
+    picker, no URL box (`addingUrl` stays false, so that branch + the source chips never render).
+    The scaffold (URL input JSX, hidden file input, `onExtraFilesSelected`/`saveExtraUrl`/
+    `removeExtra`, state) is **kept in place** for when a backend add-to-session endpoint lands —
+    reverting the two handlers re-enables it. `tsconfig` has `noUnusedLocals:false`, so the now-dead
+    handlers/refs don't break the build.
+- **Incidental build fix:** `WorkspaceComposer.tsx` (untracked, from the earlier composer session)
+  rendered `<Mic />` without importing it — `tsc` was failing repo-wide before this. Added `Mic` to
+  its lucide import.
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Visual verification not done** — confirm in a browser (chat + a tool section, light/dark,
+  320–1280px): the plain menu + URL box right-edge sit on End session's right edge; clicking Add
+  files / Add URLs shows the orange "Coming soon!" note and never opens a picker/URL box.
+- The real feature still needs a **backend add-to-session endpoint** (extract→embed→append doc to
+  the in-memory session, refresh suggested questions) before Phase-2 can be reverted to live wiring.
+
+### 2026-07-02 — Mode-tab description tooltips: added then reverted (felt like over-information)
+**Done:**
+- Briefly added the Landing-page mode blurbs (Chat / Summary / Flashcards / …) as hover tooltips on
+  the feature tabs in `ModeSwitcher.tsx`, shown only on tabs without the amber `*` star. **Reverted
+  the same session** — the user felt the per-section descriptions were over-informative. `ModeSwitcher`
+  is back to its prior state: **only the `*` (engaged-but-not-active) tabs show a tooltip** ("Click to
+  pick up where you left off"); un-starred tabs have no tooltip. Type-check (`tsc --noEmit`) passes.
+
+### 2026-07-02 — Summary section trimmed; non-chat sections get a chat-style composer
+**Done:**
+- **Trimmed the Summary section's redundant chrome** (`SummaryView.tsx`): removed the inner
+  "Document Summary" title + Share + Start-chatting header (the shared `WorkspaceHeader` + Chat tab
+  already cover these), the `doc_type` badge, the bottom "Chat with your document" button, and the
+  "Want to explore further?" suggested-questions block. Also **fixed invisible-in-dark-mode headings**
+  — Overview/Key Points/Topics `<h3>`s had conflicting `text-slate-800 text-brand-600` and no dark
+  variant; now `text-slate-800 dark:text-slate-100`. `onStartChat` kept in `Props` (parent still
+  passes it) but dropped from the destructure.
+- **New `src/components/WorkspaceComposer.tsx`** — a self-contained copy of the chat's bottom area
+  (Follow-up suggestions header + input + `ModeSwitcher` tabs) rendered at the bottom of every non-chat
+  section, so they match the chat. **Chat is untouched.** `App.tsx` now renders `<WorkspaceComposer>`
+  in the tool layer's footer (replaced the standalone `ModeSwitcher`; dropped that import).
+  - **Follow-up suggestions list is intentionally blank for now.**
+  - The **textarea, mic (real `MicButton` voice dictation), and send button are all live** — the
+    only difference from chat is you can't send: clicking send (or pressing Enter) shows a
+    **"Coming soon"** bubble above the button (sending isn't wired to a backend).
+  - **⚠️ TODO when cross-section chatting is built:** wire `handleSend` in `WorkspaceComposer.tsx` to
+    the real chat pipeline and **REMOVE the "Coming soon" bubble** (search `TODO(coming-soon)`).
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Visual verification not done** — check the composer matches the chat bottom (light/dark, 320–1280px)
+  across each section; confirm typing works, send enables with text, "Coming soon" shows on send, and the
+  blank follow-up header reads okay.
+
+### 2026-07-02 — Charts/Podcast off-brand red → orange; error/warning boxes recoloured to brand
+**Done:**
+- **Fixed off-brand red used as a brand accent.** `ChartsView.tsx` (chart `PALETTE[0]` + all UI
+  accents: loading spinner, empty-state icon, selected chart-type buttons, Generate button, header
+  hover states) and `PodcastView.tsx` (Generate button, input focus border/ring, hover borders) were
+  still using the old red `#E60026` instead of brand orange `#E2611B`. All swapped to `#E2611B`.
+- **Error/warning message boxes recoloured red → brand orange** (user decision: warnings/errors →
+  orange, destructive actions stay red). Converted the standalone error/warning *notice* boxes
+  (`text-red-* bg-red-50 border-red-200` + dark variants → the `brand` scale) in: `ChartsView` (×2),
+  `ChatWindow` (connection-lost toast + Retry), `SlidesView`, `TranslateView`, `PodcastView` (×2),
+  `FlashcardsView`, `AuthModal` (×3), `ProfileModal`, `PersonaModal`, `FeedbackModal`, `UploadZone`
+  (the error notice), and `Landing` (source-row error icon/text, hero error, URL error, error box).
+- **Deliberately kept red** (semantic, not off-brand): destructive **delete/remove/close** hover
+  states, required-field `*` asterisks, Flashcards **Hard** difficulty + **Wrong answer** button,
+  message **downvote**. Two **functional state-distinction** cases also kept red because orange is
+  already the adjacent state there: the **MicButton error** tint/bubble (recording state is already
+  brand orange) and the **UploadZone drag-reject** border (valid-drag state is already brand orange) —
+  recolouring these to orange would make the two states indistinguishable.
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Visual verification not done** — sweep light/dark to confirm the recoloured error/warning boxes
+  read as intended (brand-orange notices, not danger-red), and that charts/podcast accents are orange.
+  Re-check the mic error + drag-reject still read as distinct red states.
+
+### 2026-07-02 — Persistent tab sections + "pick up where you left off" stars
+**Done:**
+- **Every section now keeps its state across tab switches.** `App.tsx` mounts each **visited**
+  tool view (`SummaryView`/`FlashcardsView`/…) and keeps it mounted (`hidden` when inactive), just
+  like chat — so generated flashcards / podcast script / translation / chart survive hopping away
+  and back. New `visited: Set<AppMode>` state (seeded on entry + grown by `switchMode`); the tool
+  views render in a persistent `TOOL_MODES.filter(visited).map(...)` layer with the shared
+  `WorkspaceHeader` + `ModeSwitcher` around them.
+- **"Pick up where you left off" stars.** New `engaged: Set<AppMode>` tracks sections the user has
+  **produced content in**; an engaged-but-not-active tab shows a filled amber `Star` + a `Tooltip`.
+  Wiring: each view takes an optional `onActivity?()` → `markEngaged(mode)`. Chat fires it on send
+  (`ChatWindow`, via an `onActivityRef` to avoid dep churn); Flashcards/Podcast/Translate/Charts fire
+  after a successful generate; Slides after the PPTX downloads; **Summary fires on mount** (its
+  content is produced by the upload pipeline, so it's present the moment you open it). `ModeSwitcher`
+  gained an `engaged` prop and renders the star only for `engaged && !active` tabs.
+- `ChatWindow` gained `engagedModes` + `onActivity` props and passes `engaged` to its own switcher.
+  All tab clicks (chat switcher, tool switcher, tool views' "Start chatting") now go through
+  `switchMode` so visited-tracking stays consistent.
+- Type-check + `npm run build` both pass.
+
+**Pending / next:**
+- **Visual verification not done** — confirm: (1) generated content really survives Flashcards→Chat→
+  Flashcards; (2) the star + tooltip render un-clipped at the bottom tab bar (light/dark, 320–1280px);
+  (3) Summary starring on mere open feels right (it stars as soon as you leave it — flagged this to
+  the user as a deliberate choice since its content is always present).
+- Chat now opens a WebSocket even when the user lands directly in a non-chat section (chat is always
+  mounted). Harmless, and desirable for instant tab-switching, but note the extra idle connection.
+
+### 2026-07-02 — Feature tabs wired up: switch sections in-workspace; header shows section name
+**Done:**
+- **The in-chat feature switcher is now functional.** The pill row (Chat / Summary / Flashcards /
+  Slides / Translate / Podcasts / Charts) switches `viewMode` via a new `onSwitchMode` callback
+  threaded from `App.tsx` — clicking a tab opens that section on the **same live session**, exactly
+  like picking it on the Landing page (no upload step). The active tab reads orange.
+- **New `src/components/ModeSwitcher.tsx`** — the single source of truth for the tab set + labels.
+  Exports `SWITCH_MODES`, `MODE_LABELS`, and the `<ModeSwitcher active onSwitch>` bar. Rendered at
+  the **bottom of the chat** (inside `ChatWindow`) **and the bottom of every tool view** (in
+  `App.tsx`, below the scroll area) so you can tab between sections from anywhere.
+- **True browser-tab behaviour: chat state is preserved.** `App.tsx` now keeps `<ChatWindow>`
+  **mounted but `hidden`** while on a tool view (instead of unmounting it), so the conversation,
+  WebSocket and history survive when hopping to Summary/etc. and back. Guarded the landing-prompt
+  auto-send with `selectedMode === 'chat'` so a prompt typed alongside a non-chat mode can't silently
+  fire in the now-always-mounted background chat.
+- **Header title = active section name.** The row under the navbar now shows **Chat / Summary /
+  Flashcards / …** (`MODE_LABELS[mode]`) instead of the filename, in both `ChatWindow`'s inline header
+  and `WorkspaceHeader` (new `mode` prop). The filename(s) stay reachable via the hover tooltip on
+  that row and the left document panel.
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Visual verification not done** — check the tab bar + new header title (light/dark, 320–1280px)
+  across chat and each tool section, and confirm chat history survives a Chat→Summary→Chat round-trip.
+- The tool views still have their **own inner headers** (e.g. SummaryView's "Document Summary" +
+  Start chatting), so those sections still show a header row plus the shared bar — the "Start
+  chatting" buttons are now redundant with the Chat tab and could be trimmed.
+
+### 2026-07-02 — Shared WorkspaceHeader: chat's header row duplicated onto the other sections
+**Done:**
+- The chat header row (file icon + title, status line, **View summaries** drawer, **Share**, **Export**,
+  **Add files/URLs**, **End session**) now appears **on top of every non-chat section** (summary,
+  flashcards, slides, translate, podcast, charts). Chat is the untouched reference.
+- **New `src/components/WorkspaceHeader.tsx`** — a self-contained *copy* of the chat header (not an
+  extraction, so `ChatWindow` is unchanged). Duplicates all the row's properties + the summary drawer
+  + the Add-files/URLs scaffold (Pro-gated, additive). Session-level adaptations for views with no
+  chat transcript: **Share/Export operate on the document summary**, and the status shows a static
+  green **"Ready"** (no chat WS in these views).
+- **`App.tsx`** wiring: the main panel now renders `<ChatWindow>` as-is for `viewMode === 'chat'`, and
+  for every other mode renders `<WorkspaceHeader>` above the (lazy) tool view in a scroll wrapper.
+  New `endWorkspaceSession` (deletes the server session via `documentApi.deleteSession`, then
+  `handleReset`) backs the header's End session; added the `documentApi` import.
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- The tool views still have their **own inner headers** (e.g. SummaryView's "Document Summary" +
+  Share + Start chatting), so those sections now show **two header rows**. Decide whether to trim the
+  per-view headers now that the shared bar carries the session-level actions.
+- These sections are only reachable by picking that mode on the **Landing page** (the in-chat
+  feature-switcher buttons are still display-only). Wiring the switcher is still pending.
+- Add-files chips remain a frontend scaffold (no backend add-to-session). **Visual verification not
+  done** — check the shared header (light/dark, 320–1280px) above each section.
+
+### 2026-07-02 — Chat header: replaced confusing "Upload new file(s)" with additive Add files/URLs
+**Done:**
+- **Removed the confusing `↻` "Upload new file(s)" reset button** from the `ChatWindow` header (it
+  threw away the whole session — read as "add files" but actually *removed* the current file).
+- **Replaced it with a `+` (Plus) icon button** that opens a small dropdown popover matching the
+  home-page (Landing) add-more pattern: **"Add files"** and **"Add URLs"** rows (orange, Plus icons),
+  a URL input when adding a link, and added-source chips with a remove (X). Click-away backdrop closes it.
+- **Pro-gated & additive:** non-Pro users clicking either option get an inline upgrade hint (same as
+  the Landing `isPro` gate); adding a source **never touches the current document** (chips prepend,
+  newest on top). Session reset now lives only on **End session** (still calls `onReset`).
+- **Frontend scaffold only (consistent with the Landing add-more, per CLAUDE.md):** added files/URLs
+  show as chips but are **not yet uploaded or merged into the live session** — that needs a backend
+  *add-to-session* endpoint (only `remove-file` exists today). Wiring it for real is the next step.
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Backend add-to-session endpoint** + wire the chat "Add files/URLs" (and the Landing scaffold) to
+  actually ingest/merge/re-index the new sources. Until then the chips are display-only.
+- **Visual verification not done** — check the `+` popover (light/dark, 320–1280px), the Pro gate
+  hint for free users, and that adding a source leaves the current document intact.
+
+### 2026-07-02 — Chat: feature-switcher buttons, input hint moved, Share chat button
+**Done:**
+- **Feature-switcher buttons in the chatbox (frontend only, display-only).** Added a centered,
+  wrapping row of pill buttons below the chat input in `ChatWindow.tsx` — the same set as the
+  Landing mode tabs (Chat / Summary / Flashcards / Slides / Translate / Podcasts / Charts), **labels
+  only, no blurbs**. `SWITCH_MODES` const drives them; "Chat" reads as the active (orange) pill.
+  **Clicking does nothing yet** — the switching functionality is deliberately deferred to a later
+  step (will thread a `setViewMode` callback from `App.tsx`; open question then is whether to keep
+  the live chat conversation mounted across switches, since `ChatWindow` currently unmounts when you
+  leave chat).
+- **Input hint moved into the placeholder.** Removed the "Answers drawn only from your document ·
+  Shift+Enter for new line" caption under the input; the textarea placeholder is now
+  "Ask anything about the document. Shift+Enter for a new line."
+- **Share chat button** added to the chat header (top bar, next to Export/Restart/End session).
+  Works the same way as the summary share: builds a plain-text transcript (`You:` / `Sage:` turns)
+  with the standard `withAttribution` footer and calls `shareOrCopy` (native Web Share sheet →
+  clipboard fallback). Shows an orange `Check` on success; disabled until there's a real exchange
+  (same `< 2 messages` guard as Export).
+- **Green → orange** on the summary share confirmation (`SummaryView` `Check` icon `text-green-600`
+  → `text-[#E2611B]`), and the new chat share uses the same orange tick.
+- **Share window theming — won't fix (out of our control).** The "share window" is the **native
+  OS/browser share sheet** (`navigator.share`); its light/dark look follows Windows/the browser, not
+  our app's dark-mode toggle, so it can't be themed from the frontend. Offered to build a custom
+  in-app themed share dialog instead; **user chose to keep the native sheet as-is.**
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Wire up the feature-switcher buttons** (next step): make them actually switch `viewMode`, and
+  decide whether to preserve the in-flight chat conversation across switches.
+- **Visual verification not done** — check the switcher row + new Share button at 320–1280px and in
+  dark mode; confirm the transcript share copies/shares correctly.
+
+### 2026-07-02 — Dark-mode fixes: autofill white flash + light-only error/warning boxes
+**Done:**
+- **Root cause of "textbox turned white when I picked a previously entered YouTube link":** browser
+  **autofill**. Chromium paints its own light background on an autofilled field (`-webkit-autofill`)
+  and ignores our Tailwind `dark:` classes, so the input flashed white in dark mode. Fixed in
+  `index.css` with a global `input/textarea:-webkit-autofill` override (inset box-shadow forcing the
+  field's own colour — white in light, `#0f172a` in dark — plus `-webkit-text-fill-color`/`caret-color`
+  and the long-transition trick). Applies to every input site-wide.
+- **Fixed error/warning boxes that had no `dark:` variant** (were light tint on the dark page):
+  `Landing.tsx` (the URL/YouTube error box — the one the user hit), `ChatWindow.tsx` (connection-lost
+  toast + Retry), `AuthModal.tsx` (login/reset error boxes ×3, the amber session-expired notice, the
+  offer-signup error), `FeedbackModal.tsx`, `PersonaModal.tsx` (error + green "saved"),
+  `ProfileModal.tsx` (error + green "saved"), `FlashcardsView.tsx` (difficulty badges + the
+  wrong/right answer buttons), `MicButton.tsx` (error tint), `UploadZone.tsx` (drag-reject / drag-active
+  / processing dropzone states + red error + amber dup-warning). All now use the standard dark tint
+  pattern already used elsewhere: `dark:bg-<c>-500/10 dark:border-<c>-500/30 dark:text-<c>-400`.
+- Type-check (`tsc --noEmit`) passes. Changes HMR into the running dev server.
+
+**Pending / next:**
+- **Visual verification not done** — sweep in a browser in dark mode: trigger a URL/YouTube upload
+  error (light box gone), the modals' error/success states, flashcards buttons, and confirm picking a
+  saved value from browser autofill no longer whitens the input. The Recharts panel in `ChartsView`
+  stays intentionally light (documented earlier) — not a bug.
+
+### 2026-07-01 — Chat header pinned; fixed workspace page-scroll bug
 **Done:**
 - The chat header row (filename + connection status + BookOpen/Download/Restart/**End session**
   buttons) now **stays fixed under the navbar** while the conversation scrolls.
