@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   BarChart2, TrendingUp, PieChart, ScatterChart, AreaChart,
-  Loader2, MessageSquare, RefreshCw, AlertCircle,
+  Loader2, MessageSquare, AlertCircle,
 } from 'lucide-react'
 import {
   BarChart, LineChart, AreaChart as RechartsArea, PieChart as RechartsPie,
@@ -9,13 +9,21 @@ import {
   Bar, Line, Area, Pie, Cell, Scatter, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
-import type { SessionInfo } from '../types'
+import type { SessionInfo, AppMode } from '../types'
 import type { ChartData } from '../api/client'
 import { toolsApi } from '../api/client'
+import SectionComposer from './SectionComposer'
+import HintTooltip from './Tooltip'
 
 interface Props {
   session: SessionInfo
-  onStartChat: () => void
+  // Feature-tab switching (this section renders its own bottom bar with the tabs,
+  // instead of the shared WorkspaceComposer — like Translate).
+  onSwitchMode: (mode: AppMode) => void
+  engagedModes: Set<AppMode>
+  // Fire once a chart has been generated, so this section earns its "pick up where you
+  // left off" star.
+  onActivity?: () => void
 }
 
 const CHART_TYPES = [
@@ -26,7 +34,7 @@ const CHART_TYPES = [
   { id: 'scatter', label: 'Scatter', Icon: ScatterChart, desc: 'Correlation between two variables' },
 ]
 
-const PALETTE = ['#E60026', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316']
+const PALETTE = ['#E2611B', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316']
 
 function buildRechartsData(chart: ChartData) {
   return chart.labels.map((label, i) => {
@@ -126,11 +134,13 @@ function ChartRenderer({ chart }: { chart: ChartData }) {
   return null
 }
 
-export default function ChartsView({ session, onStartChat }: Props) {
+export default function ChartsView({ session, onSwitchMode, engagedModes, onActivity }: Props) {
   const [chartType, setChartType] = useState('bar')
   const [chart, setChart] = useState<ChartData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const activeType = CHART_TYPES.find((c) => c.id === chartType)
 
   const generate = async () => {
     setLoading(true)
@@ -138,6 +148,7 @@ export default function ChartsView({ session, onStartChat }: Props) {
     try {
       const res = await toolsApi.chart(session.session_id, chartType)
       setChart(res.data)
+      onActivity?.()
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to generate chart. Please try again.')
     } finally {
@@ -145,116 +156,114 @@ export default function ChartsView({ session, onStartChat }: Props) {
     }
   }
 
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center h-full gap-4">
-      <Loader2 className="w-8 h-8 text-[#E60026] animate-spin" />
-      <p className="text-slate-600 dark:text-slate-300 text-sm">Analysing your data…</p>
-    </div>
-  )
-
-  if (!chart) return (
-    <div className="flex flex-col items-center justify-center h-full gap-6 p-8 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-[#E60026]/10 flex items-center justify-center">
-        <BarChart2 className="w-8 h-8 text-[#E60026]" />
-      </div>
-      <div>
-        <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100 mb-2">Visualise Your Data</h2>
-        <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">
-          Choose a chart type and we'll turn your spreadsheet into a visual. Works with Excel (.xlsx) and CSV files.
-        </p>
-      </div>
-
-      {error && (
-        <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3 max-w-sm text-left dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-400">
-          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full max-w-md">
-        {CHART_TYPES.map(({ id, label, Icon, desc }) => (
-          <button
-            key={id}
-            onClick={() => setChartType(id)}
-            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 text-center transition-all ${
-              chartType === id
-                ? 'border-[#E60026] bg-[#E60026]/5 text-[#E60026]'
-                : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'
-            }`}
-          >
-            <Icon className="w-6 h-6" />
-            <span className="text-sm font-medium">{label}</span>
-            <span className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight">{desc}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-col items-center gap-3">
-        <button
-          onClick={generate}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[#E60026] text-white font-medium text-sm hover:bg-[#E60026]/90 transition-all shadow-md shadow-[#E60026]/20"
-        >
-          <BarChart2 className="w-4 h-4" /> Generate {CHART_TYPES.find(c => c.id === chartType)?.label} Chart
-        </button>
-        <button onClick={onStartChat} className="text-sm text-slate-500 dark:text-slate-400 hover:text-[#E60026] flex items-center gap-1.5">
-          <MessageSquare className="w-4 h-4" /> Chat with your data instead
-        </button>
-      </div>
-    </div>
-  )
-
   return (
-    <div className="flex flex-col h-full overflow-y-auto p-5 gap-5">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100">{chart.title}</h2>
-          {(chart.x_label || chart.y_label) && (
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{chart.x_label}{chart.x_label && chart.y_label ? ' · ' : ''}{chart.y_label}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setChart(null)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E60026] hover:text-[#E60026] transition-all dark:border-slate-700 dark:text-slate-300"
-          >
-            <RefreshCw className="w-4 h-4" /> Change chart
-          </button>
-          <button
-            onClick={onStartChat}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E60026] hover:text-[#E60026] transition-all dark:border-slate-700 dark:text-slate-300"
-          >
-            <MessageSquare className="w-4 h-4" /> Chat
-          </button>
-        </div>
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Content — scrolls above the pinned bottom bar */}
+      <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
+        {loading && (
+          <div className="flex flex-col items-center justify-center h-full gap-4">
+            <Loader2 className="w-8 h-8 text-[#E2611B] animate-spin" />
+            <p className="text-slate-600 dark:text-slate-300 text-sm">Analysing your data…</p>
+          </div>
+        )}
+
+        {!chart && !loading && (
+          <div className="flex flex-col items-center justify-center h-full gap-6 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-[#E2611B]/10 flex items-center justify-center">
+              <BarChart2 className="w-8 h-8 text-[#E2611B]" />
+            </div>
+            <div>
+              <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100 mb-2">Visualise Your Data</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">
+                Pick a chart type below and we'll turn your spreadsheet into a visual. Works with Excel (.xlsx) and CSV files.
+              </p>
+            </div>
+
+            {error && (
+              <div className="flex items-start gap-2 text-sm text-brand-700 bg-brand-50 border border-brand-200 rounded-xl px-4 py-3 max-w-sm text-left dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {chart && !loading && (
+          <>
+            {/* Header */}
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100">{chart.title}</h2>
+                {(chart.x_label || chart.y_label) && (
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{chart.x_label}{chart.x_label && chart.y_label ? ' · ' : ''}{chart.y_label}</p>
+                )}
+              </div>
+              <button
+                onClick={() => onSwitchMode('chat')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all dark:border-slate-700 dark:text-slate-300"
+              >
+                <MessageSquare className="w-4 h-4" /> Chat
+              </button>
+            </div>
+
+            {/* Chart — kept on a light surface so the Recharts axes/legend stay legible in
+                dark mode (their text/grid colours are light-theme defaults). */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-4 dark:border-slate-700">
+              <ChartRenderer chart={chart} />
+            </div>
+
+            {error && (
+              <p className="text-brand-600 text-sm text-center bg-brand-50 border border-brand-200 rounded-xl px-4 py-3 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400">{error}</p>
+            )}
+          </>
+        )}
       </div>
 
-      {/* Chart type switcher */}
-      <div className="flex gap-2 flex-wrap">
-        {CHART_TYPES.map(({ id, label, Icon }) => (
+      {/* Bottom bar — the shared composer. The chart-type picker takes the place of the
+          composer's "Follow-up suggestions" row (via pickerRow), and the wide "Generate
+          <Type> Chart" button takes the place of the send button and runs the generation. */}
+      <SectionComposer
+        active="charts"
+        onSwitch={onSwitchMode}
+        engaged={engagedModes}
+        placeholder="Add your preferences here."
+        pickerRow={
+          <div className="px-4 pb-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-1.5 mb-2 pt-3">
+              <BarChart2 className="w-3.5 h-3.5 text-brand-500" />
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Chart type</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {CHART_TYPES.map(({ id, label, Icon, desc }) => (
+                <HintTooltip key={id} label={desc} side="right">
+                  <button
+                    // Blur after a mouse click so the pill doesn't retain focus — otherwise the
+                    // Tooltip's focus-within rule keeps the bubble open on the just-selected pill.
+                    onClick={(e) => { setChartType(id); e.currentTarget.blur() }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all border ${
+                      chartType === id
+                        ? 'bg-[#E2611B] text-white border-[#E2611B]'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-[#E2611B] hover:text-[#E2611B] dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" /> {label}
+                  </button>
+                </HintTooltip>
+              ))}
+            </div>
+          </div>
+        }
+        proceedButton={
           <button
-            key={id}
-            onClick={() => { setChartType(id); setChart(null) }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-              chart.chart_type === id
-                ? 'border-[#E60026] bg-[#E60026]/5 text-[#E60026]'
-                : 'border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-600'
-            }`}
+            onClick={generate}
+            disabled={loading}
+            className="flex items-center gap-2 h-11 px-5 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
           >
-            <Icon className="w-3.5 h-3.5" /> {label}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart2 className="w-4 h-4" />}
+            {loading ? 'Generating…' : `${chart ? 'Regenerate' : 'Generate'} ${activeType?.label} Chart`}
           </button>
-        ))}
-      </div>
-
-      {/* Chart — kept on a light surface so the Recharts axes/legend stay legible in
-          dark mode (their text/grid colours are light-theme defaults). */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-4 dark:border-slate-700">
-        <ChartRenderer chart={chart} />
-      </div>
-
-      {error && (
-        <p className="text-red-600 text-sm text-center bg-red-50 border border-red-200 rounded-xl px-4 py-3 dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-400">{error}</p>
-      )}
+        }
+      />
     </div>
   )
 }

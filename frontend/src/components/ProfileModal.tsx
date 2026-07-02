@@ -143,13 +143,13 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
             <AnimatePresence>
               {saved && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                  className="flex items-center gap-2 text-green-700 text-sm bg-green-50 rounded-lg px-3 py-2 border border-green-200">
+                  className="flex items-center gap-2 text-green-700 text-sm bg-green-50 rounded-lg px-3 py-2 border border-green-200 dark:bg-green-500/10 dark:border-green-500/30 dark:text-green-400">
                   <Check className="w-4 h-4 flex-shrink-0" /> Saved.
                 </motion.div>
               )}
               {error && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                  className="flex items-center gap-2 text-red-600 text-sm bg-red-50 rounded-lg px-3 py-2 border border-red-200">
+                  className="flex items-center gap-2 text-brand-600 text-sm bg-brand-50 rounded-lg px-3 py-2 border border-brand-200 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
                 </motion.div>
               )}

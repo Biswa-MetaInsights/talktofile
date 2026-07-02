@@ -1,21 +1,39 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, RotateCcw, FileText, Files, GitCompare, Sparkles, ChevronDown, BookOpen, X, Square, LogOut, Download } from 'lucide-react'
+import { Send, FileText, Files, GitCompare, Sparkles, ChevronDown, PanelLeftClose, PanelLeftOpen, X, Square, LogOut, Download, Share2, Check, Plus, Link2, ScrollText } from 'lucide-react'
 import MessageBubble from './MessageBubble'
-import MicButton from './MicButton'
 import TypingIndicator from './TypingIndicator'
-import SummaryCard from './SummaryCard'
 import CitationPanel from './CitationPanel'
-import type { Message, SessionInfo, User, Source } from '../types'
+import { MODE_LABELS } from './ModeSwitcher'
+import SectionComposer from './SectionComposer'
+import type { Message, SessionInfo, User, Source, AppMode } from '../types'
 import { createChatWebSocket, documentApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { track } from '../lib/analytics'
+import { withAttribution, shareOrCopy } from '../lib/share'
 
 interface Props {
   session: SessionInfo
   onReset: () => void
   // First message the user typed on the landing chat box. Auto-sent once connected.
   initialPrompt?: string
+  // The active workspace section, and the callback to switch to another one. Drives
+  // the feature tabs under the input (Chat / Summary / … / Charts).
+  activeMode: AppMode
+  onSwitchMode: (mode: AppMode) => void
+  // Sections the user has produced content in — drives the "pick up where you left off"
+  // stars on the tabs.
+  engagedModes: Set<AppMode>
+  // Fire once the user has actually chatted (sent a message), so Chat earns its star.
+  onActivity: () => void
+  // Left overview panel collapse state + toggle (owned by AppShell). The header hosts
+  // the show/hide control for it.
+  sidebarHidden: boolean
+  onToggleSidebar: () => void
+  // Original-document panel open state + toggle (owned by AppShell). This header hosts a
+  // show/hide control for it so it's reachable from every section, not just via the sidebar.
+  docPanelOpen: boolean
+  onToggleDocPanel: () => void
 }
 
 let msgIdCounter = 0
@@ -51,14 +69,31 @@ type ConnStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
 
 const MAX_RECONNECT_ATTEMPTS = 6
 
-export default function ChatWindow({ session, onReset, initialPrompt }: Props) {
+export default function ChatWindow({ session, onReset, initialPrompt, activeMode, onSwitchMode, engagedModes, onActivity, sidebarHidden, onToggleSidebar, docPanelOpen, onToggleDocPanel }: Props) {
   const { token, user } = useAuth()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [status, setStatus] = useState<ConnStatus>('connecting')
-  const [showSummary, setShowSummary] = useState(false)
+  const [shared, setShared] = useState<'shared' | 'copied' | null>(null)
+  // "Add files / Add URLs" control in the header — additive (never resets the session),
+  // Pro-only, matching the Landing chat box. Frontend scaffold for now: added sources
+  // show as chips but aren't merged into the live session yet (needs a backend
+  // add-to-session endpoint — see CLAUDE.md). Replaces the old confusing "Upload new
+  // file(s)" reset button.
+  const isPro = user?.plan === 'pro'
+  const [showAddMenu, setShowAddMenu] = useState(false)
+  const [addingUrl, setAddingUrl] = useState(false)
+  const [extraUrl, setExtraUrl] = useState('')
+  const [addHint, setAddHint] = useState('')
+  const [extraSources, setExtraSources] = useState<{ id: number; type: 'file' | 'url'; label: string }[]>([])
+  const extraFileInputRef = useRef<HTMLInputElement>(null)
+  const extraIdRef = useRef(0)
+  const addHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [citationSource, setCitationSource] = useState<Source | null>(null)
+  // Clicking a citation toggles its passage panel: same source again closes it.
+  const toggleCitationSource = (source: Source) =>
+    setCitationSource((prev) => (prev === source ? null : source))
   const [showScrollBtn, setShowScrollBtn] = useState(false)
   // Id of the just-finished answer we're still fetching citation passages for.
   // Sources are gathered server-side *after* the answer completes, so there's a
@@ -77,6 +112,9 @@ export default function ChatWindow({ session, onReset, initialPrompt }: Props) {
   const stoppedRef = useRef(false)
 
   const isConnected = status === 'connected'
+  // Only surface the connection state when something's wrong (dropped / retrying) —
+  // a healthy connection shows nothing.
+  const showConnIssue = status === 'disconnected' || status === 'reconnecting'
 
   const scrollToBottom = useCallback((smooth = true) => {
     messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' })
@@ -233,6 +271,11 @@ export default function ChatWindow({ session, onReset, initialPrompt }: Props) {
   const userRef = useRef(user)
   useEffect(() => { userRef.current = user }, [user])
 
+  // onActivity mirrored in a ref so we can mark chat "engaged" from send handlers
+  // without adding an unstable prop to their dependency arrays.
+  const onActivityRef = useRef(onActivity)
+  useEffect(() => { onActivityRef.current = onActivity }, [onActivity])
+
   useEffect(() => {
     manualCloseRef.current = false
     hasWelcomedRef.current = false
@@ -269,6 +312,7 @@ export default function ChatWindow({ session, onReset, initialPrompt }: Props) {
     stoppedRef.current = false
     wsRef.current?.send(JSON.stringify({ question: q }))
     track('question_asked', { mode: session.mode })
+    onActivityRef.current()
   }, [status, initialPrompt, session.mode])
 
   const retryNow = useCallback(() => {
@@ -286,13 +330,6 @@ export default function ChatWindow({ session, onReset, initialPrompt }: Props) {
   }, [isTyping, finalizeStreaming])
 
   useEffect(() => { scrollToBottom() }, [messages, isTyping])
-
-  useEffect(() => {
-    const t = inputRef.current
-    if (!t) return
-    t.style.height = 'auto'
-    t.style.height = Math.min(t.scrollHeight, 140) + 'px'
-  }, [input])
 
   const handleScroll = () => {
     const el = messagesContainerRef.current
@@ -318,26 +355,15 @@ export default function ChatWindow({ session, onReset, initialPrompt }: Props) {
     stoppedRef.current = false
     wsRef.current?.send(JSON.stringify({ question: q }))
     track('question_asked', { mode: session.mode })
+    onActivityRef.current()
 
     setTimeout(() => inputRef.current?.focus(), 50)
   }, [input, isConnected, isTyping])
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
-    }
-  }
 
   const handleSuggestion = (q: string) => {
     setInput(q)
     inputRef.current?.focus()
   }
-
-  // Append a dictated chunk to whatever is already typed, spacing it sensibly.
-  const appendTranscript = useCallback((text: string) => {
-    setInput((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))
-  }, [])
 
   const endSession = useCallback(() => {
     manualCloseRef.current = true
@@ -345,6 +371,52 @@ export default function ChatWindow({ session, onReset, initialPrompt }: Props) {
     documentApi.deleteSession(session.session_id).catch(() => {})
     onReset()
   }, [session.session_id, onReset])
+
+  // ── Add more sources (Pro only; additive — never removes the current file) ──
+  const PRO_HINT = 'Interacting with multiple files in a single conversation is a Pro feature.'
+  // Phase 2: adding files/URLs mid-session isn't wired to the backend yet, so both
+  // entry points just surface "Coming soon!" — no file picker, no URL input box.
+  // (The scaffold below — URL box, source chips, handlers — is kept for when a
+  // backend add-to-session endpoint lands; restore the picker/URL behaviour then.)
+  const showComingSoon = () => {
+    setAddingUrl(false)
+    setAddHint('Coming soon!')
+    if (addHintTimerRef.current) clearTimeout(addHintTimerRef.current)
+    addHintTimerRef.current = setTimeout(() => setAddHint(''), 10000)
+  }
+  const openAddFiles = () => showComingSoon()
+  const startAddUrl = () => showComingSoon()
+  const onExtraFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files ?? [])
+    if (picked.length) {
+      // Newest on top; the existing document(s) are untouched.
+      setExtraSources((prev) => [
+        ...picked.map((f) => ({ id: ++extraIdRef.current, type: 'file' as const, label: f.name })),
+        ...prev,
+      ])
+    }
+    e.target.value = '' // allow re-picking the same file
+  }
+  const saveExtraUrl = () => {
+    const u = extraUrl.trim()
+    if (!u) return
+    setExtraSources((prev) => [{ id: ++extraIdRef.current, type: 'url', label: u }, ...prev])
+    setExtraUrl('')
+    setAddingUrl(false)
+  }
+  const removeExtra = (id: number) => setExtraSources((prev) => prev.filter((s) => s.id !== id))
+
+  const shareChat = useCallback(async () => {
+    const docTitle = session.documents.map((d) => d.filename).join(' & ')
+    const pairs = messages.filter((m) => !m.isPeriodicFeedback && !m.isGuardReject && m.content.trim())
+    const body = pairs
+      .map((m) => `${m.role === 'user' ? 'You' : 'Sage'}: ${m.content}`)
+      .join('\n\n')
+    const full = `CHAT WITH ${docTitle.toUpperCase()}\n\n${body}`
+    const how = await shareOrCopy(withAttribution(full), `Chat — ${docTitle}`)
+    setShared(how)
+    setTimeout(() => setShared(null), 2000)
+  }, [messages, session.documents])
 
   const exportReport = useCallback(() => {
     const docTitle = session.documents.map((d) => d.filename).join(' & ')
@@ -394,7 +466,9 @@ ${rows}
 
   const docs = session.documents
   const HeaderIcon = session.mode === 'compare' ? GitCompare : session.mode === 'multi' ? Files : FileText
-  const headerTitle = docs.length > 1 ? `${docs.length} documents` : (docs[0]?.filename ?? 'Document')
+  // The header row now shows the active section name (Chat / Summary / …) instead of the
+  // filename. The filename(s) stay reachable via the hover tooltip and the left panel.
+  const headerTitle = MODE_LABELS[activeMode]
   const nonEnglishCount = docs.filter((d) => d.original_language && d.original_language !== 'en').length
 
   return (
@@ -423,32 +497,44 @@ ${rows}
           </div>
           <div className="min-w-0">
             <p className="text-slate-800 dark:text-slate-100 text-sm font-medium truncate" title={docs.map((d) => d.filename).join(', ')}>{headerTitle}</p>
-            <div className="flex items-center gap-2">
-              <span className={`w-1.5 h-1.5 rounded-full ${
-                status === 'connected' ? 'bg-green-500'
-                : status === 'disconnected' ? 'bg-brand-600'
-                : 'bg-brand-400 animate-pulse'
-              }`} />
-              <span className="text-xs text-slate-400 dark:text-slate-500">{
-                status === 'connected' ? 'Connected'
-                : status === 'connecting' ? 'Connecting...'
-                : status === 'reconnecting' ? 'Reconnecting...'
-                : 'Disconnected'
-              }</span>
-              {session.mode === 'compare' && <span className="text-xs text-brand-500">· Compare mode</span>}
-              {nonEnglishCount > 0 && (
-                <span className="text-xs text-brand-500">· answers in English</span>
-              )}
-            </div>
+            {(showConnIssue || session.mode === 'compare' || nonEnglishCount > 0) && (
+              <div className="flex items-center gap-2">
+                {showConnIssue && (
+                  <>
+                    <span className={`w-1.5 h-1.5 rounded-full ${status === 'disconnected' ? 'bg-brand-600' : 'bg-brand-400 animate-pulse'}`} />
+                    <span className="text-xs text-slate-400 dark:text-slate-500">{status === 'disconnected' ? 'Disconnected' : 'Reconnecting...'}</span>
+                  </>
+                )}
+                {session.mode === 'compare' && <span className="text-xs text-brand-500">{showConnIssue ? '· ' : ''}Compare mode</span>}
+                {nonEnglishCount > 0 && (
+                  <span className="text-xs text-brand-500">{(showConnIssue || session.mode === 'compare') ? '· ' : ''}answers in English</span>
+                )}
+              </div>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="relative flex items-center gap-2">
           <button
-            onClick={() => setShowSummary(!showSummary)}
+            onClick={onToggleSidebar}
             className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-lg hover:bg-brand-50 dark:hover:bg-brand-600/15"
-            title="View summaries"
+            title={sidebarHidden ? 'View overview' : 'Hide overview'}
           >
-            <BookOpen className="w-4 h-4" />
+            {sidebarHidden ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={onToggleDocPanel}
+            className={`p-1.5 transition-colors rounded-lg hover:bg-brand-50 dark:hover:bg-brand-600/15 ${docPanelOpen ? 'text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-600/15' : 'text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400'}`}
+            title={docPanelOpen ? 'Hide the original document' : 'See the original document'}
+          >
+            <ScrollText className="w-4 h-4" />
+          </button>
+          <button
+            onClick={shareChat}
+            className="flex items-center gap-1 p-1.5 text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-lg hover:bg-brand-50 dark:hover:bg-brand-600/15 disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Share chat"
+            disabled={messages.filter((m) => !m.isPeriodicFeedback).length < 2}
+          >
+            {shared ? <Check className="w-4 h-4 text-[#E2611B]" /> : <Share2 className="w-4 h-4" />}
           </button>
           <button
             onClick={exportReport}
@@ -458,13 +544,87 @@ ${rows}
           >
             <Download className="w-4 h-4" />
           </button>
-          <button
-            onClick={onReset}
-            className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-lg hover:bg-brand-50 dark:hover:bg-brand-600/15"
-            title="Upload new file(s)"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
+          <div>
+            <button
+              onClick={() => { setShowAddMenu((v) => !v); setAddHint(''); setAddingUrl(false) }}
+              className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-lg hover:bg-brand-50 dark:hover:bg-brand-600/15"
+              title="Add files or URLs"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+
+            {showAddMenu && (
+              <>
+                {/* Click-away backdrop */}
+                <div className="fixed inset-0 z-30" onClick={() => { setShowAddMenu(false); setAddingUrl(false) }} />
+                <div className={`absolute right-0 mt-2 z-40 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg shadow-slate-200/60 dark:shadow-black/40 p-3 space-y-2 ${
+                  // The whole button group is the positioning context (relative), so
+                  // right-0 pins the popover's right edge to End session's right edge.
+                  // Widen it while adding a URL so the box + its Add button run longer.
+                  addingUrl ? 'w-80' : 'w-64'
+                }`}>
+                  {/* Added sources (frontend scaffold — not yet merged into the session) */}
+                  {extraSources.length > 0 && (
+                    <div className="space-y-1.5">
+                      {extraSources.map((s) => (
+                        <div key={s.id} className="flex items-center gap-2 rounded-lg bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5">
+                          {s.type === 'url'
+                            ? <Link2 className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
+                            : <FileText className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />}
+                          <span className="text-xs text-slate-700 dark:text-slate-300 truncate flex-1" title={s.label}>{s.label}</span>
+                          <button onClick={() => removeExtra(s.id)} className="text-slate-400 hover:text-red-500 flex-shrink-0">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {addingUrl ? (
+                    <div className="flex items-stretch gap-1.5">
+                      <input
+                        type="text"
+                        value={extraUrl}
+                        onChange={(e) => setExtraUrl(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveExtraUrl() } }}
+                        placeholder="Paste a link"
+                        autoFocus
+                        className="flex-1 min-w-0 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-brand-400"
+                      />
+                      <button onClick={saveExtraUrl} className="px-2.5 rounded-lg bg-brand-600 text-white text-xs font-medium hover:bg-brand-700 transition-colors flex-shrink-0">
+                        Add
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <button onClick={openAddFiles} className="w-full flex items-center gap-2 text-sm font-medium text-slate-800 dark:text-white hover:bg-brand-50 dark:hover:bg-brand-600/15 rounded-lg px-2 py-1.5 transition-colors">
+                        <Plus className="w-4 h-4" /> Add files
+                      </button>
+                      <button onClick={startAddUrl} className="w-full flex items-center gap-2 text-sm font-medium text-slate-800 dark:text-white hover:bg-brand-50 dark:hover:bg-brand-600/15 rounded-lg px-2 py-1.5 transition-colors">
+                        <Plus className="w-4 h-4" /> Add URLs
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Upgrade hint for non-Pro users */}
+                  {addHint && (
+                    <p className="text-xs text-[#E2611B] bg-[#E2611B]/5 border border-[#E2611B]/20 rounded-lg px-2.5 py-1.5">
+                      {addHint}
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+
+            <input
+              ref={extraFileInputRef}
+              type="file"
+              multiple
+              onChange={onExtraFilesSelected}
+              accept=".pdf,.docx,.xlsx,.pptx,.html,.htm,.json,.csv,.md,.txt"
+              className="hidden"
+            />
+          </div>
           <button
             onClick={endSession}
             className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 hover:border-red-200 dark:hover:border-red-500/30"
@@ -475,36 +635,6 @@ ${rows}
           </button>
         </div>
       </div>
-
-      {/* Summary panel */}
-      <AnimatePresence>
-        {showSummary && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="overflow-hidden border-b border-slate-200 dark:border-slate-800 flex-shrink-0"
-          >
-            <div className="px-5 py-4 bg-brand-50/60 dark:bg-brand-600/10 max-h-64 overflow-y-auto scrollbar-thin space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-wider">
-                  {docs.length > 1 ? 'Document Summaries' : 'Document Summary'}
-                </span>
-                <button onClick={() => setShowSummary(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              {docs.map((d, i) => (
-                <div key={i}>
-                  {docs.length > 1 && <p className="text-xs font-medium text-slate-800 dark:text-slate-200 mb-1.5 truncate">{d.filename}</p>}
-                  <SummaryCard summary={d.summary} compact />
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Messages */}
       <div className="px-4 py-5 space-y-5">
@@ -518,7 +648,7 @@ ${rows}
                 message={msg}
                 username={user?.username}
                 sessionId={session.session_id}
-                onCiteSource={setCitationSource}
+                onCiteSource={toggleCitationSource}
                 autoOpenSources={isLastWithSources}
                 awaitingSources={msg.id === pendingSourcesId}
               />
@@ -614,12 +744,12 @@ ${rows}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
-            className="mx-4 mb-2 flex items-center justify-between gap-3 text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5 flex-shrink-0"
+            className="mx-4 mb-2 flex items-center justify-between gap-3 text-xs text-brand-600 bg-brand-50 border border-brand-200 rounded-xl px-3.5 py-2.5 flex-shrink-0 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400"
           >
             <span>Connection lost. Your messages can't be sent right now.</span>
             <button
               onClick={retryNow}
-              className="px-2.5 py-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 font-medium transition-colors flex-shrink-0"
+              className="px-2.5 py-1 rounded-lg bg-brand-100 hover:bg-brand-200 text-brand-700 font-medium transition-colors flex-shrink-0 dark:bg-brand-500/20 dark:hover:bg-brand-500/30 dark:text-brand-300"
             >
               Retry
             </button>
@@ -627,52 +757,40 @@ ${rows}
         )}
       </AnimatePresence>
 
-      {/* Input */}
-      <div className="px-4 pb-4 flex-shrink-0 border-t border-slate-200 dark:border-slate-800 pt-3 bg-white dark:bg-slate-900 rounded-b-2xl">
-        <div className="flex items-end gap-2">
-          <div className="flex-1 relative">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask anything about the document here."
-              rows={1}
-              disabled={!isConnected}
-              className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-4 sm:pr-16 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20 resize-none transition-all disabled:opacity-50 leading-relaxed dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-500"
-              style={{ minHeight: '44px', maxHeight: '140px' }}
-            />
-            <span className="hidden sm:block absolute right-3 bottom-2.5 text-xs text-slate-300 dark:text-slate-600 pointer-events-none">
-              ↵ send
-            </span>
-          </div>
-          <MicButton onTranscript={appendTranscript} disabled={!isConnected} size={11} side="top" />
-          {isTyping ? (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={stopGenerating}
-              title="Stop generating"
-              className="w-11 h-11 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center shadow-sm hover:bg-slate-200 transition-all flex-shrink-0 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-            >
-              <Square className="w-3.5 h-3.5 fill-current" />
-            </motion.button>
-          ) : (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={sendMessage}
-              disabled={!input.trim() || !isConnected}
-              className="w-11 h-11 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:bg-brand-700 flex-shrink-0"
-            >
-              <Send className="w-4 h-4" />
-            </motion.button>
-          )}
-        </div>
-        <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 text-center">
-          Answers drawn only from your document · Shift+Enter for new line
-        </p>
-      </div>
+      {/* Input — the shared composer (identical across every section). Chat's only
+          differences are its send/stop button, the "↵ send" hint, and the live
+          send-on-Enter behaviour; everything else matches the tool sections. */}
+      <SectionComposer
+        active={activeMode}
+        onSwitch={onSwitchMode}
+        engaged={engagedModes}
+        value={input}
+        onChange={setInput}
+        onSubmit={sendMessage}
+        disabled={!isConnected}
+        inputRef={inputRef}
+        proceedButton={isTyping ? (
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={stopGenerating}
+            title="Stop generating"
+            className="w-11 h-11 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-slate-200 transition-all flex-shrink-0 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+          >
+            <Square className="w-3.5 h-3.5 fill-current" />
+          </motion.button>
+        ) : (
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={sendMessage}
+            disabled={!input.trim() || !isConnected}
+            className="w-11 h-11 rounded-xl bg-brand-600 text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:bg-brand-700 flex-shrink-0"
+          >
+            <Send className="w-4 h-4" />
+          </motion.button>
+        )}
+      />
     </div>
     </div>
   )

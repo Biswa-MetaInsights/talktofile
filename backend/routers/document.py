@@ -220,6 +220,27 @@ async def get_session_info(session_id: str, current_user: dict = Depends(get_cur
     )
 
 
+@router.get("/{session_id}/content")
+async def get_document_content(
+    session_id: str,
+    filename: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Return the full extracted text of one document in a session.
+
+    Backs the sidebar "open the original document" panel — clicking a filename shows
+    its complete extracted text (for a URL/YouTube source, the fetched page text /
+    transcript). Never persisted to disk; served straight from the in-memory session.
+    """
+    session = session_store.get(session_id)
+    if not session or session.username != current_user["username"]:
+        raise HTTPException(status_code=404, detail="Session not found")
+    doc = next((d for d in session.documents if d.filename == filename), None)
+    if doc is None:
+        raise HTTPException(status_code=404, detail=f"'{filename}' is not part of this session.")
+    return {"filename": doc.filename, "content": doc.raw_text}
+
+
 @router.delete("/{session_id}")
 async def delete_session(session_id: str, current_user: dict = Depends(get_current_user)):
     session = session_store.get(session_id)
