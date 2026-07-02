@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import re
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, WebSocket, WebSocketDisconnect, Request
 from pydantic import BaseModel
@@ -8,6 +9,8 @@ from core.config import get_settings
 from core.ratelimit import limiter
 from models.schemas import SessionInfo, DocumentInfo
 from agents.orchestrator import run_pipeline, PipelineStage
+
+logger = logging.getLogger("talktofile.document")
 
 router = APIRouter(prefix="/document", tags=["document"])
 
@@ -312,13 +315,32 @@ def _extract_video_id(url: str) -> str | None:
     return m.group(1) if m else None
 
 
+def _build_youtube_api():
+    """Construct a YouTubeTranscriptApi, routed through YOUTUBE_PROXY when set.
+
+    YouTube blocks transcript requests from datacenter IPs, so production deploys
+    need a proxy (see settings.youtube_proxy). Locally the var is unset and we go
+    direct. Kept small and import-local so the proxy dep only loads when needed.
+    """
+    from youtube_transcript_api import YouTubeTranscriptApi
+
+    settings = get_settings()
+    if settings.youtube_proxy_enabled:
+        from youtube_transcript_api.proxies import GenericProxyConfig
+
+        proxy = settings.youtube_proxy.strip()
+        # Route both schemes through the one proxy URL (the common single-proxy case).
+        return YouTubeTranscriptApi(proxy_config=GenericProxyConfig(http_url=proxy, https_url=proxy))
+    return YouTubeTranscriptApi()
+
+
 async def _fetch_youtube_transcript(video_id: str) -> tuple[str, str]:
     # youtube-transcript-api 1.x: instance-based API (the old static
     # YouTubeTranscriptApi.get_transcript was removed, and 0.6.x is broken
     # against current YouTube — it returns an empty body / ParseError).
-    from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
+    from youtube_transcript_api import NoTranscriptFound, TranscriptsDisabled
     try:
-        fetched = YouTubeTranscriptApi().fetch(video_id)
+        fetched = _build_youtube_api().fetch(video_id)
         text = " ".join(entry["text"] for entry in fetched.to_raw_data())
         return text, f"youtube_{video_id}.txt"
     except (NoTranscriptFound, TranscriptsDisabled):
@@ -328,7 +350,23 @@ async def _fetch_youtube_transcript(video_id: str) -> tuple[str, str]:
                    "Only videos with captions enabled can be processed.",
         )
     except Exception as exc:
-        raise HTTPException(status_code=422, detail=f"Could not fetch YouTube transcript: {exc}")
+        # Log the full technical detail server-side; never leak it to the client.
+        logger.warning("YouTube transcript fetch failed for %s: %s", video_id, exc, exc_info=True)
+        # YouTube blocks transcript requests from many server IPs (esp. cloud hosts).
+        # Detect that specific case so we can give a slightly clearer (still generic)
+        # message; everything else is a plain "something went wrong".
+        blocked = any(k in type(exc).__name__ for k in ("IpBlocked", "RequestBlocked"))
+        if blocked:
+            raise HTTPException(
+                status_code=502,
+                detail="Could not fetch this YouTube video's transcript right now. "
+                       "Please try again later, or upload the file directly.",
+            )
+        raise HTTPException(
+            status_code=502,
+            detail="An unexpected error occurred while processing this YouTube video. "
+                   "Please try again, or upload the file directly.",
+        )
 
 
 async def _fetch_webpage_text(url: str) -> tuple[str, str]:
