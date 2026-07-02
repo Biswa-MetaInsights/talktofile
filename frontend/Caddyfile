@@ -36,3 +36,11 @@
 		-Server
 	}
 }
+
+# Redirect the www subdomain to the canonical apex domain (one URL, no
+# duplicate-content or cookie/CORS mismatch). Caddy fetches a cert for www too,
+# so both hostnames must have DNS pointing at this box. Harmless locally
+# (www.localhost via Caddy's internal CA).
+www.{$DOMAIN:localhost} {
+	redir https://{$DOMAIN:localhost}{uri} permanent
+}
