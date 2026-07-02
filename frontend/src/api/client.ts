@@ -1,8 +1,15 @@
 import axios from 'axios'
 import type { UserProfile, Plan, SessionInfo } from '../types'
 
+// Absolute backend origin, for split deployments where the frontend and backend
+// live on different hosts (e.g. Vercel + Render). Set VITE_API_URL to the backend
+// base URL, e.g. "https://talktofile-api.onrender.com". Leave it UNSET for local
+// dev (Vite proxies /api) and single-origin prod (Caddy serves both), where a
+// relative "/api" on the same origin is correct.
+export const API_ORIGIN = ((import.meta.env.VITE_API_URL as string | undefined) || '').replace(/\/+$/, '')
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${API_ORIGIN}/api`,
   timeout: 60000,
 })
 
@@ -161,7 +168,7 @@ export const toolsApi = {
     api.post<{ new_lines: PodcastLine[] }>(`/tools/podcast/${sessionId}/extend`, { script, request }),
   chart: (sessionId: string, chartType: string) =>
     api.post<ChartData>(`/tools/chart/${sessionId}`, { chart_type: chartType }),
-  slidesDownloadUrl: (sessionId: string) => `/api/tools/slides/${sessionId}`,
+  slidesDownloadUrl: (sessionId: string) => `${API_ORIGIN}/api/tools/slides/${sessionId}`,
   // Transcribe a recorded audio blob (voice dictation) via Whisper.
   transcribe: (audio: Blob) => {
     const form = new FormData()
@@ -174,8 +181,17 @@ export const toolsApi = {
 // The token is sent via the WebSocket subprotocol header (["bearer", <jwt>])
 // rather than the URL, so it never appears in server access logs.
 function openSocket(path: string, token: string): WebSocket {
-  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-  const host = window.location.host
+  // Point the socket at the configured backend origin when set (split deploy),
+  // otherwise the current page origin (dev proxy / single-origin prod).
+  let proto: string, host: string
+  if (API_ORIGIN) {
+    const u = new URL(API_ORIGIN)
+    proto = u.protocol === 'https:' ? 'wss' : 'ws'
+    host = u.host
+  } else {
+    proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
+    host = window.location.host
+  }
   return new WebSocket(`${proto}://${host}${path}`, ['bearer', token])
 }
 

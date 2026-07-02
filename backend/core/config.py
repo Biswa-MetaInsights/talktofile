@@ -43,6 +43,17 @@ class Settings(BaseSettings):
     # (e.g. test accounts / early users) until real billing exists.
     pro_emails: str = ""
 
+    # Optional HTTP/HTTPS proxy for YouTube transcript fetches. YouTube blocks
+    # transcript requests from datacenter/cloud IPs, so a production deploy on a
+    # VM/container will hit "RequestBlocked"/"IpBlocked" without one. Format is a
+    # full proxy URL, e.g. "http://user:pass@host:port". Empty = direct (fine for
+    # local/residential IPs). Applied in routers/document.py._fetch_youtube_transcript.
+    youtube_proxy: str = ""
+
+    @property
+    def youtube_proxy_enabled(self) -> bool:
+        return bool(self.youtube_proxy.strip())
+
     # Transactional email (Resend) for password-reset links. When resend_api_key
     # is empty (e.g. local dev) emails aren't sent — the reset link is logged to
     # the console instead so the flow stays fully testable. Used only by legacy

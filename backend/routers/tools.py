@@ -3,6 +3,7 @@ Tools Router — document transformation endpoints.
 Flashcards, translation, podcast script, slide generation, and URL ingestion.
 """
 
+import logging
 import re
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
@@ -12,6 +13,8 @@ from core.auth import get_current_user
 from core.session_store import session_store
 from core.config import get_settings
 from core.usage import log_usage, count_today
+
+logger = logging.getLogger("talktofile.tools")
 
 router = APIRouter(prefix="/tools", tags=["tools"])
 
@@ -240,8 +243,13 @@ async def transcribe_audio(
             model="whisper-1",
             file=(f"dictation.{ext}", content, base),
         )
-    except Exception as e:  # noqa: BLE001 — surface a clean error to the client
-        raise HTTPException(status_code=502, detail=f"Transcription failed: {e}")
+    except Exception as e:  # noqa: BLE001
+        # Log the technical detail server-side; show the client a clean message.
+        logger.warning("Whisper transcription failed for %s: %s", username, e, exc_info=True)
+        raise HTTPException(
+            status_code=502,
+            detail="An unexpected error occurred while transcribing your audio. Please try again.",
+        )
 
     log_usage(username, "transcribe", f"bytes={len(content)}")
     return {"text": (result.text or "").strip()}

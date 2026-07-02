@@ -1,26 +1,21 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, LogIn, Crown, Eye, EyeOff, AlertCircle, Check, Sparkles, Mail, KeyRound } from 'lucide-react'
+import { X, LogIn, Crown, Eye, EyeOff, AlertCircle, Check, Sparkles, Mail, KeyRound, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import type { OAuthProvider } from '../context/AuthContext'
 import { SUPABASE_ENABLED } from '../lib/supabase'
 import AvatarUpload from './AvatarUpload'
 import type { UserProfile } from '../types'
 
 type Mode = 'subscribe' | 'login' | 'reset'
 
-/* Brand marks for the social sign-in buttons (lucide ships no brand icons).
-   Frontend only — these buttons don't wire up real OAuth yet. */
+/* Brand marks for the social sign-in buttons (lucide ships no brand icons). */
 const GoogleIcon = () => (
   <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" aria-hidden="true">
     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
     <path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.07H2.18A10.97 10.97 0 0 0 1 12c0 1.77.43 3.45 1.18 4.93l3.66-2.83z" />
     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.46 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.83C6.71 7.31 9.14 5.38 12 5.38z" />
-  </svg>
-)
-const AppleIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0 text-slate-900 dark:text-slate-100" fill="currentColor" aria-hidden="true">
-    <path d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43zm4.565 15.71c-.03.08-.46 1.58-1.518 3.12-.911 1.33-1.86 2.66-3.36 2.69-1.474.03-1.948-.87-3.63-.87-1.68 0-2.2.84-3.61.9-1.45.06-2.55-1.43-3.47-2.75-1.88-2.72-3.32-7.69-1.39-11.05.96-1.67 2.67-2.72 4.53-2.75 1.42-.03 2.75.96 3.63.96.87 0 2.49-1.18 4.2-1.01.71.03 2.72.29 4.01 2.18-.1.06-2.39 1.4-2.37 4.16.03 3.3 2.91 4.4 2.94 4.41z" />
   </svg>
 )
 const MicrosoftIcon = () => (
@@ -32,10 +27,10 @@ const MicrosoftIcon = () => (
   </svg>
 )
 
+// `provider` is the Supabase OAuth provider id ('azure' == Microsoft).
 const SOCIAL_PROVIDERS = [
-  { name: 'Google', Icon: GoogleIcon },
-  { name: 'Apple', Icon: AppleIcon },
-  { name: 'Microsoft', Icon: MicrosoftIcon },
+  { name: 'Google', provider: 'google', Icon: GoogleIcon },
+  { name: 'Microsoft', provider: 'azure', Icon: MicrosoftIcon },
 ] as const
 
 /** Shared modal shell so the reset / recovery sub-views match the main modal. */
@@ -85,7 +80,7 @@ export default function AuthModal({
   /** Optional banner shown above the form, e.g. "Your session expired — sign in again." */
   notice?: string
 }) {
-  const { login, register, resetPassword, updatePassword, recoveryMode, clearRecovery } = useAuth()
+  const { login, register, resetPassword, updatePassword, recoveryMode, clearRecovery, signInWithProvider } = useAuth()
   const [mode, setMode] = useState<Mode>(initialMode)
   const [newPassword, setNewPassword] = useState('')
   const [username, setUsername] = useState('')
@@ -100,6 +95,7 @@ export default function AuthModal({
   const [industry, setIndustry] = useState('')
 
   const [loading, setLoading] = useState(false)
+  const [socialLoading, setSocialLoading] = useState<OAuthProvider | null>(null)  // provider whose OAuth redirect is starting
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')          // verification / success notices (not errors)
   const [offerSignup, setOfferSignup] = useState(false)  // show "create account" CTA after a failed login
@@ -110,11 +106,19 @@ export default function AuthModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  // Social sign-in/up. Frontend only for now — no real OAuth — so we just confirm
-  // the same way a successful email sign in does (close box + navbar toast).
-  const handleSocial = (_provider: string) => {
-    onAuthSuccess?.('Sign in successful')
-    onClose()
+  // Social sign-in/up via Supabase OAuth. This redirects the browser to the
+  // provider; on return, AuthContext's onAuthStateChange hydrates the session,
+  // so there's no success handling to do here — we just surface errors.
+  const handleSocial = async (provider: OAuthProvider) => {
+    setError(''); setInfo('')
+    setSocialLoading(provider)
+    try {
+      await signInWithProvider(provider)
+      // Success path is a full-page redirect; nothing else runs.
+    } catch (err) {
+      setSocialLoading(null)
+      setError(err instanceof Error ? err.message : 'Could not start social sign-in.')
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -447,29 +451,35 @@ export default function AuthModal({
               )}
             </button>
 
-            {/* Divider + social sign-in / sign-up (frontend only) */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                <span className="w-full border-t border-slate-200 dark:border-slate-700" />
-              </div>
-              <div className="relative flex justify-center">
-                <span className="bg-white px-3 text-xs text-slate-400 dark:bg-slate-900 dark:text-slate-500">or {mode === 'subscribe' ? 'sign up' : 'continue'} with</span>
-              </div>
-            </div>
+            {/* Divider + social sign-in / sign-up. Only shown in Supabase mode,
+                which is the only auth backend that wires up real OAuth. */}
+            {SUPABASE_ENABLED && (
+              <>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                    <span className="w-full border-t border-slate-200 dark:border-slate-700" />
+                  </div>
+                  <div className="relative flex justify-center">
+                    <span className="bg-white px-3 text-xs text-slate-400 dark:bg-slate-900 dark:text-slate-500">or {mode === 'subscribe' ? 'sign up' : 'continue'} with</span>
+                  </div>
+                </div>
 
-            <div className="space-y-2.5">
-              {SOCIAL_PROVIDERS.map(({ name, Icon }) => (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => handleSocial(name)}
-                  className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:border-slate-600"
-                >
-                  <Icon />
-                  {mode === 'subscribe' ? `Sign up with ${name} account` : `Continue with ${name} account`}
-                </button>
-              ))}
-            </div>
+                <div className="space-y-2.5">
+                  {SOCIAL_PROVIDERS.map(({ name, provider, Icon }) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => handleSocial(provider)}
+                      disabled={socialLoading !== null}
+                      className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors disabled:opacity-60 disabled:cursor-not-allowed dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:border-slate-600"
+                    >
+                      {socialLoading === provider ? <Loader2 className="w-[18px] h-[18px] flex-shrink-0 animate-spin" /> : <Icon />}
+                      {mode === 'subscribe' ? `Sign up with ${name} account` : `Continue with ${name} account`}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </form>
         </motion.div>
       </motion.div>

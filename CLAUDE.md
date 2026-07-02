@@ -347,6 +347,90 @@ Not built / known gaps:
 > detailed "how" belongs in the relevant section above; this log is just the running status so the
 > next session/developer can see at a glance where things stand.
 
+### 2026-07-02 — Optional proxy for YouTube transcript fetches (production IP-ban workaround)
+**Done:**
+- YouTube blocks transcript requests from datacenter/cloud IPs, so YouTube URL ingestion fails on a
+  deployed VM/container. Added **optional proxy support** so it's ready for production.
+- **Config** (`core/config.py`): new `youtube_proxy` setting (env `YOUTUBE_PROXY`, default empty) +
+  `youtube_proxy_enabled` property. Empty = go direct (fine on local/residential IPs).
+- **Wiring** (`routers/document.py`): new `_build_youtube_api()` builds `YouTubeTranscriptApi`, and
+  when `YOUTUBE_PROXY` is set, routes it through `GenericProxyConfig(http_url=…, https_url=…)` (1.x
+  proxy API). `_fetch_youtube_transcript` now goes through it. Proxy dep is import-local (only loaded
+  when a proxy is configured).
+- **Docs** (`.env.example`): documented `YOUTUBE_PROXY=http://user:pass@host:port`, noting a rotating
+  **residential** proxy (e.g. Webshare) is the reliable option (datacenter proxies are often blocked too).
+- Verified both paths build cleanly (direct + proxy-enabled); backend imports OK, reloaded live.
+
+**Pending / next:**
+- Set a real `YOUTUBE_PROXY` in the prod `.env` when deploying (local dev needs nothing). The single
+  generic-URL case is covered; if per-request rotation or Webshare-specific config is wanted later,
+  extend `_build_youtube_api` to also accept `WebshareProxyConfig`.
+- `.fetch()` is still a blocking call inside an async handler (pre-existing) — fine at current scale.
+
+### 2026-07-02 — Stop leaking raw backend errors to the client (YouTube + transcribe)
+**Done:**
+- A failed YouTube URL ingest was dumping the **raw `youtube-transcript-api` exception** (a huge
+  IP-ban/proxy explanation) straight into the browser via
+  `detail=f"Could not fetch YouTube transcript: {exc}"` (`routers/document.py`). Now the full detail
+  is **logged server-side** (`logging.getLogger("talktofile.document")`, `exc_info=True`) and the
+  client gets a clean message: a specific-but-generic one for the IP-block case (exception name
+  contains `IpBlocked`/`RequestBlocked` → "try again later, or upload the file directly") and a plain
+  "An unexpected error occurred…" for anything else. Status now 502.
+- Same leak fixed in `routers/tools.py` `/transcribe` (`detail=f"Transcription failed: {e}"`) → logs
+  detail, returns "An unexpected error occurred while transcribing your audio. Please try again."
+- Left `document.py`'s webpage-fetch error as-is — it only interpolates an HTTP status **number**, no
+  raw exception text.
+- **Note:** the underlying YouTube failure is environmental (YouTube IP-blocks server/cloud IPs) and
+  can't be fixed in code — production needs a proxy (see the library's "Working around IP bans"). This
+  change only makes the *error handling* clean. Backend imports OK; reloaded live.
+
+### 2026-07-02 — Real social sign-in (Google / Apple / Microsoft) via Supabase OAuth
+**Done:**
+- The three social buttons in `AuthModal` were **stubs** (`handleSocial` faked a success toast —
+  no real OAuth). Wired them to **Supabase OAuth** for real (the app already has full Supabase auth,
+  incl. the `onAuthStateChange` listener that auto-hydrates a session after the OAuth redirect).
+- **Frontend:** new `signInWithProvider(provider)` on the auth context (`context/AuthContext.tsx`) +
+  exported `OAuthProvider` type (`'google' | 'apple' | 'azure'` — **Microsoft = `azure`** in Supabase).
+  Supabase impl calls `supabase.auth.signInWithOAuth({ provider, options: { redirectTo: origin, ... }})`
+  (requests `email openid profile` for azure so the email claim returns); legacy impl throws a clear
+  "not available on this deployment" error. `AuthModal` now maps each button to its provider id, shows
+  a per-provider `Loader2` spinner + disables during redirect, surfaces errors, and **only renders the
+  social section when `SUPABASE_ENABLED`** (no dead buttons in legacy mode). Removed the fake success.
+- **Backend:** no changes needed — `get_or_create_supabase_user` (`core/auth.py`) already provisions
+  any Supabase user (any provider) into the local `users` row keyed by `supabase_user_id`, syncing
+  email. OAuth users flow through identically to email users.
+- **Docs:** added a "Social sign-in" section to `SUPABASE_SETUP.md` (dashboard URL config + a
+  per-provider table of where to create the OAuth app and which redirect URI to register).
+- Type-check passes.
+
+**Pending / next (config only — cannot be done in code):**
+- The app is currently in **legacy mode** (no Supabase env vars), so the buttons are hidden. To turn
+  social sign-in on: (1) set `VITE_SUPABASE_*` + backend `SUPABASE_JWT_SECRET` (SUPABASE_SETUP.md
+  steps 1–5), (2) enable Google/Apple/Microsoft in the Supabase dashboard with OAuth client IDs/secrets
+  created in Google Cloud / Apple Developer / Azure (step 6). Google + Microsoft are quick; **Apple**
+  needs a paid Apple Developer account (Services ID + key).
+- **Live verify** once configured: click each button → provider consent → redirected back signed in;
+  confirm the local `users` row is created and `/auth/me` returns the provider email.
+
+### 2026-07-02 — Post-merge check of Gautham's PR #6 (dark mode + chat interface)
+**Done:**
+- Pulled `origin/main` (PR #6: dark mode, `ThemeContext`/`ThemeToggle`, new citation system
+  `CitationMarker`/`lib/citations.ts`, chat-box rewrite) into local `main` and verified the blend.
+- **Checks pass:** frontend `tsc --noEmit` clean, backend `import main` OK, **no conflict markers**
+  anywhere. Confirmed my features survived the rewrite: `MicButton` still wired in `ChatWindow` +
+  `Landing`, `ChatWindow` `initialPrompt` auto-send intact, `ThemeProvider` mounted in `main.tsx`,
+  and the `remove-file` / `transcribe` / `auth/refresh` endpoints all still present.
+- **One real integration bug found + fixed (per-machine venv):** the PR bumped
+  `youtube-transcript-api` 0.6.3 → **1.2.4** and rewrote `_fetch_youtube_transcript` to the 1.x
+  instance API (`YouTubeTranscriptApi().fetch(...).to_raw_data()`). My local venv still had 0.6.3
+  (no `.fetch`), so **YouTube URL ingestion would have crashed at call time** (import still passed).
+  Ran `pip install youtube-transcript-api==1.2.4` into `backend/venv`; verified `.fetch` now exists
+  and `import main` still OK. **Gautham must do the same `pip install -r requirements.txt` on his box.**
+
+**Pending / next:**
+- **Visual verification of dark mode not done** — needs the dev server + browser: check brand orange
+  reads in dark theme across Landing/Navbar/ChatWindow, the `ThemeToggle`, and 320–1280px.
+
 ### 2026-07-01 (latest) — Chat header pinned; fixed workspace page-scroll bug
 **Done:**
 - The chat header row (filename + connection status + BookOpen/Download/Restart/**End session**

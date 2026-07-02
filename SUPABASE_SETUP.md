@@ -52,6 +52,39 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
 ```
 Rebuild the frontend (`npm run build`) so the values are baked in.
 
+## 6. Social sign-in (Google / Apple / Microsoft)
+
+The three social buttons in the sign-in modal are wired to Supabase OAuth
+(`supabase.auth.signInWithOAuth`). They **only appear when Supabase mode is on**
+(steps 1–5 above); in legacy mode they're hidden. No code changes are needed to
+turn a provider on — it's all dashboard + provider-console configuration.
+
+**In the Supabase dashboard → Authentication → URL Configuration:**
+- Set **Site URL** to your app origin (dev: `http://localhost:5173`, prod: your domain).
+- Add every origin you sign in from to **Redirect URLs** (the frontend passes
+  `redirectTo: window.location.origin`). Supabase's own callback
+  `https://<ref>.supabase.co/auth/v1/callback` is the URL you register in each
+  provider console below.
+
+**Then enable each provider** (Authentication → Providers), pasting in a Client ID +
+Secret you create in that provider's console:
+
+| Button | Supabase provider | Where to create the OAuth app | Authorized redirect URI to register |
+|---|---|---|---|
+| Google | **Google** | Google Cloud Console → APIs & Services → Credentials → OAuth client ID (Web) | `https://<ref>.supabase.co/auth/v1/callback` |
+| Microsoft | **Azure** (`azure`) | Azure Portal → App registrations → new registration | `https://<ref>.supabase.co/auth/v1/callback` |
+
+Notes:
+- **Microsoft = the `azure` provider** in Supabase; the frontend maps the button to
+  it and requests `email openid profile` scopes so the email claim comes back.
+- **Apple sign-in was removed** for now (it needs a paid Apple Developer account). To
+  re-add it later: add `'apple'` back to `OAuthProvider` (`context/AuthContext.tsx`),
+  re-add the Apple entry + icon to `SOCIAL_PROVIDERS` (`components/AuthModal.tsx`), and
+  enable the Apple provider in Supabase.
+- After enabling a provider, the button works immediately — no redeploy needed. An
+  OAuth user is provisioned into the local `users` table on first API call exactly
+  like an email user (keyed by `supabase_user_id`; email synced from the provider).
+
 ## How it maps
 - **Anonymous Supabase user** → our `users` row with `plan=free`, `is_guest=true`.
 - **Email signup** → `plan=free` (registered account; Pro is granted only via a real

@@ -4,12 +4,19 @@ import { supabase, SUPABASE_ENABLED } from '../lib/supabase'
 import { identifyUser, track, resetAnalytics } from '../lib/analytics'
 import type { User, UserProfile } from '../types'
 
+// Supabase provider ids. 'azure' is Microsoft's provider id in Supabase.
+export type OAuthProvider = 'google' | 'azure'
+
 interface AuthContextValue {
   user: User | null
   token: string | null
   // identifier = username (legacy) or email (Supabase)
   login: (identifier: string, password: string) => Promise<void>
   register: (identifier: string, password: string, profile: UserProfile) => Promise<void>
+  // Social sign-in via an OAuth provider (Supabase mode only). Redirects the
+  // browser to the provider; on return, onAuthStateChange hydrates the session.
+  // Throws in legacy mode (no OAuth identity provider configured).
+  signInWithProvider: (provider: OAuthProvider) => Promise<void>
   logout: () => void
   setPersona: (persona: string | null) => void
   isLoading: boolean
@@ -136,6 +143,21 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
     if (error) throw new Error(error.message)
   }
 
+  const signInWithProvider = async (provider: OAuthProvider) => {
+    track('signin_submitted', { method: provider })
+    const { error } = await supabase!.auth.signInWithOAuth({
+      provider,
+      options: {
+        // Return to the app; onAuthStateChange picks up the new session.
+        redirectTo: window.location.origin,
+        // Microsoft/Azure needs an explicit scope to return the email claim.
+        ...(provider === 'azure' ? { scopes: 'email openid profile' } : {}),
+      },
+    })
+    if (error) throw new Error(error.message)
+    // On success the browser is redirecting — nothing else to do here.
+  }
+
   const register = async (email: string, password: string, profile: UserProfile) => {
     const { data, error } = await supabase!.auth.signUp({ email, password })
     if (error) throw new Error(error.message)
@@ -188,7 +210,7 @@ function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, setPersona, isLoading, resetPassword, updatePassword, recoveryMode, clearRecovery, saveProfile, sessionExpired, clearSessionExpired: () => setSessionExpired(false) }}>
+    <AuthContext.Provider value={{ user, token, login, register, signInWithProvider, logout, setPersona, isLoading, resetPassword, updatePassword, recoveryMode, clearRecovery, saveProfile, sessionExpired, clearSessionExpired: () => setSessionExpired(false) }}>
       {children}
     </AuthContext.Provider>
   )
@@ -312,6 +334,12 @@ function LegacyAuthProvider({ children }: { children: ReactNode }) {
     await hydrateUser()
   }
 
+  // OAuth needs an identity provider, which only Supabase mode wires up. In legacy
+  // mode there's nothing to redirect to, so fail loudly rather than silently.
+  const signInWithProvider = async (_provider: OAuthProvider) => {
+    throw new Error("Social sign-in isn't available on this deployment. Please sign in with email and password.")
+  }
+
   const logout = () => {
     localStorage.removeItem(TOKEN_KEY)
     setAuthToken(null)
@@ -365,7 +393,7 @@ function LegacyAuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, setPersona, isLoading, resetPassword, updatePassword, recoveryMode: !!resetToken, clearRecovery, saveProfile, sessionExpired, clearSessionExpired: () => setSessionExpired(false) }}>
+    <AuthContext.Provider value={{ user, token, login, register, signInWithProvider, logout, setPersona, isLoading, resetPassword, updatePassword, recoveryMode: !!resetToken, clearRecovery, saveProfile, sessionExpired, clearSessionExpired: () => setSessionExpired(false) }}>
 
       {children}
     </AuthContext.Provider>
