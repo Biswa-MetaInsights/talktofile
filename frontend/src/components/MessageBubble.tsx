@@ -263,10 +263,8 @@ export default function MessageBubble({ message, username, sessionId, onCiteSour
           style={{ fontSize: '0.8rem' }}
           title="Open the full passages"
         >
-          <Quote className="h-3.5 w-3.5 shrink-0" />
           <span>
-            Cited from your document.
-            <span className="ml-1 text-slate-400 dark:text-slate-500 group-hover/cite:text-brand-500">Hover ¹²³ to view where the source material.</span>
+            <span className="text-slate-400 dark:text-slate-500 group-hover/cite:text-brand-500">Hover ¹²³ to view where the source material.</span>
           </span>
         </button>
       )}
