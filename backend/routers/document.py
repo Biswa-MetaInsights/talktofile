@@ -337,15 +337,27 @@ def _extract_video_id(url: str) -> str | None:
 
 
 def _build_youtube_api():
-    """Construct a YouTubeTranscriptApi, routed through YOUTUBE_PROXY when set.
+    """Construct a YouTubeTranscriptApi, routed through a proxy when configured.
 
     YouTube blocks transcript requests from datacenter IPs, so production deploys
-    need a proxy (see settings.youtube_proxy). Locally the var is unset and we go
-    direct. Kept small and import-local so the proxy dep only loads when needed.
+    need a proxy. Preference order: Webshare residential (the library's first-class
+    integration) → a generic proxy URL → direct. Locally all are unset and we go
+    direct. Proxy deps are import-local so they only load when actually needed.
     """
     from youtube_transcript_api import YouTubeTranscriptApi
 
     settings = get_settings()
+    if settings.webshare_proxy_enabled:
+        from youtube_transcript_api.proxies import WebshareProxyConfig
+
+        # Webshare's rotating residential proxies — retries on a fresh IP when YouTube
+        # blocks one, which is what makes transcript fetches reliable from a server.
+        return YouTubeTranscriptApi(
+            proxy_config=WebshareProxyConfig(
+                proxy_username=settings.webshare_proxy_username.strip(),
+                proxy_password=settings.webshare_proxy_password.strip(),
+            )
+        )
     if settings.youtube_proxy_enabled:
         from youtube_transcript_api.proxies import GenericProxyConfig
 

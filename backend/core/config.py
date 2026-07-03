@@ -43,12 +43,24 @@ class Settings(BaseSettings):
     # (e.g. test accounts / early users) until real billing exists.
     pro_emails: str = ""
 
-    # Optional HTTP/HTTPS proxy for YouTube transcript fetches. YouTube blocks
-    # transcript requests from datacenter/cloud IPs, so a production deploy on a
-    # VM/container will hit "RequestBlocked"/"IpBlocked" without one. Format is a
-    # full proxy URL, e.g. "http://user:pass@host:port". Empty = direct (fine for
-    # local/residential IPs). Applied in routers/document.py._fetch_youtube_transcript.
+    # Proxy for YouTube transcript fetches. YouTube blocks transcript requests from
+    # datacenter/cloud IPs, so a production deploy on a VM/container will hit
+    # "RequestBlocked"/"IpBlocked" without one. Two options (Webshare takes priority):
+    #
+    #  1. Webshare residential (recommended — youtube-transcript-api's first-class,
+    #     rotating-residential integration). Set both WEBSHARE_PROXY_USERNAME and
+    #     WEBSHARE_PROXY_PASSWORD from the Webshare dashboard.
+    #  2. A generic proxy URL, e.g. "http://user:pass@host:port" via YOUTUBE_PROXY.
+    #
+    # All empty = go direct (fine on local/residential IPs). Applied in
+    # routers/document.py._build_youtube_api.
+    webshare_proxy_username: str = ""
+    webshare_proxy_password: str = ""
     youtube_proxy: str = ""
+
+    @property
+    def webshare_proxy_enabled(self) -> bool:
+        return bool(self.webshare_proxy_username.strip() and self.webshare_proxy_password.strip())
 
     @property
     def youtube_proxy_enabled(self) -> bool:
