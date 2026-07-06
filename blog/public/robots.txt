@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://talktofile.ai/blog/sitemap-index.xml

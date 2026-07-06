@@ -1,0 +1,17 @@
+# The `web` service build context is the repo root. Keep it lean and never ship
+# secrets or local build artifacts into the image build context.
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+.git
+.gitignore
+backend/venv
+backend/__pycache__
+**/__pycache__
+**/*.pyc
+backend/*.db
+backend/*.sqlite3
+responsive-screenshots
+*.md
+!blog/**/*.md
