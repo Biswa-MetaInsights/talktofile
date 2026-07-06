@@ -1,0 +1,102 @@
+---
+import { SITE } from '../consts'
+import '../styles/global.css'
+
+interface Props {
+  title: string
+  description: string
+  /* Absolute or site-relative image URL for social sharing. */
+  image?: string
+  /* Canonical URL for this page (absolute). */
+  canonical?: string
+  /* article | website — controls Open Graph type. */
+  type?: 'article' | 'website'
+  /* Optional JSON-LD structured-data objects to inject. */
+  jsonLd?: object[]
+}
+
+const {
+  title,
+  description,
+  image = `${SITE.url}/favicon.svg`,
+  canonical = new URL(Astro.url.pathname, SITE.url).href,
+  type = 'website',
+  jsonLd = [],
+} = Astro.props
+
+const fullTitle = title.includes(SITE.name) ? title : `${title} | ${SITE.name}`
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+
+    <!-- Open Graph -->
+    <meta property="og:site_name" content={SITE.name} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content={type} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={image} />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={image} />
+
+    <!-- Fonts (match the main app) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@700;800&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Structured data for rich results -->
+    {
+      jsonLd.map((obj) => (
+        <script
+          type="application/ld+json"
+          set:html={JSON.stringify(obj)}
+        />
+      ))
+    }
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container-wide bar">
+        <a class="brand-lockup" href={SITE.appUrl} aria-label="TalkToFile home">
+          <img src="/blog/mark-color.svg" alt="TalkToFile" width="44" height="44" />
+          <span class="wordmark">Talktofile</span>
+        </a>
+        <a class="header-cta" href={SITE.appUrl}>Try it free</a>
+      </div>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="container-wide">
+        <p>
+          &copy; {new Date().getFullYear()} TalkToFile ·
+          <a href={SITE.appUrl}>talktofile.ai</a> ·
+          <a href="/blog">Blog</a>
+        </p>
+        <p style="margin-top:0.5rem;">
+          Chat with any document privately. Upload a file, ask anything, get
+          accurate sourced answers.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
