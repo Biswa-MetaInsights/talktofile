@@ -51,12 +51,26 @@ const jsonLd = [
         <div class="post-grid">
           {posts.map((post) => (
             <a class="post-card" href={`/blog/${post.id}/`}>
-              <time datetime={post.data.pubDate.toISOString()}>
-                {dateFmt(post.data.pubDate)}
-              </time>
-              <h2>{post.data.title}</h2>
-              <p>{post.data.description}</p>
-              <span class="read-more">Read more &rarr;</span>
+              {post.data.heroImage ? (
+                <img
+                  class="card-thumb"
+                  src={post.data.heroImage}
+                  alt={post.data.title}
+                  loading="lazy"
+                />
+              ) : (
+                <div class="card-thumb card-thumb-fallback">
+                  <img src="/blog/mark-white.svg" alt="" width="56" height="56" />
+                </div>
+              )}
+              <div class="post-card-body">
+                <time datetime={post.data.pubDate.toISOString()}>
+                  {dateFmt(post.data.pubDate)}
+                </time>
+                <h2>{post.data.title}</h2>
+                <p>{post.data.description}</p>
+                <span class="read-more">Read more &rarr;</span>
+              </div>
             </a>
           ))}
         </div>

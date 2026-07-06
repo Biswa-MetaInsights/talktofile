@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480" fill="none" role="img" aria-label="Chat with a PDF illustration">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="480" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E2611B"/>
+      <stop offset="1" stop-color="#bc4d14"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#fdf4ee"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#7a2f08" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="480" fill="url(#bg)"/>
+
+  <!-- soft decorative circles -->
+  <circle cx="1050" cy="90" r="180" fill="#ffffff" opacity="0.06"/>
+  <circle cx="150" cy="430" r="150" fill="#ffffff" opacity="0.06"/>
+
+  <!-- document -->
+  <g filter="url(#shadow)" transform="translate(360 90)">
+    <rect x="0" y="0" width="300" height="300" rx="20" fill="url(#paper)"/>
+    <!-- folded corner -->
+    <path d="M230 0 L300 70 L230 70 Z" fill="#f6cbab"/>
+    <!-- text lines -->
+    <rect x="40" y="60" width="180" height="16" rx="8" fill="#e2611b" opacity="0.85"/>
+    <rect x="40" y="98" width="220" height="12" rx="6" fill="#cbd5e1"/>
+    <rect x="40" y="124" width="200" height="12" rx="6" fill="#cbd5e1"/>
+    <rect x="40" y="150" width="210" height="12" rx="6" fill="#cbd5e1"/>
+    <rect x="40" y="176" width="150" height="12" rx="6" fill="#cbd5e1"/>
+  </g>
+
+  <!-- chat bubble with answer -->
+  <g filter="url(#shadow)" transform="translate(600 210)">
+    <path d="M20 0 H300 Q320 0 320 20 V150 Q320 170 300 170 H120 L70 215 L82 170 H20 Q0 170 0 150 V20 Q0 0 20 0 Z" fill="#0e1413"/>
+    <circle cx="70" cy="85" r="9" fill="#E2611B"/>
+    <circle cx="120" cy="85" r="9" fill="#f6cbab"/>
+    <circle cx="170" cy="85" r="9" fill="#ffffff" opacity="0.85"/>
+    <rect x="40" y="120" width="240" height="10" rx="5" fill="#ffffff" opacity="0.25"/>
+  </g>
+
+  <!-- sparkle -->
+  <g transform="translate(300 120)" fill="#ffffff">
+    <path d="M20 0 L26 14 L40 20 L26 26 L20 40 L14 26 L0 20 L14 14 Z" opacity="0.9"/>
+  </g>
+</svg>

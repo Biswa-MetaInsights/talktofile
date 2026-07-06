@@ -80,6 +80,9 @@ if (faq && faq.length > 0) {
         <a href={SITE.appUrl}>Home</a> / <a href="/blog">Blog</a> / {title}
       </nav>
       <h1>{title}</h1>
+      {heroImage && (
+        <img class="article-hero" src={heroImage} alt={title} width="1200" height="480" />
+      )}
       <div class="article-meta">
         <time datetime={pubDate.toISOString()}>{dateFmt(pubDate)}</time>
         <span>·</span>

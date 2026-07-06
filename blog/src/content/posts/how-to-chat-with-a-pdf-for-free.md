@@ -3,6 +3,7 @@ title: "How to Chat with a PDF for Free: A Simple 2026 Guide"
 description: "Learn how to chat with a PDF for free in 2026. Upload a file, ask questions, and get accurate, sourced answers in seconds with TalkToFile — private by design."
 pubDate: 2026-07-06
 keyword: "how to chat with a pdf for free"
+heroImage: "/blog/images/chat-with-pdf.svg"
 faq:
   - q: "How can I chat with a PDF for free in 2026?"
     a: "Upload your PDF to TalkToFile and ask a question in plain language. The free plan covers 1 file up to 5MB, and answers come back in seconds with source citations so you can verify them."
