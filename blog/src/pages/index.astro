@@ -1,0 +1,80 @@
+---
+import { getCollection } from 'astro:content'
+import BaseLayout from '../layouts/BaseLayout.astro'
+import { SITE } from '../consts'
+
+// Load all non-draft posts, newest first.
+const posts = (await getCollection('posts', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime()
+)
+
+const dateFmt = (d: Date) =>
+  d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+
+// Structured data: this is a Blog listing.
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    name: `${SITE.name} Blog`,
+    url: `${SITE.url}/blog`,
+    description: SITE.description,
+    publisher: {
+      '@type': 'Organization',
+      name: SITE.org.name,
+      logo: { '@type': 'ImageObject', url: SITE.org.logo },
+    },
+  },
+]
+---
+
+<BaseLayout
+  title={`${SITE.name} Blog: Chat With Your Documents`}
+  description={SITE.description}
+  jsonLd={jsonLd}
+>
+  <div class="container-wide">
+    <section class="index-hero">
+      <h1>The TalkToFile Blog</h1>
+      <p>
+        Practical guides on chatting with your documents, summarizing PDFs,
+        and getting accurate, sourced answers from your files — privately.
+      </p>
+    </section>
+
+    {
+      posts.length === 0 ? (
+        <p style="text-align:center;color:var(--slate-400);padding:2rem 0 4rem;">
+          No articles yet — check back soon.
+        </p>
+      ) : (
+        <div class="post-grid">
+          {posts.map((post) => (
+            <a class="post-card" href={`/blog/${post.id}/`}>
+              {post.data.heroImage ? (
+                <img
+                  class="card-thumb"
+                  src={post.data.heroImage}
+                  alt={post.data.title}
+                  loading="lazy"
+                />
+              ) : (
+                <div class="card-thumb card-thumb-fallback">
+                  <img src="/blog/mark-white.svg" alt="" width="56" height="56" />
+                </div>
+              )}
+              <div class="post-card-body">
+                <time datetime={post.data.pubDate.toISOString()}>
+                  {dateFmt(post.data.pubDate)}
+                </time>
+                <h2>{post.data.title}</h2>
+                <p>{post.data.description}</p>
+                <span class="read-more">Read more &rarr;</span>
+              </div>
+            </a>
+          ))}
+        </div>
+      )
+    }
+  </div>
+</BaseLayout>

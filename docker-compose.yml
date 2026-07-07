@@ -24,8 +24,10 @@ services:
 
   web:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      # Context is the repo root so the image can build BOTH frontend/ and
+      # blog/ (the Astro SEO blog). The Dockerfile lives in frontend/.
+      context: .
+      dockerfile: frontend/Dockerfile
       args:
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
         VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
