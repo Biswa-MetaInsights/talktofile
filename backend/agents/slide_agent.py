@@ -75,7 +75,9 @@ async def generate_slides_data(documents: list[DocumentData]) -> list[dict]:
         return []
 
 
-_BRAND_RED = RGBColor(0xE6, 0x00, 0x26)
+# Brand orange (matches the app UI + the inline slide preview). Kept the
+# `_BRAND_RED` name for minimal churn at its call sites.
+_BRAND_RED = RGBColor(0xE2, 0x61, 0x1B)
 _DARK = RGBColor(0x30, 0x30, 0x30)
 _WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 _LIGHT_GRAY = RGBColor(0xF8, 0xFA, 0xFC)
@@ -119,7 +121,7 @@ def build_pptx(slides_data: list[dict], doc_title: str = "Document") -> bytes:
                 sub_box = slide.shapes.add_textbox(Inches(1), Inches(3.9), Inches(11.33), Inches(1))
                 tf2 = sub_box.text_frame
                 tf2.word_wrap = True
-                _set_text(tf2, subtitle, 24, bold=False, color=RGBColor(0xFF, 0xCC, 0xCC))
+                _set_text(tf2, subtitle, 24, bold=False, color=RGBColor(0xFB, 0xE0, 0xD1))
         else:
             # White background
             bg = slide.background

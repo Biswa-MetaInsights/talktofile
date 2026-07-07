@@ -35,10 +35,18 @@ export function useDocumentProcessor(token: string | null, plan: Plan): Document
   // that need the server to be consistent — e.g. entering the chat.
   const [removing, setRemoving] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
+  // Monotonic id for the current upload attempt. Bumped whenever a new upload
+  // starts (or on reset) so a superseded/aborted upload's async handlers can
+  // detect they're stale and stop mutating shared state. Without this, deleting
+  // one file mid-upload (which restarts the pipeline on the survivors) let the
+  // original batch's WebSocket close/error handlers run — and their catch block
+  // calls setFiles([]), wiping *all* the rows instead of just the deleted one.
+  const uploadGen = useRef(0)
 
   useEffect(() => () => wsRef.current?.close(), [])
 
   const reset = useCallback(() => {
+    uploadGen.current++
     wsRef.current?.close()
     wsRef.current = null
     setStage('')
@@ -50,6 +58,12 @@ export function useDocumentProcessor(token: string | null, plan: Plan): Document
   }, [])
 
   const processFiles = useCallback(async (selected: File[]) => {
+    // Supersede any in-flight upload: bump the generation and close its socket so
+    // its stale handlers can't write to shared state (see uploadGen above).
+    const gen = ++uploadGen.current
+    wsRef.current?.close()
+    wsRef.current = null
+
     setError('')
     setSession(null)
     setFiles(selected)
@@ -59,6 +73,7 @@ export function useDocumentProcessor(token: string | null, plan: Plan): Document
 
     try {
       const res = await documentApi.upload(selected)
+      if (uploadGen.current !== gen) return // superseded while the upload request was in flight
       const { session_id, filenames } = res.data
 
       setStage('extracting')
@@ -80,6 +95,7 @@ export function useDocumentProcessor(token: string | null, plan: Plan): Document
         }
 
         ws.onmessage = (evt) => {
+          if (uploadGen.current !== gen) return // a newer upload took over — ignore stale events
           const data: PipelineUpdate = JSON.parse(evt.data)
           setStage(data.stage)
           setStageMsg(data.message)
@@ -106,8 +122,9 @@ export function useDocumentProcessor(token: string | null, plan: Plan): Document
         ws.onclose = () => { if (!sessionInfo) reject(new Error('Connection closed unexpectedly')) }
       })
 
-      if (sessionInfo) setSession(sessionInfo)
+      if (sessionInfo && uploadGen.current === gen) setSession(sessionInfo)
     } catch (err: any) {
+      if (uploadGen.current !== gen) return // superseded — don't clobber the current upload's state
       wsRef.current?.close()
       const detail = err.response?.data?.detail
       setError(detail || err.message || 'Upload failed. Please try again.')
@@ -118,6 +135,10 @@ export function useDocumentProcessor(token: string | null, plan: Plan): Document
   }, [token, plan])
 
   const processUrl = useCallback(async (url: string) => {
+    const gen = ++uploadGen.current
+    wsRef.current?.close()
+    wsRef.current = null
+
     setError('')
     setSession(null)
     setFiles([])
@@ -127,6 +148,7 @@ export function useDocumentProcessor(token: string | null, plan: Plan): Document
 
     try {
       const res = await documentApi.uploadUrl(url)
+      if (uploadGen.current !== gen) return // superseded while the request was in flight
       const { session_id } = res.data
 
       setStage('extracting')
@@ -141,6 +163,7 @@ export function useDocumentProcessor(token: string | null, plan: Plan): Document
         ws.onopen = () => {}
 
         ws.onmessage = (evt) => {
+          if (uploadGen.current !== gen) return // a newer upload took over — ignore stale events
           const data: PipelineUpdate = JSON.parse(evt.data)
           setStage(data.stage)
           setStageMsg(data.message)
@@ -167,8 +190,9 @@ export function useDocumentProcessor(token: string | null, plan: Plan): Document
         ws.onclose = () => { if (!sessionInfo) reject(new Error('Connection closed unexpectedly')) }
       })
 
-      if (sessionInfo) setSession(sessionInfo)
+      if (sessionInfo && uploadGen.current === gen) setSession(sessionInfo)
     } catch (err: any) {
+      if (uploadGen.current !== gen) return // superseded — don't clobber the current upload's state
       wsRef.current?.close()
       const detail = err.response?.data?.detail
       setError(detail || err.message || 'Could not process that URL. Please try again.')

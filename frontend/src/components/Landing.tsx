@@ -60,7 +60,7 @@ const AUDIENCES = [
 const PLAN_FEATURES: { name: string; basic: boolean; pro: boolean }[] = [
   { name: 'Chat with your documents', basic: true, pro: true },
   { name: 'Summaries, flashcards and slides', basic: true, pro: true },
-  { name: 'Translation and podcasts', basic: true, pro: true },
+  { name: 'Translation and podcast scripts', basic: true, pro: true },
   { name: 'Source-cited answers', basic: true, pro: true },
   { name: 'Talk to web and video links', basic: true, pro: true },
   { name: 'Private, nothing stored', basic: true, pro: true },
@@ -148,7 +148,7 @@ const MODES: { value: AppMode | 'charts'; label: string; blurb: string }[] = [
   { value: 'flashcards', label: 'Flashcards', blurb: 'Generate study-ready flashcards from any document. Useful for revision, onboarding, or learning something new fast.' },
   { value: 'slides', label: 'Slides', blurb: 'Turn a report or dense document into a clean slide deck you can present or share.' },
   { value: 'translate', label: 'Translate', blurb: 'Read documents in any language. Upload in one, get clear results in another.' },
-  { value: 'podcast', label: 'Podcasts', blurb: 'Turn your document into a natural, listenable audio rundown for when you’d rather listen than read.' },
+  { value: 'podcast', label: 'Podcast scripts', blurb: 'Turn your document into a natural two-person conversation script — a ready-to-record rundown of the key ideas.' },
   { value: 'charts', label: 'Charts', blurb: 'Turn the tables in your file into bar, line, or pie charts, and more. See the numbers, don’t just read them.' },
 ]
 

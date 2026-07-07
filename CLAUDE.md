@@ -224,7 +224,8 @@ Keep this updated as components are created or significantly changed.
 
 | File | Purpose | Notes |
 |---|---|---|
-| `src/App.tsx` | App shell, view + session state, modals | Holds the `beforeunload` refresh guard (active only while a chat session exists). Chat/sidebar heights use `100dvh` for mobile correctness. |
+| `src/App.tsx` | App shell, view + session state, modals | Holds the `beforeunload` refresh guard (active only while a chat session exists). Chat/sidebar heights use `100dvh` for mobile correctness. **Auto-feedback prompt:** opens `FeedbackModal` automatically whenever a session closes — in-app via `promptFeedback()` (chat/tool "End session" → `endToHome`, and the "Leave this chat?" confirm), and on a reload/tab-close via the `PENDING_FEEDBACK_KEY` localStorage flag (the `beforeunload` guard sets it, clears it on cancel with a `setTimeout(0)`; the next load reads+clears it and prompts). Rendered in **both** the landing early-return and the main return. |
+| `src/components/IntroOfferBanner.tsx` | Post-first-action promo "offer card" | A centered **offer card** over a dim+blurred backdrop (`fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm`), matching a supplied reference. **Theme-aware — the card adopts the site body colour per theme** (light `#F8FAFC` / dark `#0b1120`) via Tailwind `dark:` variants (driven by the `dark` class on `<html>`), i.e. effectively two posters. Header has the **brand-orange Merriweather-italic "Talktofile" wordmark** + a **gold countdown ring** (`CountdownRing`, depleting SVG stroke) reading "closes in N", a rotated gold **"Limited-period offer"** pill, the serif headline **"Pro is ~~$4.99~~ *free*. Really."** (`font-brand`/Merriweather, italic orange "free"), a "Valid through · 31 July 2026" strip, and **Sign up free** (orange) / **Maybe later** (ghost) buttons + a mono footer. **Counts down `TOTAL_SECONDS` (15) then auto-closes**; also dismissable via the X, "Maybe later", or backdrop click. **"Sign up free"** calls `onSignUp` → `App` bumps `signupNonce` → `AppShell` opens the **subscribe** `AuthModal`. **Now a controlled component** (`show`/`onClose`/`onSignUp` props) — it no longer shows itself on load. **`App` decides when to show it: 5s after the user's first action** (their first chat answer / generated summary / flashcards / podcast script, whichever mode they chose on the home page), **once per browser session and no more often than once every 3 days, only if the user hasn't signed up.** All that gating lives in `App` (`handleFirstAction`, `INTRO_OFFER_*` consts, localStorage `ttf_intro_offer_seen` now stores the last-shown **epoch ms** for the 3-day cooldown, not a date); `AppShell.markEngaged` fires `onFirstAction` on the first engagement. Rendered at the top of `App`. |
 | `src/components/Landing.tsx` | Marketing landing page (the "front door") **+ the upload/intent flow** | Hero, "how it works", features, privacy band, CTA, footer. **The hero now owns the upload:** dropping a file / adding a URL starts processing in-place (via `useDocumentProcessor`) while the user stays on the page; a chat box then "appears" where they pick a mode (chat/summary/flashcards/…) and type their first request. The orange circular **Proceed** button (`ArrowUp`) enables once the doc is ready (chat mode also needs typed text; other modes don't). On proceed it calls `onEnter(session, mode, prompt)`. Responsive via Tailwind breakpoints. |
 | `src/components/Navbar.tsx` | Top nav inside the app | Feedback, Personalise (Pro), sign up / sign in or user menu, and the **light/dark `ThemeToggle`**. Labels collapse to icons on small screens. The account button shows the user's **saved profile photo** (`user.profile.avatar`) next to the name, falling back to a `User` icon. Uses **`mark-white.svg`** in dark mode, **`mark-color.svg`** in light. |
 | `src/context/ThemeContext.tsx` | Light/dark theme state (`useTheme`) | Holds `theme` + `toggleTheme`, persists to `localStorage` (`theme`), defaults to OS `prefers-color-scheme` (and follows it until the user chooses explicitly), toggles the `dark` class on `<html>`. Provided in `main.tsx` above `AuthProvider`. Pre-seeded by an inline script in `index.html` (no FOUC). Tailwind is `darkMode: 'class'`. |
@@ -233,7 +234,7 @@ Keep this updated as components are created or significantly changed.
 | `src/hooks/useDocumentProcessor.ts` | Shared upload→process pipeline hook | Uploads file bytes / a URL, drives the processing WebSocket (`extracting`→`analysing`→`ready`), exposes `{ stage, stageMsg, progress, error, session, processing, processFiles, processUrl, reset }`, and fires the `document_uploaded` analytics event. Used by both `Landing` and `UploadZone`. Does **not** navigate — the caller reacts to `session`. |
 | `src/components/WorkspaceHeader.tsx` | Shared top bar for the **non-chat** sections (summary/flashcards/slides/translate/podcast/charts) | A self-contained **copy** of the chat header row (file icon + title, status line, View-summaries drawer, Share, Export, Add files/URLs menu, End session) so those sections match the chat. Chat keeps its own inline header (the reference) — this is not extracted from it. Share/Export act on the **document summary** (no chat transcript in these views); status is a static "Ready". Rendered by `App.tsx` above each tool view; End session runs `endWorkspaceSession`. |
 | `src/components/ModeSwitcher.tsx` | The feature-tab bar (Chat / Summary / … / Charts) | Single source of truth for the tab set (`SWITCH_MODES`), the header labels (`MODE_LABELS`), and the `<ModeSwitcher active onSwitch engaged>` pill row. Rendered by `SectionComposer` at the bottom of every section (chat + the six tool views). An **engaged-but-not-active** tab shows a **filled amber `Star` badge** (top-right) + a `Tooltip` ("Click to pick up where you left off") — the reminder that you have content waiting in that section. |
-| `src/components/SectionComposer.tsx` | **The single shared bottom composer used by EVERY section** (chat + the six tool views) | The one source of the input row (textarea + `MicButton` + proceed button + `ModeSwitcher` tabs), so every section is **pixel-identical**. **The only intended per-section differences are props:** `proceedButton` (the send/stop button for chat, the `Generate …` / `Translate …` button for tools — this is what "differs" between sections and also drives the chatbox width), `placeholder`, and an optional `pickerRow` rendered above the input (the Charts chart-type picker, the Translate language picker). Owns the shared boilerplate: auto-grow (min 44 / **max 120px** everywhere), mic-append, and the Enter behaviour. **Input modes:** pass `value`/`onChange`/`onSubmit`/`disabled`/`showEnterHint`/`inputRef` to control it (chat does this — send-on-Enter, the `↵ send` hint, the connection-gated disable); omit them and the composer owns its own input state and pressing Enter shows a **"Coming soon"** bubble (the tool sections — chatting from a tool view isn't wired yet, `TODO(coming-soon)`). **⚠️ When cross-section chatting is implemented, pass `onSubmit` from the tool views (wired to the real pipeline) so the "Coming soon" branch is never hit** (see `TODO(coming-soon)` in the file). **Follow-up suggestions + Preferences boxes:** renders two **blank** (label-only) headers above the input — **Follow-up suggestions** (`Sparkles`) then **Preferences** (`SlidersHorizontal`) directly below it — **only for the tool sections and only once that section is in `engaged`** (i.e. used at least once — e.g. after the summary is generated). Chat is excluded (`active !== 'chat'`) because it renders its own **populated** follow-ups in `ChatWindow`. Both are placeholders (each wrapped in a `Tooltip label="Coming soon" side="right"`) — no suggestion/preference buttons yet (TODO: populate each with per-item boxes). Replaced the old per-section copies (2026-07-03). |
+| `src/components/SectionComposer.tsx` | **The single shared bottom composer used by EVERY section** (chat + the six tool views) | The one source of the input row (textarea + `MicButton` + proceed button + `ModeSwitcher` tabs), so every section is **pixel-identical**. **The only intended per-section differences are props:** `proceedButton` (the send/stop button for chat, the `Generate …` / `Translate …` button for tools — this is what "differs" between sections and also drives the chatbox width), `placeholder`, and an optional `pickerRow` rendered above the input (the Charts chart-type picker, the Translate language picker). Owns the shared boilerplate: auto-grow (min 44 / **max 120px** everywhere), mic-append, and the Enter behaviour. **Input modes:** pass `value`/`onChange`/`onSubmit`/`disabled`/`showEnterHint`/`inputRef` to control it (chat does this — send-on-Enter, the `↵ send` hint, the connection-gated disable); omit them and the composer owns its own input state and pressing Enter shows a **"Coming soon"** bubble (the tool sections — chatting from a tool view isn't wired yet, `TODO(coming-soon)`). **`onSubmit` may return `false`** to mean "I didn't handle this" — the composer then still shows the "Coming soon" bubble. Podcast uses this: it handles "continue" and returns `false` for everything else. **⚠️ When cross-section chatting is implemented, pass `onSubmit` from the tool views (wired to the real pipeline) so the "Coming soon" branch is never hit** (see `TODO(coming-soon)` in the file). **Follow-up suggestions + Preferences boxes:** renders two **blank** (label-only) headers above the input — **Follow-up suggestions** (`Sparkles`) then **Preferences** (`SlidersHorizontal`) directly below it — **only for the tool sections and only once that section is in `engaged`** (i.e. used at least once — e.g. after the summary is generated). Chat is excluded (`active !== 'chat'`) because it renders its own **populated** follow-ups in `ChatWindow`. Both are placeholders (each wrapped in a `Tooltip label="Coming soon" side="right"`) — no suggestion/preference buttons yet (TODO: populate each with per-item boxes). Replaced the old per-section copies (2026-07-03). |
 | `src/components/WorkspaceComposer.tsx` | Old shared bottom composer — **fully superseded by `SectionComposer` and unused** (not imported anywhere). Safe to delete; kept only as historical reference. | Was a self-contained copy of the chat's bottom area. Its role is now `SectionComposer`'s. |
 | `src/components/ChatWindow.tsx` | The chat experience | Chat WS lifecycle with auto-reconnect, streaming tokens, stop button, suggested questions, summary panel, scroll-to-bottom. Accepts an optional `initialPrompt` — the first message typed on the landing chat box, auto-sent once connected (guarded against resend on reconnect). |
 | `src/components/MessageBubble.tsx` | Renders one message (markdown) | Used for user + assistant + guard-reject + feedback prompts. **Inline citations:** for a finished Sage answer with sources, it runs `buildCitations` over the answer + passages, renders the marked markdown with `react-markdown` `components` overrides (`p`/`li`/`h*`/`td`/`blockquote`) that swap the injected `⟦C{n}⟧` tokens for `<CitationMarker>` (recursing through nested inline nodes). The old collapsible "View sources" list is replaced by a subtle **"Cited from your document · N passages · hover ¹²³ to view"** footer (clicking it opens the full excerpt in `CitationPanel` via `onCiteSource`). Also shows a brief **"Finding sources…"** hint (`awaitingSources`) between the answer finishing and its passages arriving. |
@@ -243,8 +244,8 @@ Keep this updated as components are created or significantly changed.
 | `src/components/SummaryCard.tsx` | Document summary display | `compact` variant used in the side panel and summary drawer. |
 | `src/components/FlashcardsView.tsx` | Flashcards study tool | Has a **Share** action (active-card controls + finished screen) that copies/Web-Shares the full Q&A set with a "Made with Talktofile" attribution. **Renders its own bottom bar** (like Translate): the **"Generate flashcards"** button sits in the send-button spot and runs the real generation; the cards/progress/results live in the scroll region above. Chat textbox/mic kept for parity. Takes `onSwitchMode` + `engagedModes`; `App.tsx` hides `WorkspaceComposer` for it. |
 | `src/components/SummaryView.tsx` | Full-page document summary | **No longer auto-shown** — starts on an empty hero and reveals the summary only when the user clicks **"Generate summary"** in its **own bottom bar** (like Translate; chat textbox/mic for parity, tabs below). The summary is precomputed by the upload pipeline (`doc.summary`); there's no backend regenerate endpoint, so `generate` reveals it after a brief "Summarising…" beat. `onActivity` fires on generate (not mount). Takes `onSwitchMode` + `engagedModes`. |
-| `src/components/PodcastView.tsx` | Podcast script tool | **Share** + **Download** both emit the script with the attribution footer. **Renders its own bottom bar** (like Translate): the **"Generate podcast script"** button sits in the send-button spot and runs the real generation; the chat textbox/mic are kept for parity ("Coming soon" on send). Takes `onSwitchMode` + `engagedModes` and renders its own `ModeSwitcher`, so `App.tsx` hides `WorkspaceComposer` for it. |
-| `src/components/SlidesView.tsx` | Slide-deck (PPTX) tool (Pro) | **Renders its own bottom bar** (like Translate): the **"Generate slides"** button sits in the send-button spot; for non-Pro it's **disabled with a "Pro only" tooltip** (content shows the upgrade message). Chat textbox/mic kept for parity. Takes `onSwitchMode` + `engagedModes`; `App.tsx` hides `WorkspaceComposer` for it. |
+| `src/components/PodcastView.tsx` | Podcast scripts tool | **Share** + **Download** both emit the script with the attribution footer. **Renders its own bottom bar** (like Translate): the **"Generate podcast script"** button sits in the send-button spot and runs the real generation. **The shared chatbox is now wired (2026-07-06):** it passes `value`/`onChange`/`onSubmit` to `SectionComposer`; typing **"continue"** (or similar — see `isContinueRequest`) extends the conversation via `extendPodcast`, and **any other message returns `false`** so the composer shows its **"Coming soon"** bubble (free-form podcast chat isn't wired yet). The old separate "Want to go deeper?" extend input was removed; a subtle "Continuing the conversation…" indicator shows while extending. Takes `onSwitchMode` + `engagedModes` and renders its own `ModeSwitcher`, so `App.tsx` hides `WorkspaceComposer` for it. |
+| `src/components/SlidesView.tsx` | Slide-deck tool | **Free for all** (Pro gate removed 2026-07-06; daily question limit still applies). **No longer auto-downloads** (2026-07-06): **Generate renders the deck inline like a chat that produced a slide** — it uses the chat's **gradient "T" avatar** + a **left-aligned** white chat bubble (framer-motion entrance) showing **only the first slide** as a large preview (stacked-card hint behind it, `Layers` count badge, hover "View all N slides"). `SlideCanvas` (inner component) renders each slide's title/bullets via **container-query `cqw` units** so one markup scales from preview → fullscreen, mirroring the .pptx styling in brand orange. **Clicking the slide / "View fullscreen"** opens a `fixed inset-0` viewer (prev/next + ← → keys, Esc to close, slide counter, speaker-note caption, thumbnail strip). **Download is opt-in** — a "Download .pptx" button posts the *already-generated* slides to `POST /tools/slides/{id}/download` (no second model call). Backend `POST /tools/slides/{id}` now returns **JSON `{slides,title}`** (not a blob). `autoGenerate` now just renders (no forced download). **Renders its own bottom bar** (like Translate); chat textbox/mic kept for parity. Takes `onSwitchMode` + `engagedModes` + `autoGenerate`; `App.tsx` hides `WorkspaceComposer` for it. |
 | `src/components/ChartsView.tsx` | Data-visualisation tool (Recharts) | **Renders its own bottom bar** (like Translate): the **chart-type picker** occupies Translate's language-picker slot and the **"Generate `<Type>` Chart"** button sits in the send-button spot. Old in-content type switcher + "Change chart" removed. Chat textbox/mic kept for parity. Takes `onSwitchMode` + `engagedModes`; `App.tsx` hides `WorkspaceComposer` for it. |
 | `src/components/TranslateView.tsx` | Translate tool | Per-document **Share** + **Download .txt**, both with the attribution footer. **Renders its own bottom bar** (results scroll above; a pinned composer below) instead of using the shared `WorkspaceComposer` — so `App.tsx` **hides `WorkspaceComposer` when `viewMode === 'translate'`**. That bar replaces the composer's "Follow-up suggestions" row with a **"Translate to"** picker (label + language pills with the custom-language input inline to their right, 2 lines) and replaces the send button with a wide **"Translate to `<language>`"** button that runs the translation. The chat textbox + mic are kept (smaller) for parity — sending still shows "Coming soon" (`TODO(coming-soon)`). Renders its own `ModeSwitcher` tabs (takes `onSwitchMode` + `engagedModes`). No inner "Translate" heading (the `WorkspaceHeader` title already says it). |
 | `src/lib/share.ts` | Share/export helpers | `withAttribution()` appends a "Made with Talktofile — <runtime origin>" footer; `downloadText()` (local .txt) and `shareOrCopy()` (Web Share API → clipboard fallback). Used by the four tool views above. Link target is `window.location.origin` — no hardcoded domain. |
@@ -353,6 +354,308 @@ Not built / known gaps:
 > for small sessions. Keep entries terse (a few bullets), not a blow-by-blow transcript. The
 > detailed "how" belongs in the relevant section above; this log is just the running status so the
 > next session/developer can see at a glance where things stand.
+
+### 2026-07-07 — Left details panel is now drag-resizable (standard resizable sidebar)
+**Done:**
+- Made the **left details panel** (filename + "…see the original document" + Overview/summary) **width-
+  adjustable by dragging its right edge**, like a standard resizable sidebar. Frontend only, all in
+  **`App.tsx`** (`AppShell`).
+- **Drag handle:** a thin strip on the panel's right edge (straddles the border, `z-30`) with
+  **`cursor-col-resize`** (the ↔ arrow the user asked for) and a brand-orange line on hover/while
+  dragging. Mouse-down starts a window-level `mousemove`/`mouseup` drag (so the cursor can outrun the
+  handle); body cursor + `user-select` are locked during the drag.
+- **State/consts:** new `sidebarWidth` (px, session-only like `sidebarHidden`) + `resizingSidebar`.
+  Bounds: `SIDEBAR_DEFAULT_WIDTH=288` (the old `w-72` "standard size"), `MIN=220`, `MAX=560`,
+  `COLLAPSE=180`. Width is clamped to [MIN, MAX]; a `transition-[width]` smooths non-drag changes and
+  is disabled while dragging.
+- **Minimise + restore:** dragging narrower than `COLLAPSE` **snaps the panel shut** (`sidebarHidden`)
+  and resets the stored width to DEFAULT, so the **existing header `PanelLeftOpen` toggle** (in
+  `ChatWindow` + `WorkspaceHeader`) reopens it at the **standard size** — that's the visible "put it
+  back" option. **Double-clicking the handle** also resets to DEFAULT.
+- **Structure change:** the panel's fixed-width `w-72 xl:w-80 … overflow-y-auto` div was split into an
+  **outer width container** (`relative`, inline `style={{ width }}`, holds the handle) + an **inner
+  scroll area** (`p-5 gap-4 overflow-y-auto scrollbar-thin`), so the handle isn't clipped by the scroll
+  overflow and doesn't fight the scrollbar. Panel is still `hidden lg:flex` (lg+ only), so resize is a
+  desktop affordance; the inline width is inert on mobile.
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Visual verification not done** — on lg+, hover the right edge (↔ cursor + orange line), drag to
+  widen/narrow (clamps 220–560px), drag hard-left to minimise → header toggle reopens at standard width,
+  and double-click the handle resets. Check light/dark. Width is session-only (a reload starts at 288px);
+  persist to localStorage if that's wanted.
+
+### 2026-07-07 — Intro-offer banner now fires 5s after the user's first action (not on load), shows 15s
+**Done:**
+- Changed **when** the promo `IntroOfferBanner` appears. It no longer shows on page load — it now
+  appears **5 seconds after the user's first action** (their first chat answer / generated summary /
+  flashcards / podcast script, i.e. whichever mode they chose on the home page) and **stays up for 15s**
+  before auto-closing. Also **replaced the em dash** in the footer copy with a comma ("Free through
+  31 July 2026, $4.99/month after.").
+- **`IntroOfferBanner.tsx` is now a controlled component:** props are `show` / `onClose` / `onSignUp`.
+  It dropped its own `useState(true)` TESTING toggle, its load-time show logic, and the `SEEN_KEY`/
+  `today()` per-day localStorage gate. It only renders + runs the `TOTAL_SECONDS` (15s) auto-close
+  countdown (calls `onClose` on depletion / X / "Maybe later" / backdrop). `remaining` resets each time
+  `show` flips true.
+- **All the "when/whether to show" logic moved to `App`** (`App.tsx`):
+  - `handleFirstAction()` is passed to `AppShell` as `onFirstAction`; **`AppShell.markEngaged` calls it
+    on the first engagement** of the session (guarded by a `firstActionRef`, so once per AppShell mount).
+    `markEngaged` already fires for every content-producing section (chat send, generate summary/
+    flashcards/podcast/slides/charts/translate), so "first action, whichever mode" is covered.
+  - `handleFirstAction` gates: **skip if signed up** (`user && !user.is_guest`), **skip if within the
+    3-day cooldown** (localStorage `ttf_intro_offer_seen` now stores the last-shown **epoch ms**, not a
+    `YYYY-MM-DD` date — `INTRO_OFFER_COOLDOWN_MS = 3 days`). Otherwise it starts a **10s timer**
+    (`INTRO_OFFER_DELAY_MS = 5s`) that, on fire, **re-checks sign-up** (`userRef` — they may have signed up
+    during the delay), writes `Date.now()` to localStorage, and sets `showIntroOffer = true`. Timer is
+    cleared on unmount.
+  - Net gate: **once per browser session, at most once every 3 days, only if not signed up.**
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Visual verification not done** — upload a doc as a **guest**, do a first action (chat/summary/
+  flashcards/podcast), wait ~5s → the card appears (stays ~15s); confirm it does **not** reappear in the same
+  session, does not show for a signed-up user, and stays hidden for 3 days after being shown (clear
+  `ttf_intro_offer_seen` in localStorage to re-test). Check light/dark + 320–1280px.
+- Still **date-agnostic** (doesn't auto-hide after 31 July 2026) — remove it or add a date gate once
+  the offer ends.
+
+### 2026-07-07 — First-load full-screen "introductory offer" splash
+**Done:**
+- Added a **full-screen promo banner** shown the **first time the app is opened on a given
+  browser/device**, announcing that **Pro features are free for everyone who signs up, until
+  31 July 2026**. It covers everything for **5 seconds**, then fades out and reveals the app.
+- **New `src/components/IntroOfferBanner.tsx`** (frontend only): `fixed inset-0 z-[100]` orange
+  gradient overlay (brand `#E2611B`) with the white brand mark, an "Introductory offer" pill, the
+  headline, and the "free till 31 July 2026" line. framer-motion fade in/out; theme-agnostic (it's a
+  solid orange splash, same in light/dark).
+  - **Once per browser per day** via `localStorage` **`ttf_intro_offer_seen`**, which stores the
+    **last-shown local date** (`YYYY-MM-DD`); the banner re-shows when the calendar day changes.
+    `show` is decided **synchronously in `useState`** so the app never flashes behind it; today's
+    date is written on mount; a 5s `setTimeout` dismisses it. Wrapped in try/catch so a blocked
+    localStorage still shows the banner rather than crashing. (Was once-ever-per-browser initially;
+    changed to per-day on 2026-07-07 for visibility during the promo.)
+  - Fixed the copy typo from the request ("free for for everyone" → "free for everyone who signs up").
+- Wired into **`App.tsx`**: imported and rendered at the very end of the top-level `App` return
+  (above the toast), so it sits over every view (landing/app/loading) regardless of session state.
+- Type-check (`tsc --noEmit`) passes.
+
+**Redesigned same day** into a centered **dark "offer card"** (per a supplied reference) instead of
+the full-screen orange splash: dim+blurred backdrop; a warm near-black card with the wordmark + a
+**gold countdown ring**, a rotated "Limited-period offer" pill, the serif headline "Pro is ~~$4.99~~
+*free*. Really.", a "Valid through 31 July 2026" strip, and **Sign up free** / **Maybe later**
+buttons. It **counts down 8s then auto-closes** (also X / Maybe later / backdrop). Wired **"Sign up
+free" → the subscribe modal**: `IntroOfferBanner` takes `onSignUp`; `App` holds a `signupNonce`
+bumped on click; `AppShell` (new `signupNonce` prop) opens the `subscribe` `AuthModal` when it
+changes. Also switched the gate from once-ever to **once-per-browser-per-day** (localStorage stores
+the last-shown date).
+
+**Pending / next:**
+- **⚠️ Currently in TESTING mode — shows on EVERY load** (per request). The per-day gate is
+  commented out in `IntroOfferBanner.tsx` behind clear `TESTING` markers. **Before shipping, revert
+  it** (swap `useState(true)` back to the localStorage initializer, and restore the
+  `localStorage.setItem(SEEN_KEY, today())` line).
+- **Visual verification not done** — check the card at 320–1280px (headline `text-4xl`→`text-5xl`),
+  the ring depletes + auto-closes, and "Sign up free" opens the subscribe modal after the card closes.
+- It's **date-agnostic** (doesn't auto-hide after 31 July 2026) — remove it or add a date gate once
+  the offer ends.
+
+### 2026-07-06 — Podcast: fold the "continue" chatbox into the shared composer + rename "Podcasts" → "Podcast scripts"
+**Done:**
+- **Removed the separate "Want to go deeper? Ask the hosts to continue." extend box** (its own input +
+  send button) from `PodcastView.tsx`.
+- **Wired the shared bottom `SectionComposer` chatbox to drive the continue flow instead.** Podcast now
+  passes `value`/`onChange`/`onSubmit`/`disabled` to the composer. `handleChatSubmit`:
+  - if the text matches `isContinueRequest` (`continue|keep going|go on|carry on|proceed|more|next|and
+    then|go deeper`) **and** a script exists **and** not already extending → calls `extend(...)`
+    (`extendPodcast` with a generic "continue naturally, go a little deeper" request), clears the input.
+  - **anything else → returns `false`**, so the composer falls back to its **"Coming soon"** bubble
+    (free-form podcast chat isn't wired to the backend yet — deliberately does nothing).
+  - Placeholder switches to `Type "continue" to keep the conversation going…` once a script exists; a
+    subtle "Continuing the conversation…" spinner shows in the scroll area while extending.
+- **`SectionComposer` change (shared):** `onSubmit` may now return `void | boolean`; the Enter handler
+  shows the "Coming soon" bubble when `onSubmit()` returns `false`. Other tool sections are unaffected
+  (they still don't pass `onSubmit`, so Enter → "Coming soon" as before).
+- **Renamed the feature "Podcasts" → "Podcast scripts" in the visible UI:** the tab label
+  (`ModeSwitcher` `SWITCH_MODES`, which also feeds the header title via `MODE_LABELS`), the Landing mode
+  card label + its blurb (the blurb no longer implies playable audio), the Landing plans-table row
+  ("Translation and podcast scripts"), and the `PodcastView` section headings ("Podcast Scripts").
+  Left grammatical deliverable phrasing that already reads correctly (the "Generate podcast script"
+  button, "Writing your podcast script…", the `podcast_script.txt` download name, and the `UploadZone`
+  "Create a podcast script" fallback label) — swapping those to "Podcast scripts" would break the
+  sentences. Code identifiers / API routes / the `'podcast'` `AppMode` value are unchanged.
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Visual verification not done** — generate a script, type "continue" → new lines append (spinner
+  shows); type something else → "Coming soon" bubble; confirm the tab/header/landing now read "Podcast
+  scripts" (light/dark, 320–1280px).
+- Free-form podcast chat still needs a backend before the non-"continue" branch can do more than
+  "Coming soon".
+
+### 2026-07-06 — Slides: render inline "like a chat produced a slide" instead of auto-downloading
+**Done:**
+- **Slides no longer auto-download.** Generating a deck now **renders it inline** as an assistant-style
+  card (thumbnail grid of HTML slide previews), with **View fullscreen** and an **opt-in Download .pptx**.
+- **Backend (`routers/tools.py`):** split slides into generate vs. download.
+  - `POST /tools/slides/{id}` now returns **JSON `{slides, title}`** (the structured deck from
+    `generate_slides_data`) instead of a PPTX blob. Still logs one `question` usage + the daily-limit cap.
+    502 if the model returns an empty deck.
+  - **New `POST /tools/slides/{id}/download`** accepts `{slides, title}` and builds the .pptx from the
+    *already-generated* data via `build_pptx` — **no model call, no extra limit charge** (auth-scoped;
+    400 if `slides` empty). So generation runs once; download just packages what the user sees (WYSIWYG).
+- **Backend (`agents/slide_agent.py`):** finished the documented red→orange migration the slide agent was
+  missed in — `_BRAND_RED` `#E60026`→**`#E2611B`** (kept the var name) + the title subtitle tint
+  `#FFCCCC`→`#FBE0D1`, so the downloaded .pptx matches the on-brand inline preview.
+- **Frontend (`SlidesView.tsx`, rewritten):**
+  - New inner **`SlideCanvas`** renders one slide as HTML (title slide = orange bg; content slide = white
+    + orange accent bar + bulleted body). Uses **container-query `cqw` units** (`containerType:
+    'inline-size'`) so the *same* markup scales from small thumbnail to fullscreen — font sizes track the
+    slide's own width. Slides stay white/orange in both themes (they're slides).
+  - `generate()` now POSTs and stores `slides`/`title` (no blob, no download). **The deck is presented as a
+    chat message** (refined 2026-07-06): the **gradient "T" (Talktofile) avatar** — copied verbatim from the
+    chat's Sage avatar (`w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700` bold white "T") —
+    on the left, **left-aligned** (not centered) with a white chat bubble (`rounded-2xl rounded-bl-md`),
+    animated in via `framer-motion`. The bubble shows **only the first slide** as a large preview (with
+    **stacked card layers behind it** hinting at the rest, a `Layers N` count badge, and a hover "View all N
+    slides" reveal); clicking it opens the full deck fullscreen. **View fullscreen / Download .pptx** buttons
+    below. (The old 2/3-col thumbnail grid was replaced by the single-first-slide preview.)
+  - **Fullscreen viewer:** `fixed inset-0 z-50`, large current slide, prev/next buttons **+ ← → keys, Esc
+    to close**, slide counter, speaker-note caption, and a bottom **thumbnail strip**. Download button also
+    present up top.
+  - **`download()`** posts the current `slides` to the new `/download` route (`responseType:'blob'`),
+    triggers the .pptx save, flips to a "Downloaded" tick.
+  - `autoGenerate` (landing-selected entry) now just **renders** the deck on arrival — the old
+    auto-download-on-load concern is gone.
+- Type-check (`tsc --noEmit`) passes; backend `import main` OK.
+
+**Pending / next:**
+- **⚠️ Restart the backend** so the changed `/tools/slides` (now JSON) + new `/tools/slides/{id}/download`
+  routes take effect (if not on `--reload`).
+- **Visual verification not done** — generate a deck: thumbnails render, click → fullscreen navigates
+  (arrows/keys/strip), Download saves a .pptx that opens in PowerPoint and matches the preview (orange
+  branding). Check light/dark + 320–1280px, and that landing-selected entry renders (no download) on arrival.
+
+### 2026-07-06 — Auto-ask for feedback whenever a session closes
+**Done:**
+- To get more users leaving feedback, the **`FeedbackModal` now opens automatically at the end of a
+  session** (any section — chat, summary, flashcards, etc.), not just from the navbar button. All
+  wiring is in **`App.tsx`** (`AppShell`), frontend only.
+- **In-app close → prompt immediately.** New `promptFeedback()` opens the modal; called from
+  **`endToHome`** (so both the chat "End session" via `ChatWindow.onReset` **and** the tool-view
+  "End session" via `endWorkspaceSession` are covered) and from the **"Leave this chat?"**
+  `ConfirmDialog.onConfirm` (logo / How-it-works while in a session).
+- **Reload / tab-close → prompt on the next load.** The browser owns the native "Reload site?"
+  prompt, so we can't open our modal mid-unload. Instead the existing **`beforeunload` guard** now
+  drops a `localStorage` flag (`PENDING_FEEDBACK_KEY = 'ttf_pending_feedback'`) and schedules a
+  `setTimeout(…, 0)` that removes it: if the user **confirms** leaving, the page unloads before the
+  timer runs → the flag survives → an on-mount effect in `AppShell` reads+clears it and opens the
+  modal. If they **cancel**, the timer fires → flag cleared → no prompt. (The guard already skips
+  `isProgrammaticReload()`, so a 401-recovery reload never triggers it.)
+- Naturally gated to real sessions — the beforeunload guard and the in-app end paths only exist once
+  a session/upload exists (e.g. after a file is uploaded). `FeedbackModal` is rendered in **both**
+  the landing early-return and the main return (a closed session lands on the landing view).
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Visual verification not done** — in a browser: upload a file → End session → feedback modal
+  appears over the landing; repeat via "Leave this chat?"; then with a live session hit browser
+  reload → confirm → after the page reloads the feedback modal appears (and cancelling the reload
+  does **not** prompt).
+- Possible follow-ups if it feels too frequent: suppress the auto-prompt if the user already sent
+  feedback this session, or throttle to once per N closes.
+
+### 2026-07-06 — Fix: Summary auto-reveal hung on "Summarising…" forever (StrictMode timer trap)
+**Done:**
+- **Bug:** after adding auto-generate-on-entry, picking **Summary** on Landing left it **stuck on the
+  "Summarising…" spinner indefinitely** — nonsensical, since Summary has *nothing to generate* (it just
+  reveals the precomputed `doc.summary` after a 500ms cosmetic beat).
+- **Root cause — a React StrictMode double-invoke trap (dev only).** `SummaryView`'s `generate()`
+  schedules the reveal via `setTimeout` stored in `genTimer.current`, and a **separate** effect
+  `useEffect(() => () => clearTimeout(genTimer.current), [])` clears it on unmount. StrictMode
+  double-invokes effects on mount (**setup → cleanup → setup**), so: my ref-guarded auto-gen effect
+  scheduled the timer on the first setup → the separate effect's **cleanup cleared that timer** → the
+  **ref guard (`didAutoGen`) blocked the second setup from rescheduling** → the reveal timer never
+  fired and `loading` stayed `true` forever. (The other tool views don't hit this: their `generate()`
+  is a plain async fetch with no cleanup cancelling it, so the ref-guard pattern is fine there —
+  their front-loaded slowness is just the genuine model latency now shown up front.)
+- **Fix (`SummaryView.tsx`, frontend only):** replaced the ref-guarded auto-gen with a **self-contained**
+  effect — it schedules its own timer and returns its own `clearTimeout` cleanup, no blocking ref. That's
+  the StrictMode-safe "run once" shape: the second setup reschedules its own timer, so it always fires.
+  Manual "Generate summary" button path (uses `genTimer.current` + the unmount-cleanup effect) unchanged.
+- **Lesson:** the `didAutoGen` ref "run once" pattern is **not** StrictMode-safe when the work being
+  started can be cancelled by a *separate* cleanup effect (here, a timer). For such work, schedule +
+  cancel within the *same* effect instead of guarding with a ref. Async-fetch auto-gens are unaffected.
+- Type-check (`tsc --noEmit`) passes.
+
+### 2026-07-06 — Slides made free for all (removed Pro gate) + auto-run on Landing entry
+**Done:**
+- **Slide generation is no longer Pro-only.** Removed the gate in **two places**:
+  - **Backend** (`routers/tools.py`, `generate_slides`): deleted the `plan != "pro"` → **402** check.
+    Everyone can now generate slides; the shared **daily question limit** still applies as the cost cap.
+  - **Frontend** (`SlidesView.tsx`): stripped all Pro conditionals — dropped `useAuth`/`isPro`, the
+    non-Pro upgrade hero, the `Crown`/`Lock`/`Tooltip` imports, the `disabled={!isPro}` on the button,
+    and the "Pro only" tooltip. Everyone now sees the normal "Create Slide Deck" content + an enabled
+    Generate button.
+- **Auto-run now applies to Slides for all users.** The `autoGenerate` effect no longer requires
+  `isPro`, so picking Slides on Landing → Proceed downloads the deck on entry (see the caveat below).
+  The marketing **plans table already listed slides as `basic: true`** (`Landing.tsx` `PLAN_FEATURES`),
+  so no copy change was needed there.
+- Type-check (`tsc --noEmit`) passes; backend `import main` OK.
+
+**Pending / next:**
+- **⚠️ Restart the backend** so the un-gated `/tools/slides` route takes effect (if not on `--reload`).
+- **Live verify:** as a **free** user, pick Slides on Landing → Proceed → the .pptx downloads on entry;
+  and via the Slides tab, click Generate → downloads. Confirm no 402.
+
+### 2026-07-06 — Landing-selected section auto-generates on entry (skip the redundant "Generate" click)
+**Done:**
+- When a user picks a tool section on the **Landing page** and clicks **Proceed**, that section now
+  **generates immediately on arrival** instead of showing an empty hero + a "Generate …" button they
+  have to click. This applies **only** to the section chosen on Landing — once in the workspace,
+  **switching tabs** between Chat/Summary/Flashcards/etc. keeps the normal manual button (no auto-run).
+- **Mechanism (frontend only):** each tool view gained an optional **`autoGenerate?: boolean`** prop.
+  On mount, a `useEffect` guarded by a `didAutoGen` ref calls the view's existing `generate()` exactly
+  once. `App.tsx` passes `autoGenerate={selectedMode === '<mode>'}` to each view. Key insight: the
+  distinction is **`selectedMode`** (the Landing choice, stable for the session) **vs `viewMode`** (the
+  active tab). Views stay mounted across tab switches, so the mount-effect fires once for the
+  landing-selected view only — a later tab switch never re-triggers it. Wired into `FlashcardsView`,
+  `SummaryView`, `PodcastView`, `ChartsView` (default type 'bar'), and `SlidesView`.
+- **Excluded — Translate** (per the user): it needs a target-language choice first (like chat needs a
+  typed prompt), so it keeps its manual "Translate to <language>" button even from Landing.
+- **Slides caveat:** its `generate()` **downloads a .pptx** (there's no in-view render), so auto-run
+  = an automatic download on entry. (The Pro gate was **removed later the same day** — see the entry
+  above — so this now applies to all users.) Flagged to the user in case an auto-download-on-load
+  feels too aggressive — trivial to disable Slides auto-run alone if so.
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Visual verification not done** — from Landing, pick each section → Proceed → confirm it generates
+  on arrival (spinner → content) with no button click; then confirm switching tabs to another section
+  still shows that section's empty hero + manual Generate button (no auto-run). Check Slides' auto-
+  download feel for Pro, and that free users just see the upgrade state (no auto-run).
+
+### 2026-07-06 — Fix: deleting one file mid-upload removed *both* files
+**Done:**
+- **Bug:** uploading two files simultaneously and clicking X on the second **while it was still
+  uploading** removed **both** rows, not just the second. Root cause was a race in
+  `hooks/useDocumentProcessor.ts`. Deleting a file before the session is `ready` has nothing
+  server-side to trim, so `removeFile` falls back to `processFiles(remaining)` (re-run the
+  pipeline on the survivor). But the **original** batch's WebSocket was never closed and its
+  promise stayed live — when that stale socket later closed/errored, its `catch` block ran
+  `setFiles([])`, wiping the whole list (including the survivor the new upload had just set).
+- **Fix (`useDocumentProcessor.ts`, frontend only):** added a monotonic **`uploadGen` ref**.
+  `processFiles`/`processUrl` bump it at the start, close any in-flight socket, and **guard every
+  async state write** (`onmessage`, the `if (sessionInfo) setSession`, and the `catch`) with
+  `uploadGen.current === gen`, so a superseded upload's handlers — crucially the `setFiles([])`
+  in `catch` — can no longer clobber the current one. `reset` also bumps the gen (covers
+  "delete the last remaining file mid-upload"). The `session`-exists removal path (optimistic
+  trim + backend `remove-file`) was already correct and is unchanged.
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Live verify:** start a 2-file Pro upload, click X on the second *while both are still
+  processing* → only the second disappears, the first finishes and stays "ready". Also confirm
+  deleting the last remaining file mid-upload returns cleanly to the drop zone.
 
 ### 2026-07-02 — Optional proxy for YouTube transcript fetches (production IP-ban workaround)
 **Done:**

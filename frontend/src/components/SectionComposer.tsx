@@ -31,7 +31,9 @@ interface Props {
   //     (TODO(coming-soon), see CLAUDE.md). ---
   value?: string
   onChange?: (v: string) => void
-  onSubmit?: () => void
+  // Return `false` to signal "I didn't handle this" — the composer then shows its
+  // "Coming soon" bubble (e.g. Podcast handles "continue" but nothing else yet).
+  onSubmit?: () => void | boolean
   disabled?: boolean
   showEnterHint?: boolean
   inputRef?: React.RefObject<HTMLTextAreaElement>
@@ -68,9 +70,9 @@ export default function SectionComposer({
 
   useEffect(() => () => { if (comingSoonTimer.current) clearTimeout(comingSoonTimer.current) }, [])
 
-  // TODO(coming-soon): tool sections can't send yet — Enter shows a "Coming soon"
-  // bubble. When cross-section chatting is wired up, pass `onSubmit` and this branch
-  // is never hit (see CLAUDE.md).
+  // TODO(coming-soon): most tool sections can't send yet — Enter shows a "Coming soon"
+  // bubble. A section can pass `onSubmit` to handle some messages (Podcast handles
+  // "continue") and return `false` for the rest to fall back to this bubble.
   const flashComingSoon = () => {
     if (!text.trim()) return
     setShowComingSoon(true)
@@ -81,8 +83,12 @@ export default function SectionComposer({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      if (onSubmit) onSubmit()
-      else flashComingSoon()
+      if (onSubmit) {
+        // A `false` return means "not handled" → fall back to the Coming soon bubble.
+        if (onSubmit() === false) flashComingSoon()
+      } else {
+        flashComingSoon()
+      }
     }
   }
 
