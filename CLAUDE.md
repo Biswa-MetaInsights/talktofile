@@ -657,6 +657,115 @@ the last-shown date).
   processing* → only the second disappears, the first finishes and stays "ready". Also confirm
   deleting the last remaining file mid-upload returns cleanly to the drop zone.
 
+### 2026-07-06 — Made Supabase OAuth actually work end-to-end (fixed backend token rejection)
+**Done:**
+- Goal: get the social sign-in buttons (Google / Microsoft / LinkedIn) functional, not just rendered.
+  Found and fixed a **hard backend blocker** that would have broken *all* Supabase auth (OAuth, email,
+  and anonymous guests), then verified the full flow with a real Supabase token.
+- **Root cause:** this project (ref `tbfvjowsqfvtljfmvzij`) issues **ES256 asymmetric** access tokens
+  (confirmed via its JWKS endpoint + by minting a real anonymous session — token `alg=ES256`). The
+  backend verifies those by fetching `<SUPABASE_URL>/auth/v1/.well-known/jwks.json`, but **`SUPABASE_URL`
+  was unset** in `backend/.env`, so `verify_supabase_jwt` couldn't build the JWKS URL and rejected every
+  token with `401 "Invalid token"`. Proven live: real ES256 token → `/auth/me` → **401** without the var.
+- **Fix:** added `SUPABASE_URL=https://tbfvjowsqfvtljfmvzij.supabase.co` to `backend/.env`. Re-tested the
+  **same token** → `/auth/me` → **200** (user provisioned into the local `users` table via
+  `get_or_create_supabase_user`). Then ran the whole authed surface in real Supabase mode with that token:
+  **upload 200 → process WS `ready` → chat WS** returned a correct grounded answer. This exercises **both**
+  auth paths — `get_current_user` (HTTP) and `resolve_ws_user` (WebSocket) — so OAuth users, which take the
+  identical verify+provision path, will work.
+- **Docs:** `backend/.env.example` — rewrote the Supabase section to state that **`SUPABASE_URL` is REQUIRED**
+  for asymmetric (ES256/RS256) projects (the current default) or all tokens are rejected. **⚠️ Gautham must
+  add `SUPABASE_URL` to his own `backend/.env`** (per-machine, git-ignored) or he'll hit the same 401 wall.
+- Note: `ALLOWED_ORIGINS` already includes `5173/5174/3000`. The earlier **FIND-1** (legacy `/auth/*`
+  endpoints mint legacy tokens the backend rejects in Supabase mode) is **not a blocker for OAuth** — in
+  Supabase mode the frontend uses `SupabaseAuthProvider` exclusively and never calls those endpoints. Left
+  as-is per your call.
+
+**Pending / next (Supabase + provider dashboards — config only, cannot be done from code):**
+1. **Supabase → Authentication → URL Configuration:** set **Site URL** + add **Redirect URLs**
+   (`http://localhost:5173`, `http://localhost:5174` if used, and the prod domain).
+2. **Supabase → Authentication → Providers:** enable **Google**, **Azure** (Microsoft), and
+   **LinkedIn (OIDC)**, pasting a Client ID/Secret created in each provider console (Google Cloud;
+   Azure App registrations; LinkedIn Developers with the *Sign In with LinkedIn using OpenID Connect*
+   product). Register `https://tbfvjowsqfvtljfmvzij.supabase.co/auth/v1/callback` as the redirect in each.
+3. **Live verify** each button: consent screen → redirected back **signed in** (not guest); confirm the
+   `users` row is created and `/auth/me` returns the provider email. Backend readiness is already proven;
+   only the provider enablement remains.
+
+### 2026-07-06 — Added a self-hosted SEO blog at /blog (Astro static site)
+**Done:**
+- Built a standalone **Astro** static blog in a new top-level **`blog/`** folder, served at
+  **`https://talktofile.ai/blog`**, to publish SEO articles (replacing the pricey getautoseo.com;
+  articles are drafted in SEOwriting.ai, exported as Markdown, and dropped in here). The React app
+  in `frontend/` is untouched.
+- **Stack:** Astro 5 + `@astrojs/mdx` + `@astrojs/sitemap`, static output. `astro.config.mjs` sets
+  `site: 'https://talktofile.ai'` (non-www apex — Caddy redirects www→apex, so canonicals must be
+  apex) and `base: '/blog'`. Articles are Markdown files in `blog/src/content/posts/` validated by a
+  content-collection schema (`blog/src/content.config.ts`): `title, description, pubDate,
+  updatedDate?, keyword?, draft, heroImage?, faq?`.
+- **Pages:** `src/pages/index.astro` (post list) + `src/pages/[...slug].astro` (article template).
+  Shared `src/layouts/BaseLayout.astro` emits full SEO: `<title>`, meta description, canonical,
+  Open Graph + Twitter cards, and **JSON-LD** (Article + BreadcrumbList, plus **FAQPage** when a post
+  declares `faq:`). Sitemap at `/blog/sitemap-index.xml`, `robots.txt` at `/blog/robots.txt`. Brand
+  match: #E2611B accent, Inter/Plus Jakarta/Merriweather fonts, `mark-color.svg` logo (copied into
+  `blog/public/`), orange CTA box → talktofile.ai on every article.
+- **Seeded** with the first real post: `blog/src/content/posts/how-to-chat-with-a-pdf-for-free.md`
+  (the SEOwriting.ai PDF article, cleaned + FAQ added).
+- **Production wiring (Docker/Caddy):**
+  - `frontend/Dockerfile` now has a second `blog-builder` stage (Astro build) and copies
+    `blog/dist` → **`/srv/blog`** in the Caddy image. Because the blog is outside `frontend/`, the
+    `web` service build **context moved to the repo root** (`docker-compose.yml`: `context: .`,
+    `dockerfile: frontend/Dockerfile`); all Dockerfile COPYs are now `frontend/…`/`blog/…`-prefixed.
+  - New **root `.dockerignore`** (keeps the now-root build context lean; re-includes `blog/**/*.md`).
+  - `frontend/Caddyfile`: new **`handle /blog*`** block (before the SPA catch-all) roots at `/srv`,
+    serves `/blog/*` statically with `try_files {path} {path}/index.html`, immutable cache on
+    `/blog/_astro/*`, no-cache on blog HTML.
+  - `.gitignore`: added `blog/node_modules/`, `blog/dist/`, `blog/.astro/`.
+- **Verified:** `npm install` + `npm run build` succeed; built HTML has correct `/blog`-prefixed
+  asset links, non-www canonical/og:url, all JSON-LD types (Article/Breadcrumb/FAQPage×5), and a
+  2-URL sitemap. `astro preview` serves `/blog/`, the article, and the logo all 200. Playwright
+  screenshots (index + article) confirm the design is clean, on-brand, responsive.
+- **How to add an article** (see `blog/README.md`): create a `.md` in `posts/`, fill the frontmatter
+  (title/description/pubDate/keyword, optional `faq:`), paste the Markdown body, rebuild+redeploy.
+
+**Pending / next (only things that can't be done from code):**
+- **Deploy:** on the server `git pull && docker compose build web && docker compose up -d web`, then
+  confirm `https://talktofile.ai/blog/` and `.../blog/how-to-chat-with-a-pdf-for-free/` load, plus
+  `/blog/sitemap-index.xml` and `/blog/robots.txt`. (First Docker build now also installs Astro, so
+  it's a bit slower.)
+- **Google Search Console:** verify `talktofile.ai`, submit `https://talktofile.ai/blog/sitemap-index.xml`,
+  then **Request Indexing** for the first article. Watch impressions over 1–3 weeks — this is the
+  proof-of-concept signal before bulk-publishing the rest.
+- Ideally add a reference to the blog sitemap from the **root** `robots.txt` too (the React app
+  doesn't serve one today; optional — GSC submission covers it).
+
+### 2026-07-04 — Added LinkedIn to social sign-in (Google / Microsoft / LinkedIn)
+**Done:**
+- Added **LinkedIn** as a third social sign-in button alongside the existing Google + Microsoft.
+  Uses Supabase's **`linkedin_oidc`** provider (the current OIDC integration; the legacy `linkedin`
+  provider is deprecated). It returns `openid profile email` by default, so — unlike Azure — no
+  explicit `scopes` are needed; the generic `signInWithProvider` path handles it unchanged.
+- **`context/AuthContext.tsx`:** extended `OAuthProvider` to `'google' | 'azure' | 'linkedin_oidc'`.
+- **`components/AuthModal.tsx`:** new `LinkedInIcon` (blue `#0A66C2` rounded square + white "in") and a
+  `{ name: 'LinkedIn', provider: 'linkedin_oidc', Icon: LinkedInIcon }` entry in `SOCIAL_PROVIDERS`.
+  Button label / loading spinner / disabled handling all come from the existing `.map` render — no
+  other wiring. Backend needs nothing (any Supabase OAuth user is provisioned into `users` on first
+  API call, keyed by `supabase_user_id`).
+- **Docs:** `SUPABASE_SETUP.md` §6 retitled Google/Microsoft/LinkedIn; added the LinkedIn row to the
+  provider table + a note (must add the **Sign In with LinkedIn using OpenID Connect** product in the
+  LinkedIn app; old r_liteprofile/r_emailaddress scopes no longer apply).
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next (config only — cannot be done in code):**
+- **The app is currently in legacy mode** (the buttons are hidden), so LinkedIn is not yet exercisable.
+  To turn it on: set `VITE_SUPABASE_*` + backend `SUPABASE_JWT_SECRET` (SUPABASE_SETUP.md steps 1–5),
+  then in Supabase → Authentication → Providers enable **LinkedIn (OIDC)** with a Client ID/Secret from
+  a LinkedIn Developers app that has the OpenID Connect product added, registering
+  `https://<ref>.supabase.co/auth/v1/callback` as the redirect.
+- **Live verify** once configured: click **Continue with LinkedIn account** → LinkedIn consent →
+  redirected back signed in; confirm the local `users` row is created and `/auth/me` returns the
+  LinkedIn email. **Visual check** of the button (light/dark, 320–1280px) not done.
+
 ### 2026-07-02 — Optional proxy for YouTube transcript fetches (production IP-ban workaround)
 **Done:**
 - YouTube blocks transcript requests from datacenter/cloud IPs, so YouTube URL ingestion fails on a
