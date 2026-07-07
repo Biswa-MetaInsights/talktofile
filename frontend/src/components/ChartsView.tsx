@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   BarChart2, TrendingUp, PieChart, ScatterChart, AreaChart,
   Loader2, MessageSquare, AlertCircle,
@@ -24,6 +24,11 @@ interface Props {
   // Fire once a chart has been generated, so this section earns its "pick up where you
   // left off" star.
   onActivity?: () => void
+  // When true, generate immediately on mount — the user picked this section on the
+  // Landing page and proceeded, so the "Generate chart" step is redundant the first
+  // time. Only the landing-selected section gets this; switching in via a tab does not
+  // (it keeps the manual button). Uses the default chart type ('bar').
+  autoGenerate?: boolean
 }
 
 const CHART_TYPES = [
@@ -134,13 +139,24 @@ function ChartRenderer({ chart }: { chart: ChartData }) {
   return null
 }
 
-export default function ChartsView({ session, onSwitchMode, engagedModes, onActivity }: Props) {
+export default function ChartsView({ session, onSwitchMode, engagedModes, onActivity, autoGenerate }: Props) {
   const [chartType, setChartType] = useState('bar')
   const [chart, setChart] = useState<ChartData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const activeType = CHART_TYPES.find((c) => c.id === chartType)
+
+  // Auto-generate once on entry when this is the section chosen on the Landing page.
+  // The ref guard ensures it fires only the first time, never on a later re-render.
+  const didAutoGen = useRef(false)
+  useEffect(() => {
+    if (autoGenerate && !didAutoGen.current) {
+      didAutoGen.current = true
+      generate()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoGenerate])
 
   const generate = async () => {
     setLoading(true)

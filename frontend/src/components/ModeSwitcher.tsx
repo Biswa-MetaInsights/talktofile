@@ -12,7 +12,7 @@ export const SWITCH_MODES: { value: AppMode; label: string }[] = [
   { value: 'flashcards', label: 'Flashcards' },
   { value: 'slides', label: 'Slides' },
   { value: 'translate', label: 'Translate' },
-  { value: 'podcast', label: 'Podcasts' },
+  { value: 'podcast', label: 'Podcast scripts' },
   { value: 'charts', label: 'Charts' },
 ]
 

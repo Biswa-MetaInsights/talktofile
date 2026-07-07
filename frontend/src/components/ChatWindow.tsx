@@ -627,7 +627,7 @@ ${rows}
           </div>
           <button
             onClick={endSession}
-            className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 hover:border-red-200 dark:hover:border-red-500/30"
+            className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-500 transition-colors rounded-lg hover:bg-brand-50 dark:hover:bg-brand-500/10 px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 hover:border-brand-200 dark:hover:border-brand-500/30"
             title="End this session"
           >
             <LogOut className="w-3.5 h-3.5" />

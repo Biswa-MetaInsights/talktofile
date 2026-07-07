@@ -169,17 +169,23 @@ async def generate_chart(
 
 # ── Slides ───────────────────────────────────────────────────────────────────
 
+def _slides_doc_title(session) -> str:
+    filename = session.documents[0].filename.rsplit(".", 1)[0] if session.documents else "Document"
+    return filename
+
+
 @router.post("/slides/{session_id}")
 async def generate_slides(session_id: str, current_user: dict = Depends(get_current_user)):
+    """Generate the slide deck and return its structured data (title, bullets,
+    speaker notes per slide) so the frontend can render it inline — like a chat
+    that produced a slide. The PPTX itself is only built on demand when the user
+    clicks download (see /slides/{id}/download), reusing this same data so there's
+    no second model call."""
     username = current_user["username"]
     plan = current_user.get("plan", "free")
 
-    if plan != "pro":
-        raise HTTPException(
-            status_code=402,
-            detail="Slide generation is a Pro feature. Upgrade to create and download slide decks.",
-        )
-
+    # Slide generation is available to everyone (no Pro gate). The shared daily
+    # question limit below still applies as the cost control.
     session = _get_ready_session(session_id, username)
 
     settings = get_settings()
@@ -188,11 +194,42 @@ async def generate_slides(session_id: str, current_user: dict = Depends(get_curr
         raise HTTPException(status_code=429, detail="Daily limit reached. Please try again tomorrow.")
     log_usage(username, "question", "tool=slides")
 
-    from agents.slide_agent import generate_presentation
-    pptx_bytes = await generate_presentation(session.documents)
+    from agents.slide_agent import generate_slides_data
+    slides = await generate_slides_data(session.documents)
+    if not slides:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not generate a slide deck from this document. Please try again.",
+        )
 
-    filename = session.documents[0].filename.rsplit(".", 1)[0] if session.documents else "presentation"
-    safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", filename)
+    return {"slides": slides, "title": _slides_doc_title(session)}
+
+
+class SlidesDownloadRequest(BaseModel):
+    slides: list[dict]
+    title: str | None = None
+
+
+@router.post("/slides/{session_id}/download")
+async def download_slides(
+    session_id: str,
+    body: SlidesDownloadRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Build the .pptx from an already-generated deck (the slides the user is
+    viewing). No model call and no daily-limit charge — generation already ran in
+    /slides/{id}; this just packages the same data as a downloadable file."""
+    username = current_user["username"]
+    session = _get_ready_session(session_id, username)
+
+    if not body.slides:
+        raise HTTPException(status_code=400, detail="No slides to download.")
+
+    from agents.slide_agent import build_pptx
+    title = (body.title or _slides_doc_title(session)).strip() or "Document"
+    pptx_bytes = build_pptx(body.slides, title)
+
+    safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", title) or "presentation"
 
     return Response(
         content=pptx_bytes,

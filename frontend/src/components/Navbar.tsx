@@ -69,6 +69,16 @@ export default function Navbar({ onOpenAuth, onHome, onHowItWorks, onSignedOut, 
           <Tooltip label="Click here to go to this section." side="bottom">
             <button onClick={onHowItWorks ?? onHome} className="text-lg font-medium text-[#303030] dark:text-slate-300 hover:text-[#E2611B] dark:hover:text-[#E2611B] transition-colors">How it works</button>
           </Tooltip>
+          <Tooltip label="Read our blog" side="bottom">
+            <a
+              href="https://talktofile.ai/blog"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-lg font-medium text-[#303030] dark:text-slate-300 hover:text-[#E2611B] dark:hover:text-[#E2611B] transition-colors"
+            >
+              Blogs
+            </a>
+          </Tooltip>
         </nav>
       </div>
 

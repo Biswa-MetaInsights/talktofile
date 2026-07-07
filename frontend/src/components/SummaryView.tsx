@@ -12,9 +12,14 @@ interface Props {
   // Fire once the user has generated (revealed) the summary, so this section earns its
   // "pick up where you left off" star — mirrors the other tool sections.
   onActivity?: () => void
+  // When true, reveal the summary immediately on mount — the user picked this section
+  // on the Landing page and proceeded, so the "Generate summary" step is redundant the
+  // first time. Only the landing-selected section gets this; switching in via a tab
+  // does not (it keeps the manual button).
+  autoGenerate?: boolean
 }
 
-export default function SummaryView({ session, onSwitchMode, engagedModes, onActivity }: Props) {
+export default function SummaryView({ session, onSwitchMode, engagedModes, onActivity, autoGenerate }: Props) {
   // The summary itself is produced by the upload pipeline (analyst agent) and already
   // lives on `session.documents[i].summary`. Per product decision it is no longer shown
   // automatically: the user clicks "Generate summary" (below, in the bottom bar) to reveal
@@ -36,6 +41,25 @@ export default function SummaryView({ session, onSwitchMode, engagedModes, onAct
   }
 
   useEffect(() => () => { if (genTimer.current) clearTimeout(genTimer.current) }, [])
+
+  // Auto-reveal on entry when this is the section chosen on the Landing page. There's
+  // nothing to actually generate (the summary is precomputed by the upload pipeline) —
+  // this just reveals it after the same brief "Summarising…" beat for parity.
+  //
+  // IMPORTANT: this uses a *self-contained* timer with its own cleanup rather than the
+  // ref-guarded generate(). React StrictMode double-invokes effects in dev
+  // (setup → cleanup → setup); a ref-guarded version schedules the reveal timer on the
+  // first setup, has it cleared by the separate unmount-cleanup effect above, and then
+  // the ref blocks the second setup from rescheduling — leaving the section stuck on
+  // "Summarising…" forever. Scheduling the timer here (and cancelling it in this
+  // effect's own cleanup) is StrictMode-safe: the second setup reschedules its own timer.
+  useEffect(() => {
+    if (!autoGenerate) return
+    setLoading(true)
+    const t = setTimeout(() => { setLoading(false); setGenerated(true); onActivity?.() }, 500)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoGenerate])
 
   return (
     <div className="flex flex-col h-full overflow-hidden">

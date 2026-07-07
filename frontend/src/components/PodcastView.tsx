@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Mic, Loader2, MessageSquare, Download, Radio, Send, Share2, Check } from 'lucide-react'
+import { Mic, Loader2, MessageSquare, Download, Radio, Share2, Check } from 'lucide-react'
 import type { SessionInfo, AppMode } from '../types'
 import type { PodcastLine } from '../api/client'
 import { toolsApi } from '../api/client'
@@ -15,20 +15,38 @@ interface Props {
   // Fire once the script is generated, so this section earns its "pick up where you
   // left off" star.
   onActivity?: () => void
+  // When true, generate immediately on mount — the user picked this section on the
+  // Landing page and proceeded, so the "Generate podcast script" step is redundant the
+  // first time. Only the landing-selected section gets this; switching in via a tab
+  // does not (it keeps the manual button).
+  autoGenerate?: boolean
 }
 
-export default function PodcastView({ session, onSwitchMode, engagedModes, onActivity }: Props) {
+export default function PodcastView({ session, onSwitchMode, engagedModes, onActivity, autoGenerate }: Props) {
   const [script, setScript] = useState<PodcastLine[]>([])
   const [loading, setLoading] = useState(false)
   const [extending, setExtending] = useState(false)
   const [error, setError] = useState('')
-  const [extendRequest, setExtendRequest] = useState('')
+  // The main chatbox (shared SectionComposer) is wired here: typing "continue" (or
+  // similar) extends the conversation; anything else falls back to "Coming soon".
+  const [chatInput, setChatInput] = useState('')
   const [shared, setShared] = useState<'shared' | 'copied' | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (script.length) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [script.length])
+
+  // Auto-generate once on entry when this is the section chosen on the Landing page.
+  // The ref guard ensures it fires only the first time, never on a later re-render.
+  const didAutoGen = useRef(false)
+  useEffect(() => {
+    if (autoGenerate && !didAutoGen.current) {
+      didAutoGen.current = true
+      generate()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoGenerate])
 
   const generate = async () => {
     setLoading(true)
@@ -45,20 +63,37 @@ export default function PodcastView({ session, onSwitchMode, engagedModes, onAct
     }
   }
 
-  const extend = async () => {
-    const req = extendRequest.trim()
-    if (!req || extending) return
+  // "continue" and friends → keep the conversation going. Anything more specific
+  // (free-form chat over the document) isn't wired to the backend yet.
+  const isContinueRequest = (msg: string) =>
+    /\b(continue|keep going|go on|carry on|proceed|more|next|and then|go deeper)\b/i.test(msg)
+
+  const extend = async (req: string) => {
+    if (extending || !script.length) return
     setExtending(true)
     setError('')
     try {
       const res = await toolsApi.extendPodcast(session.session_id, script, req)
       setScript((prev) => [...prev, ...res.data.new_lines])
-      setExtendRequest('')
+      setChatInput('')
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to extend the conversation. Please try again.')
+      setError(err.response?.data?.detail || 'Failed to continue the conversation. Please try again.')
     } finally {
       setExtending(false)
     }
+  }
+
+  // Handle a message typed into the shared chatbox. Returning false lets the composer
+  // show its "Coming soon" bubble for anything we can't act on yet.
+  const handleChatSubmit = (): boolean => {
+    const msg = chatInput.trim()
+    if (!msg) return true
+    if (isContinueRequest(msg) && script.length && !extending) {
+      extend('Continue the conversation naturally, going a little deeper on what was just discussed.')
+      return true
+    }
+    // Backend for free-form podcast chat isn't ready yet — do nothing but signal it.
+    return false
   }
 
   const scriptText = () =>
@@ -86,7 +121,7 @@ export default function PodcastView({ session, onSwitchMode, engagedModes, onAct
               <Radio className="w-8 h-8 text-[#E2611B]" />
             </div>
             <div>
-              <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100 mb-2">Podcast Script</h2>
+              <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100 mb-2">Podcast Scripts</h2>
               <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">
                 Generate a two-person conversation between a HOST and an EXPERT discussing the key ideas
                 from your document. Perfect for preparing a talk or deepening understanding.
@@ -109,7 +144,7 @@ export default function PodcastView({ session, onSwitchMode, engagedModes, onAct
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Radio className="w-5 h-5 text-[#E2611B]" />
-                <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100">Podcast Script</h2>
+                <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100">Podcast Scripts</h2>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -160,29 +195,14 @@ export default function PodcastView({ session, onSwitchMode, engagedModes, onAct
               })}
             </div>
 
-            {/* Extend conversation */}
-            <div className="border-t border-slate-100 dark:border-slate-800 pt-4 mt-2">
-              <p className="text-xs text-slate-400 dark:text-slate-500 mb-2 text-center">Want to go deeper? Ask the hosts to continue.</p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={extendRequest}
-                  onChange={(e) => setExtendRequest(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && extend()}
-                  placeholder="e.g. Go deeper on the key findings…"
-                  disabled={extending}
-                  className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#E2611B] focus:ring-1 focus:ring-[#E2611B]/30 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500"
-                />
-                <button
-                  onClick={extend}
-                  disabled={!extendRequest.trim() || extending}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {extending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                </button>
+            {/* Continuing indicator — the conversation extends via the shared chatbox
+                below (type "continue"). */}
+            {extending && (
+              <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500 pl-12">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Continuing the conversation…
               </div>
-              {error && <p className="text-brand-600 text-xs mt-2 text-center">{error}</p>}
-            </div>
+            )}
+            {error && <p className="text-brand-600 text-xs text-center">{error}</p>}
             <div ref={bottomRef} />
           </>
         )}
@@ -194,7 +214,15 @@ export default function PodcastView({ session, onSwitchMode, engagedModes, onAct
         active="podcast"
         onSwitch={onSwitchMode}
         engaged={engagedModes}
-        placeholder="Add your preferences here."
+        placeholder={
+          script.length
+            ? 'Type "continue" to keep the conversation going…'
+            : 'Add your preferences here.'
+        }
+        value={chatInput}
+        onChange={setChatInput}
+        onSubmit={handleChatSubmit}
+        disabled={extending}
         proceedButton={
           <button
             onClick={generate}

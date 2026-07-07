@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Loader2, Trophy, RotateCcw, Eye, EyeOff, Share2, Check, Sparkles } from 'lucide-react'
 import type { SessionInfo, AppMode } from '../types'
@@ -16,9 +16,14 @@ interface Props {
   // Fire once the user has generated cards, so this section earns its "pick up where
   // you left off" star.
   onActivity?: () => void
+  // When true, generate immediately on mount — the user picked this section on the
+  // Landing page and proceeded, so the "Generate flashcards" step is redundant the
+  // first time. Only the landing-selected section gets this; switching in via a tab
+  // does not (it keeps the manual button).
+  autoGenerate?: boolean
 }
 
-export default function FlashcardsView({ session, onSwitchMode, engagedModes, onActivity }: Props) {
+export default function FlashcardsView({ session, onSwitchMode, engagedModes, onActivity, autoGenerate }: Props) {
   const [cards, setCards] = useState<Flashcard[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -48,6 +53,17 @@ export default function FlashcardsView({ session, onSwitchMode, engagedModes, on
       setLoading(false)
     }
   }
+
+  // Auto-generate once on entry when this is the section chosen on the Landing page.
+  // The ref guard ensures it fires only the first time, never on a later re-render.
+  const didAutoGen = useRef(false)
+  useEffect(() => {
+    if (autoGenerate && !didAutoGen.current) {
+      didAutoGen.current = true
+      generate()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoGenerate])
 
   const totalCards = cards.length
   const answered = Object.keys(scores).length
