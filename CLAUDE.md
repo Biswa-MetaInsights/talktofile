@@ -344,6 +344,18 @@ Not built / known gaps:
   (an in-app confirm dialog and a browser `beforeunload` guard mitigate accidental loss, but there
   is no save/restore).
 - **OCR** — scanned / image-only PDFs are rejected with a clear message; no OCR fallback.
+- **Pre-rendered landing HTML (SEO)** — the React app is a client-side SPA, so the landing's *body*
+  content (hero/features/pricing copy) isn't in the raw HTML; only the `<head>` meta tags are (title,
+  description, OG image — added 2026-07-10, so social previews + search titles already work). Google
+  renders JS so it still indexes, but a pre-render would make the body crawler-visible too.
+  **Future step (low priority — do this well AFTER the blog is populated with posts; blog content is
+  the bigger SEO lever).** Chosen approach: **a Vite prerender plugin** (e.g. `vite-react-ssg` or a
+  Puppeteer snapshot) that emits static HTML for the landing route at build time — React then hydrates
+  it, so the in-place upload UX is unchanged and there's **no refactor**. (Rejected alternatives:
+  rewriting the landing in Astro — cleaner output but a real refactor because `Landing.tsx` couples
+  marketing + the upload flow; and Next.js — a full rewrite, not worth it for one page.) Watch out for
+  SSR-unsafe code at snapshot time (`window`/`localStorage`/WebSockets, the theme script, PostHog) —
+  guard it so the static build doesn't crash.
 
 ---
 
@@ -354,6 +366,31 @@ Not built / known gaps:
 > for small sessions. Keep entries terse (a few bullets), not a blow-by-blow transcript. The
 > detailed "how" belongs in the relevant section above; this log is just the running status so the
 > next session/developer can see at a glance where things stand.
+
+### 2026-07-10 — SEO step 1: OG image + meta tags + robots/sitemap (frontend only)
+**Done:**
+- **`frontend/index.html`:** added `og:image` (+ width/height/alt), `og:site_name`, `twitter:title`/
+  `twitter:description`/`twitter:image`, and a `canonical` link. **Changed the browser-tab `<title>`
+  (and `og:title`/`twitter:title`) to `Talktofile.ai : AI Chat, Summaries, and More for Files and URLs`.**
+  Left the `<meta name="description">` as-is (flagged for a possible rewrite; it's the search snippet).
+- **`frontend/public/og-image.png`** (new, 1200×630): light `#F8FAFC` paper background, the **color
+  lockup** (`lockup-color-transparent.png` — real Merriweather wordmark baked in), a **terracotta
+  `#C2410C` border on all four sides**, and the title as a balanced 2-line tagline. Generated with
+  Pillow (script kept in the session scratchpad, not committed). Note: the lockup PNG source is only
+  391px wide, upscaled ~1.6× — re-export a larger `lockup-color-transparent.png` if razor-sharpness is
+  wanted.
+- **`frontend/public/robots.txt`** (new): allow-all + points to both `/sitemap.xml` and the blog's
+  `/blog/sitemap-index.xml`. **`frontend/public/sitemap.xml`** (new): lists the homepage. Both serve
+  from the apex root (Vite copies `public/` → `dist/` → Caddy serves `/srv`).
+- `npm run build` passes; all three files land in `dist/`.
+
+**Pending / next:**
+- **Uncommitted** — these changes are in the working tree on `c-cleanup`, not committed yet.
+- **Verify after deploy** with X Card Validator / LinkedIn Post Inspector / FB Sharing Debugger (they
+  cache — force a refresh).
+- Optional: rewrite `<meta name="description">` to match the new positioning.
+- **Pre-rendered landing HTML** is the next SEO code step but **low priority — after blog content**
+  (see "Not built / known gaps" above for the chosen prerender-plugin approach + caveats).
 
 ### 2026-07-07 — Left details panel is now drag-resizable (standard resizable sidebar)
 **Done:**
