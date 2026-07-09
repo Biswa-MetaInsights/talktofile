@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# Main app sitemap (this file's site root).
+Sitemap: https://talktofile.ai/sitemap.xml
+# SEO blog has its own Astro-generated sitemap.
+Sitemap: https://talktofile.ai/blog/sitemap-index.xml
