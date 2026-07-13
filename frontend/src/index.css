@@ -7,6 +7,15 @@
     box-sizing: border-box;
   }
 
+  /* Clip horizontal overflow at the ROOT, not just <body>. A `position: fixed`
+     element (the navbar) and absolutely-positioned tooltips escape body's
+     overflow clip, so a wide tooltip near the screen edge could still scroll the
+     page sideways on narrow phones. Clipping on <html> stops that for good while
+     leaving vertical scrolling intact. */
+  html {
+    overflow-x: hidden;
+  }
+
   body {
     background-color: #F8FAFC;
     color: #0f172a;

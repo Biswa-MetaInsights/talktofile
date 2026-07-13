@@ -232,9 +232,10 @@ Keep this updated as components are created or significantly changed.
 | `src/components/ThemeToggle.tsx` | The navbar light/dark switch | Sun icon in dark mode (→ light), moon in light mode (→ dark). Uses the shared `Tooltip`. |
 | `src/components/UploadZone.tsx` | Drag-and-drop upload + processing UI (in-app fallback, e.g. password-recovery entry) | Enforces plan file-count/size limits client-side; runs the pipeline via `useDocumentProcessor`. No longer the primary upload path — the Landing hero is (see above). |
 | `src/hooks/useDocumentProcessor.ts` | Shared upload→process pipeline hook | Uploads file bytes / a URL, drives the processing WebSocket (`extracting`→`analysing`→`ready`), exposes `{ stage, stageMsg, progress, error, session, processing, processFiles, processUrl, reset }`, and fires the `document_uploaded` analytics event. Used by both `Landing` and `UploadZone`. Does **not** navigate — the caller reacts to `session`. |
-| `src/components/WorkspaceHeader.tsx` | Shared top bar for the **non-chat** sections (summary/flashcards/slides/translate/podcast/charts) | A self-contained **copy** of the chat header row (file icon + title, status line, View-summaries drawer, Share, Export, Add files/URLs menu, End session) so those sections match the chat. Chat keeps its own inline header (the reference) — this is not extracted from it. Share/Export act on the **document summary** (no chat transcript in these views); status is a static "Ready". Rendered by `App.tsx` above each tool view; End session runs `endWorkspaceSession`. |
+| `src/components/WorkspaceHeader.tsx` | Shared top bar for the **non-chat** sections (summary/flashcards/slides/translate/podcast/charts) | A self-contained **copy** of the chat header row (file icon + title, status line, View-summaries drawer, Share, Export, Add files/URLs menu, End session) so those sections match the chat. Chat keeps its own inline header (the reference) — this is not extracted from it. **Both Share and Export now act on the CURRENTLY OPEN section** (via `onShare`/`onExport`/`canAct` props): each tool view registers **two** handlers with `AppShell` (`registerSectionActions(mode, { share, exportPdf } | null)`, typed `SectionShareActions`). **Share** opens the native share sheet / clipboard with that section's **text** (podcast script, translation, flashcards, summary, chart data, slide outline) — the old summary-share behaviour, but scoped to the open section, with a brief ✓ tick. **Export** opens a print / **Save-as-PDF** view of the same section (see `printAsPdf` in `lib/share.ts`). Both buttons are disabled (`canAct=false`) until the section has content. (The header's old summary-only `exportReport` was removed — Summary now registers its own share/export like the rest.) Status is a static "Ready". Rendered by `App.tsx` above each tool view; End session runs `endWorkspaceSession`. |
 | `src/components/ModeSwitcher.tsx` | The feature-tab bar (Chat / Summary / … / Charts) | Single source of truth for the tab set (`SWITCH_MODES`), the header labels (`MODE_LABELS`), and the `<ModeSwitcher active onSwitch engaged>` pill row. Rendered by `SectionComposer` at the bottom of every section (chat + the six tool views). An **engaged-but-not-active** tab shows a **filled amber `Star` badge** (top-right) + a `Tooltip` ("Click to pick up where you left off") — the reminder that you have content waiting in that section. |
 | `src/components/SectionComposer.tsx` | **The single shared bottom composer used by EVERY section** (chat + the six tool views) | The one source of the input row (textarea + `MicButton` + proceed button + `ModeSwitcher` tabs), so every section is **pixel-identical**. **The only intended per-section differences are props:** `proceedButton` (the send/stop button for chat, the `Generate …` / `Translate …` button for tools — this is what "differs" between sections and also drives the chatbox width), `placeholder`, and an optional `pickerRow` rendered above the input (the Charts chart-type picker, the Translate language picker). Owns the shared boilerplate: auto-grow (min 44 / **max 120px** everywhere), mic-append, and the Enter behaviour. **Input modes:** pass `value`/`onChange`/`onSubmit`/`disabled`/`showEnterHint`/`inputRef` to control it (chat does this — send-on-Enter, the `↵ send` hint, the connection-gated disable); omit them and the composer owns its own input state and pressing Enter shows a **"Coming soon"** bubble (the tool sections — chatting from a tool view isn't wired yet, `TODO(coming-soon)`). **`onSubmit` may return `false`** to mean "I didn't handle this" — the composer then still shows the "Coming soon" bubble. Podcast uses this: it handles "continue" and returns `false` for everything else. **⚠️ When cross-section chatting is implemented, pass `onSubmit` from the tool views (wired to the real pipeline) so the "Coming soon" branch is never hit** (see `TODO(coming-soon)` in the file). **Follow-up suggestions + Preferences boxes:** renders two **blank** (label-only) headers above the input — **Follow-up suggestions** (`Sparkles`) then **Preferences** (`SlidersHorizontal`) directly below it — **only for the tool sections and only once that section is in `engaged`** (i.e. used at least once — e.g. after the summary is generated). Chat is excluded (`active !== 'chat'`) because it renders its own **populated** follow-ups in `ChatWindow`. Both are placeholders (each wrapped in a `Tooltip label="Coming soon" side="right"`) — no suggestion/preference buttons yet (TODO: populate each with per-item boxes). Replaced the old per-section copies (2026-07-03). |
+| `src/components/SectionExtras.tsx` | The "Follow-up suggestions" + "Preferences" placeholder rows for the tool sections | Rendered at the **end of each tool view's scrollable content** (last child of the `overflow-y-auto` div, before `SectionComposer`) so they scroll with the section instead of being pinned above the composer. Two rows (Sparkles/Follow-up + SlidersHorizontal/Preferences), each a "Coming soon" `Tooltip`, separated from content by a hairline. `show` prop gates it (typically the view's "has content"/engaged flag). Each row is wrapped in its own `<div>` so they stack (Tooltip is `inline-flex`). Still blank placeholders. Moved here from `SectionComposer` on 2026-07-11. |
 | `src/components/WorkspaceComposer.tsx` | Old shared bottom composer — **fully superseded by `SectionComposer` and unused** (not imported anywhere). Safe to delete; kept only as historical reference. | Was a self-contained copy of the chat's bottom area. Its role is now `SectionComposer`'s. |
 | `src/components/ChatWindow.tsx` | The chat experience | Chat WS lifecycle with auto-reconnect, streaming tokens, stop button, suggested questions, summary panel, scroll-to-bottom. Accepts an optional `initialPrompt` — the first message typed on the landing chat box, auto-sent once connected (guarded against resend on reconnect). |
 | `src/components/MessageBubble.tsx` | Renders one message (markdown) | Used for user + assistant + guard-reject + feedback prompts. **Inline citations:** for a finished Sage answer with sources, it runs `buildCitations` over the answer + passages, renders the marked markdown with `react-markdown` `components` overrides (`p`/`li`/`h*`/`td`/`blockquote`) that swap the injected `⟦C{n}⟧` tokens for `<CitationMarker>` (recursing through nested inline nodes). The old collapsible "View sources" list is replaced by a subtle **"Cited from your document · N passages · hover ¹²³ to view"** footer (clicking it opens the full excerpt in `CitationPanel` via `onCiteSource`). Also shows a brief **"Finding sources…"** hint (`awaitingSources`) between the answer finishing and its passages arriving. |
@@ -247,8 +248,8 @@ Keep this updated as components are created or significantly changed.
 | `src/components/PodcastView.tsx` | Podcast scripts tool | **Share** + **Download** both emit the script with the attribution footer. **Renders its own bottom bar** (like Translate): the **"Generate podcast script"** button sits in the send-button spot and runs the real generation. **The shared chatbox is now wired (2026-07-06):** it passes `value`/`onChange`/`onSubmit` to `SectionComposer`; typing **"continue"** (or similar — see `isContinueRequest`) extends the conversation via `extendPodcast`, and **any other message returns `false`** so the composer shows its **"Coming soon"** bubble (free-form podcast chat isn't wired yet). The old separate "Want to go deeper?" extend input was removed; a subtle "Continuing the conversation…" indicator shows while extending. Takes `onSwitchMode` + `engagedModes` and renders its own `ModeSwitcher`, so `App.tsx` hides `WorkspaceComposer` for it. |
 | `src/components/SlidesView.tsx` | Slide-deck tool | **Free for all** (Pro gate removed 2026-07-06; daily question limit still applies). **No longer auto-downloads** (2026-07-06): **Generate renders the deck inline like a chat that produced a slide** — it uses the chat's **gradient "T" avatar** + a **left-aligned** white chat bubble (framer-motion entrance) showing **only the first slide** as a large preview (stacked-card hint behind it, `Layers` count badge, hover "View all N slides"). `SlideCanvas` (inner component) renders each slide's title/bullets via **container-query `cqw` units** so one markup scales from preview → fullscreen, mirroring the .pptx styling in brand orange. **Clicking the slide / "View fullscreen"** opens a `fixed inset-0` viewer (prev/next + ← → keys, Esc to close, slide counter, speaker-note caption, thumbnail strip). **Download is opt-in** — a "Download .pptx" button posts the *already-generated* slides to `POST /tools/slides/{id}/download` (no second model call). Backend `POST /tools/slides/{id}` now returns **JSON `{slides,title}`** (not a blob). `autoGenerate` now just renders (no forced download). **Renders its own bottom bar** (like Translate); chat textbox/mic kept for parity. Takes `onSwitchMode` + `engagedModes` + `autoGenerate`; `App.tsx` hides `WorkspaceComposer` for it. |
 | `src/components/ChartsView.tsx` | Data-visualisation tool (Recharts) | **Renders its own bottom bar** (like Translate): the **chart-type picker** occupies Translate's language-picker slot and the **"Generate `<Type>` Chart"** button sits in the send-button spot. Old in-content type switcher + "Change chart" removed. Chat textbox/mic kept for parity. Takes `onSwitchMode` + `engagedModes`; `App.tsx` hides `WorkspaceComposer` for it. |
-| `src/components/TranslateView.tsx` | Translate tool | Per-document **Share** + **Download .txt**, both with the attribution footer. **Renders its own bottom bar** (results scroll above; a pinned composer below) instead of using the shared `WorkspaceComposer` — so `App.tsx` **hides `WorkspaceComposer` when `viewMode === 'translate'`**. That bar replaces the composer's "Follow-up suggestions" row with a **"Translate to"** picker (label + language pills with the custom-language input inline to their right, 2 lines) and replaces the send button with a wide **"Translate to `<language>`"** button that runs the translation. The chat textbox + mic are kept (smaller) for parity — sending still shows "Coming soon" (`TODO(coming-soon)`). Renders its own `ModeSwitcher` tabs (takes `onSwitchMode` + `engagedModes`). No inner "Translate" heading (the `WorkspaceHeader` title already says it). |
-| `src/lib/share.ts` | Share/export helpers | `withAttribution()` appends a "Made with Talktofile — <runtime origin>" footer; `downloadText()` (local .txt) and `shareOrCopy()` (Web Share API → clipboard fallback). Used by the four tool views above. Link target is `window.location.origin` — no hardcoded domain. |
+| `src/components/TranslateView.tsx` | Translate tool | Per-document **Share** + **Download .txt**, both with the attribution footer. **Renders its own bottom bar** (results scroll above; a pinned composer below) instead of using the shared `WorkspaceComposer` — so `App.tsx` **hides `WorkspaceComposer` when `viewMode === 'translate'`**. That bar replaces the composer's "Follow-up suggestions" row with a **"Translate to"** picker (label + language pills with the custom-language input inline to their right, 2 lines) and replaces the send button with a wide **"Translate to `<language>`"** button that runs the translation. **The language dropdown ends with an "+ Add new language" option** (`ADD_NEW_LANG`, native `title` tooltip "Click here to add a new language to translate"): selecting it reveals an inline "Enter the language name here." box to its right and, for now, submitting just flashes a "Coming soon" bubble — validating + actually adding the language is a pending backend task (see *What Is / Isn't Built Yet* → "Add a custom translation language" and the `TODO(add-language)` marker). The chat textbox + mic are kept (smaller) for parity — sending still shows "Coming soon" (`TODO(coming-soon)`). Renders its own `ModeSwitcher` tabs (takes `onSwitchMode` + `engagedModes`). No inner "Translate" heading (the `WorkspaceHeader` title already says it). |
+| `src/lib/share.ts` | Share/export helpers | `withAttribution()` appends a "Made with Talktofile — <runtime origin>" footer; `downloadText()` (local .txt) and `shareOrCopy()` (Web Share API → clipboard fallback), used by both the tool views' own in-section buttons and the header's per-section **Share** (text). **`printAsPdf({title, subtitle, bodyHtml})`** opens a print-friendly window under a shared Talktofile shell (styled with semantic classes: `.line`/`.speaker` for podcast, `.card` for flashcards, `.slide`, `<pre>`, `<table>`, etc.) and triggers `window.print()` (the browser's "Save as PDF") — this is how the header's per-section **Export** works. **`escapeHtml()`** is exported for the sections to build safe `bodyHtml`. **`SectionShareActions`** (`{ share, exportPdf }`) is the type each tool view registers with `AppShell` for the header's Share/Export buttons. Link target is `window.location.origin` — no hardcoded domain. |
 | `src/components/AuthModal.tsx` | Login / signup / password reset | |
 | `src/components/PersonaModal.tsx` | Pro persona configuration | |
 | `src/components/FeedbackModal.tsx` | User feedback form | |
@@ -302,12 +303,23 @@ Clean, minimal, premium. **Simplicity is the priority — do not add unnecessary
     while resizing — do **not** replace it with auto-wrap or container-query font sizing.
   - The navbar collapses Feedback/Personalise labels to icons below `md`, and hides the primary
     "How it works" nav below `lg`.
+  - The tool sections' action buttons (`proceedButton` passed to `SectionComposer` — "Regenerate
+    summary", "Translate to …", etc.) **collapse to an icon-only 44px square below `sm`** so they
+    don't squeeze the shared chatbox on phones (`h-11 w-11 sm:w-auto px-0 sm:px-5`, label in
+    `hidden sm:inline`, plus an `aria-label`). Keep this pattern for any new tool-view button.
   - After any layout change, **re-check for horizontal scroll at 320/375/768px** in a browser.
 - **Tooltips — always use `src/components/Tooltip.tsx`; never re-style per location.** It is the single
   source of the tooltip look: a dark **`#303030`** bubble with **white** text, `rounded-lg`, small
   `text-xs`, a matching `#303030` arrow, fading in on hover **and** keyboard focus. Wrap the target
   element and pass `label` + `side`. **Site-wide convention: tooltips open to the `right`** — this is
-  now the component default, so don't pass a `side` elsewhere. **The one exception is the Navbar**,
+  now the component default, so don't pass a `side` elsewhere. **Below `md` (768px) the custom dark
+  bubble is hidden (`hidden md:block`) and the component falls back to the browser's native `title`
+  tooltip instead** (a `matchMedia('(max-width:767px)')` state sets `title={label}` on the wrapper
+  only below `md`, dropped at `md`+ so there's no double tooltip) — matching the lightweight native
+  tooltips the header action buttons (End session / Share / See the original document) use. (A
+  `side="right"` tooltip also flips to open LEFT below `sm` in the `right` position map — mostly moot
+  now, kept as a fallback.) **The one
+  exception is the Navbar**,
   whose tooltips use `side="bottom"` (they sit on the top bar, so right would clip). Prefer this
   component over the native `title` attribute for any UI tooltip. If a new variant is ever needed, extend this component rather
   than hand-rolling a one-off, so the shades stay consistent everywhere.
@@ -339,6 +351,54 @@ set `RESEND_API_KEY` / `EMAIL_FROM` / `FRONTEND_URL` (see `.env.example`). Note:
 now **requires a unique email** so reset can resolve an account unambiguously.
 
 Not built / known gaps:
+- **Add a custom translation language (PENDING — backend + a small frontend wire-up).** The Translate
+  section's "Translate to" dropdown now has an **"+ Add new language"** option (sentinel `ADD_NEW_LANG`
+  in `TranslateView.tsx`) that reveals an inline text box ("Enter the language name here."). **Today
+  the whole thing is a stub:** submitting the box only flashes a "Coming soon" bubble — no language is
+  validated or added. What still needs to happen:
+  - **Backend (not built):** add an endpoint (e.g. `POST /api/tools/translate/languages {name}`) that
+    **verifies the entered name is a real, translatable language** (normalise/canonicalise it — e.g.
+    map "brazilian" → "Portuguese", reject gibberish/unsupported input) and returns the canonical
+    language name (plus an error message when it's not valid). Keep it rate-limited like the other
+    tool endpoints. (The translate model call itself already takes an arbitrary target language string,
+    so no change to `translate_agent.py` is required — this endpoint is purely the validation gate.)
+  - **Frontend wire-up (when the backend exists):** in `TranslateView.tsx`, replace the `TODO(add-language)`
+    stub in `submitNewLang`:
+    1. On submit, call the new endpoint with `newLang` (show a small inline spinner/disabled state).
+    2. **On success:** append the returned canonical name to the dropdown list — `LANGUAGES` is a
+       module const today, so lift it into component state (e.g. `const [languages, setLanguages] =
+       useState(LANGUAGES)`) and `setLanguages((l) => [...l, canonical])`; then `setTargetLang(canonical)`,
+       `setShowAddLang(false)`, and clear `newLang`. (Optionally persist the user's custom languages to
+       `localStorage` so they survive a reload.)
+    3. **On failure:** show the returned validation error inline near the box (reuse the `notice`/amber
+       pattern or a small red line) instead of the "Coming soon" bubble.
+    4. **Remove the "Coming soon" bubble** (`showComingSoon`/`submitNewLang`'s timer) once real handling
+       is in place.
+- **Continue an over-length translation (PENDING — backend + a small frontend wire-up).** Long
+  documents are **truncated** when translated: `agents/translate_agent.py` caps the source at
+  `source_text = (doc.raw_text or …)[:14000]` chars and the model output at `max_tokens=4000`, so the
+  tail of a long doc is silently dropped / the translation stops mid-way. The Translate section now
+  shows a **"Continue"** button at the end of the results (styled like the Flashcards "Finish" button),
+  but **it's a stub** — no `onClick`, just a `Tooltip label="Coming soon"`. To make it work:
+  - **Backend (not built):** the current translate call is single-shot and stateless. Add a way to
+    translate the **next** slice of the source rather than re-translating from the top. Two options:
+    - *Simplest:* extend `translate_document` / the `POST /api/tools/translate` route to accept an
+      **offset** (char index into `doc.raw_text`) and return the next `[offset : offset+14000]` window
+      plus the **new offset** (and a `done` flag when the end of `raw_text` is reached). The frontend
+      calls it repeatedly, appending each window's translation. Raising `max_tokens` (gpt-4o supports up
+      to 16,384 output tokens) reduces how often "Continue" is needed but doesn't remove the input cap.
+    - *Cleaner long-term:* a **chunked/paged translation** endpoint that walks the whole `raw_text` in
+      windows server-side and streams/returns the full translation, retiring the manual "Continue"
+      entirely. Keep it rate-limited + usage-logged like the other tool endpoints.
+    - **⚠️ Not conversational:** unlike Podcast's `extendPodcast` (which passes the prior script back as
+      context), translation "continue" must be **offset-driven** — the model has no memory of where it
+      stopped, so "continue" prompting alone would re-translate or drift. Track the offset explicitly.
+  - **Frontend wire-up (when the backend exists):** in `TranslateView.tsx`, give the "Continue" button
+    a real `onClick` that calls the new endpoint with the current offset, **appends** the returned text
+    to that document's `translated_text` (per-doc offset state), shows a spinner while in flight, hides
+    the button once the backend reports `done`, and **removes the `Tooltip`/"Coming soon"** wrapper.
+    Note `raw_text` may not be available client-side today — the offset/`done` bookkeeping should live
+    on the backend response so the frontend just loops until `done`.
 - **Real billing** — Pro is granted only via the `PRO_EMAILS` env var; there is no payment flow.
 - **Persistence of chats/documents** — by design, sessions are in-memory and lost on refresh
   (an in-app confirm dialog and a browser `beforeunload` guard mitigate accidental loss, but there
@@ -361,11 +421,507 @@ Not built / known gaps:
 
 ## Progress Log
 
+### 2026-07-14 — Fix: Translate language dropdown wouldn't open ("nothing happens" on click)
+**Done (frontend):**
+- **Symptom (user, on Windows 10 / Chromium):** clicking the "Translate to" `<select>` in the Translate
+  section did nothing — the dropdown never opened.
+- **Cause:** the only CSS specific to that control (`.translate-lang-select` in `index.css`) styled the
+  native `<option>` background — `option:checked { background: #E2611B !important }` + `accent-color`.
+  Styling native `<option>` backgrounds forces Chromium off the OS-native popup and, on Windows, can
+  make the popup fail to appear at all (looks like "nothing happens" on click). Nothing in the JSX
+  blocked it (no overlay/`pointer-events`/`disabled`; `SectionComposer` renders `pickerRow` inline).
+- **Fix:** removed the `.translate-lang-select { accent-color }` + `option:checked` block from
+  `index.css`, and dropped the now-dead `translate-lang-select` class from the `<select>` in
+  `TranslateView.tsx`. The select is back to plain native behaviour (loses only the cosmetic orange
+  highlight on the selected row). Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Visual verification not done** — open Translate, click the "Translate to" dropdown → it should now
+  open and list the languages. If it still doesn't open, the cause is an overlay/stacking issue instead
+  (would need the app running with a session to inspect via devtools). If the orange selected-row
+  highlight is wanted back, the reliable path is a **custom dropdown** (button + panel), not native
+  `<option>` styling.
+
+### 2026-07-14 — Translate: "Add new language" dropdown option + inline new-language box (frontend-only)
+**Done (frontend, `TranslateView.tsx`):**
+- Added an **"+ Add new language"** entry as the last option in the "Translate to" `<select>`
+  (sentinel value `ADD_NEW_LANG`). It carries a native `title="Click here to add a new language to
+  translate"` tooltip (native `<option>` tooltip — the shared `Tooltip` component can't wrap a
+  `<select>` option).
+- **Selecting it does not change the target language** — it reveals an **inline text box to the right
+  of the dropdown** (`showAddLang` state) with placeholder **"Enter the language name here."**.
+- **Submitting the box (Enter) flashes a "Coming soon" bubble** (`submitNewLang` → `showComingSoon`,
+  same dark `#303030` pill used by `SectionComposer`, auto-hides after 2s). No language is actually
+  added yet — the validation/registration backend isn't built.
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next — this is a UI stub; the real work is BACKEND + a small frontend wire-up:**
+- See **"Add a custom translation language (PENDING)"** under *What Is / Isn't Built Yet* for the full
+  plan: backend must **validate** the entered name is a real, translatable language, then the frontend
+  must **append it to the dropdown list and select it** instead of showing "Coming soon".
+- Look for the `TODO(add-language)` marker in `submitNewLang` (`TranslateView.tsx`).
+- **Visual verification not done** — open Translate, pick "+ Add new language", type a name, press
+  Enter → confirm the box appears to the right of the dropdown and the "Coming soon" bubble shows.
+
+### 2026-07-14 — Intro-offer banner: daily (was every 3 days) + new "1 min idle on home" trigger
+**Done (frontend, all in `App.tsx`):**
+- **Cooldown 3 days → 1 day.** `INTRO_OFFER_COOLDOWN_MS` is now `24*60*60*1000`. So a guest who
+  hasn't signed up can see the banner **once a day** (was once every 3 days). localStorage key /
+  epoch-ms mechanism unchanged (`ttf_intro_offer_seen`).
+- **New second trigger — 1 minute of inactivity on the home page.** Besides the existing "5s after
+  first action" trigger, the banner now also fires after **60s of no activity** (`mousemove` /
+  `mousedown` / `keydown` / `scroll` / `touchstart`) while on the **home page** (`view === 'landing'
+  && !session`). It **counts as the once-a-day appearance** — both triggers share the same gate.
+- **Refactor:** extracted the gating (once-per-session `introFiredRef` + not-signed-up + once-a-day
+  cooldown + re-check-signup-at-fire-time) into `scheduleIntroOffer(delayMs)`. `handleFirstAction`
+  calls it with `INTRO_OFFER_DELAY_MS` (5s); new `handleHomeInactivity` calls it with `0` (show now).
+  Because both go through the same `introFiredRef` guard, whichever comes first wins and the other
+  no-ops — the banner still shows at most once per session.
+- **Inactivity effect** lives in `AppShell` (where `view`/`session` are), gated on `atHome`, reads the
+  callback via `onHomeInactivityRef` so unrelated re-renders don't reset the idle timer. New
+  `INTRO_OFFER_INACTIVITY_MS = 60_000` const + `onHomeInactivity` prop threaded App → AppShell.
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- **Visual verification not done** — as a guest on the home page: (1) sit idle ~60s → banner appears;
+  (2) do a first action → banner ~5s later; confirm it shows **at most once per session** and not
+  again the same day (clear `ttf_intro_offer_seen` in localStorage to re-test), and never for a
+  signed-up user.
+
+### 2026-07-14 — Split the header actions: Share = section text (native sheet), Export = section PDF
+**Done (frontend):** follow-up to the 2026-07-13 work below, per the user. The two header buttons now
+have distinct jobs, both scoped to the **currently open section**:
+- **Share** → the **native share sheet / clipboard** of the section's **text** (via `shareOrCopy` +
+  `withAttribution`) — i.e. the button's original pre-2026-07-13 behaviour, but sharing the open section's
+  content instead of always the summary. Shows a brief ✓ tick reflecting "shared" vs "copied".
+- **Export** → the **print / Save-as-PDF** view of the section (the `printAsPdf` behaviour that Share
+  briefly had on 2026-07-13).
+- **Mechanism change:** the per-section registry now carries **two** handlers, not one. `lib/share.ts`
+  exports a `SectionShareActions` type (`{ share: () => Promise<'shared'|'copied'>; exportPdf: () => void }`).
+  `AppShell` renamed `registerShare`→**`registerSectionActions(mode, actions|null)`**, holds `sectionActions`
+  (ref) + `actionableModes` (Set), and exposes `shareActiveSection()` / `exportActiveSection()`.
+  `WorkspaceHeader` props are now `onShare` (returns the share promise, drives the tick) + `onExport` +
+  `canAct` (single enabled flag — a section has both or neither). Its old summary-only `exportReport` +
+  `escapeHtml` import were removed (Summary registers its own share/export now).
+- Each tool view (`SummaryView`/`FlashcardsView`/`TranslateView`/`PodcastView`/`SlidesView`/`ChartsView`)
+  registers `{ share, exportPdf }`: `share` reuses each section's existing text builder (podcast
+  `scriptText`, flashcards `FLASHCARDS…`, summary `DOCUMENT SUMMARY…`, translation joined docs, slides
+  outline, chart data as tab-separated rows); `exportPdf` is the existing `printAsPdf` handler.
+- **Export tooltip** reads **"Download <Section> as a pdf"** (was "Export … as a PDF").
+- **Fixed the app freezing while the print/Save-as-PDF dialog is open.** `window.print()` is synchronous
+  and blocks whichever thread calls it; `printAsPdf` used to call `win.print()` from the **opener** (the
+  Talktofile tab), so the whole app was unclickable until Save/Cancel. Now the print trigger is an **inline
+  `<script>` embedded in the new tab's own document** (`setTimeout(window.print, 300)`), so the modal
+  blocks only the print tab — Talktofile stays fully interactive. `printAsPdf` no longer calls
+  `win.print()`/`win.focus()` from the opener.
+- **Chat section made consistent too** (it keeps its own inline header, not `WorkspaceHeader`). Its
+  `exportReport` now **reuses `printAsPdf`** (so it gets the same shell + non-blocking print) instead of its
+  own `window.open`/`win.print()`; the chat-message classes (`.msg`/`.label`/`.body`) were added to the
+  shared `printAsPdf` stylesheet. Tooltips aligned: Export → **"Download Chat as a pdf"** (was "Export
+  report"), Share → **"Share Chat"** (was "Share chat"). Share still text-shares the transcript.
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- Uncommitted, same working branch. **Visual verification not done** — in each section: Share opens the
+  OS share sheet (mobile) / copies (desktop, ✓ tick) with that section's text; Export opens a print
+  window (Save-as-PDF); both are **disabled** until the section has content. The native share sheet's
+  look follows the OS (can't be themed).
+
+### 2026-07-13 — Header "Share" now shares the CURRENTLY OPEN section as a PDF (not always the summary)
+> **Superseded by the 2026-07-14 entry above** — Share was split back to native text-share and the PDF
+> moved to Export. The registry/`printAsPdf` groundwork below still stands.
+
+**Done (frontend):**
+- **Problem:** the Share button in the shared `WorkspaceHeader` row (the one with See-original-document
+  / Share / Export / Add / End-session) always shared the **document summary**, regardless of which tool
+  section was open. The user wanted it to share whatever section is selected — e.g. in Podcast it should
+  share the **podcast script as a PDF**. (User picked the **Print / Save-as-PDF** delivery via the browser's
+  print dialog — no new PDF library.)
+- **Architecture — a per-section "share registry":** the generated content (podcast script, translation,
+  flashcards, chart, slides) lives in each tool view's own state, which the shared header can't see. So each
+  view now **registers a "Share as PDF" handler** with `AppShell`:
+  - `App.tsx` (`AppShell`) holds `shareHandlers` (a `useRef<Partial<Record<AppMode, () => void>>>`) + a reactive
+    `shareableModes: Set<AppMode>` state. `registerShare(mode, fn)` (stable `useCallback`) sets/clears the
+    handler and updates the Set. `shareActiveSection()` calls `shareHandlers.current[viewMode]?.()`.
+  - `WorkspaceHeader` gained **`onShare` + `canShare`** props. The Share button calls `onShare` and is
+    **disabled until `canShare`** (`shareableModes.has(viewMode)`); tooltip reads "Share <Section> as a PDF"
+    / "Generate <Section> first to share it". Its old `shareSummary` (native/clipboard text) was removed;
+    **Export is unchanged** (still the summary report). Dropped the now-unused `shared` state + `Check`/
+    `shareOrCopy`/`withAttribution` imports; `escapeHtml` now imported from `lib/share`.
+  - Each of `SummaryView` / `FlashcardsView` / `TranslateView` / `PodcastView` / `SlidesView` / `ChartsView`
+    takes `registerShare?` and, in a `useEffect`, registers a handler when it has content (null otherwise, so
+    `canShare` flips off). Each handler builds section-specific `bodyHtml` and calls the new **`printAsPdf`**.
+- **New `printAsPdf({title, subtitle, bodyHtml})` + `escapeHtml` in `src/lib/share.ts`** — opens a
+  print-friendly window under a shared Talktofile shell (one stylesheet with semantic classes:
+  `.line`/`.speaker` podcast dialogue, `.card` flashcards, `.slide` deck outline, `<pre>` translation,
+  `<table>` chart data, summary `h3`/`ul`) and fires `window.print()` (→ "Save as PDF"). Charts additionally
+  **serialize the rendered Recharts `<svg>`** (via a `chartRef`) into the PDF, plus a data table (scatter skips
+  the table). Slides share a readable **outline** (title + bullets + speaker notes); the `.pptx` download stays
+  the primary export.
+- `window.open` runs synchronously inside the Share click handler, so it isn't popup-blocked.
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- Uncommitted, same working branch as the other 2026-07-13 work.
+- **Visual verification not done** — in each section: generate content, click header Share → a print window
+  opens with that section's content; confirm Save-as-PDF looks right (podcast dialogue, translation, flashcards,
+  summary, slide outline, and the **chart SVG + table**), and that Share is **disabled** before content exists.
+  Charts SVG capture relies on the section being visible at click time (it is — Share only acts on the active
+  section); check the serialized chart renders in the print window (Recharts inlines most styles).
+
+### 2026-07-13 — "Continue" buttons on Translate (placeholder) + Podcast (live)
+**Done (frontend):**
+- **Context:** the backend truncates translations — `translate_agent.py` caps input at
+  `[:14000]` chars and output at `max_tokens=4000` — so long docs get cut off mid-way. The frontend
+  renders the full string it receives (`TranslateView.tsx` result body is `whitespace-pre-wrap`, no
+  clamp), so the cutoff is purely backend. Added "Continue" affordances toward fixing that.
+- **`TranslateView.tsx`:** added a **"Continue"** button at the end of the results (styled like the
+  Flashcards "Finish" button — `px-8 py-2.5 rounded-xl bg-[#E2611B]`), shown when any doc has
+  `translated_text`. It's a **non-functional placeholder** (no backend to translate the truncated
+  remainder yet) wrapped in a `Tooltip label="Coming soon"`. Imported `Tooltip`.
+- **`PodcastView.tsx`:** added a matching **"Continue"** button after the dialogue that **is wired** —
+  its `onClick` calls the existing `extend(...)` (same backend `extendPodcast` path as typing
+  "continue" in the chatbox). Hidden while `extending` (the "Continuing the conversation…" indicator
+  shows instead).
+- Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- Uncommitted. The Translate "Continue" needs a backend endpoint to translate the rest of a truncated
+  document (chunked/paged translation) before it can be wired up — until then it's "Coming soon".
+- The real backend fix for the cutoff is raising/removing the `[:14000]` input slice + the
+  `max_tokens=4000` cap in `translate_agent.py` (and/or chunked translation); not done here.
+
 > **MANDATORY — do this every session.** At the end of each session, add a short dated entry below
 > (newest first) recording **what you finished** and **what's still pending**. This is required even
 > for small sessions. Keep entries terse (a few bullets), not a blow-by-blow transcript. The
 > detailed "how" belongs in the relevant section above; this log is just the running status so the
 > next session/developer can see at a glance where things stand.
+
+### 2026-07-11 — Blur the Charts/Translate proceed button for unsupported file types (+ warning line)
+**Done (frontend, the deferred task — user chose the file-type rule):**
+- **New `src/lib/fileSupport.ts`** — a frontend, extension-based heuristic (approximate by design;
+  a PDF/DOCX with tables can't be detected here): `TABULAR_EXTS = ['xlsx','xls','csv']`.
+  `chartsSupported(session)` = the session has a spreadsheet/CSV file; `translateSupported(session)`
+  = the session has a **non**-spreadsheet file. So a spreadsheet supports Charts (not Translate); a
+  prose doc / web page / JSON / code supports Translate (not Charts).
+- **New `notice?: string` prop on `SectionComposer`** — renders an amber warning line (AlertCircle +
+  text) **just above the input row**, in the pinned bottom bar so it's always visible.
+- **`ChartsView` / `TranslateView`:** compute `supported`; when false the proceed button gets
+  `blur-[1.2px] opacity-60 cursor-not-allowed`, and hovering **or** pressing it sets a
+  `showUnsupported` state that feeds the composer's `notice` (hidden again on mouse-leave). The
+  button's `onClick` no-ops (shows the warning) instead of calling generate/translate when
+  unsupported. Charts' auto-generate-on-entry is also gated on `supported` (shows the warning instead
+  of firing a doomed request).
+- Warning copy (user-specified): Charts → "Charts cover spreadsheets only (.xlsx and .csv files).";
+  Translate → "Translation covers text only. Images, charts, and scanned pages cannot be translated."
+  (same wording as the near-title `MODE_WARNINGS.translate`).
+- **Verified live:** `report.txt` (non-tabular) in Charts → button `blur(1.2px)`/opacity 0.6, notice
+  on hover; `data.csv` in Translate → button blurred, notice on hover. Type-check passes.
+
+**Pending / next:**
+- Uncommitted, same working branch as the other 2026-07-11 work.
+- The rule is **approximate** (extension only). If you want it accurate (e.g. a PDF that *does* have
+  tables should allow Charts), that needs a backend `supports_charts`/`supports_translate` flag per
+  document — swap `fileSupport.ts` for that when/if it exists. Also easy to tweak the `TABULAR_EXTS`
+  list or make Translate "always supported".
+
+### 2026-07-11 — Translate: drop body note + full-height result; Podcast: remove redundant inner header
+**Done (frontend):**
+1. **Translate — removed the in-body scope note** (`{result.note}` `<p>`, the "Translation covers only
+   the text content…" line). The scope caveat now lives only next to the section title
+   (`WorkspaceHeader` `MODE_WARNINGS.translate`, `xl`-only). `TranslateView.tsx`.
+2. **Translate — the translated text shows in full** (no inner scroll). Removed `max-h-80
+   overflow-y-auto` from the result body so it expands; the section's own scroll area handles
+   overflow. **Follow-up fix:** the result **card** has `overflow-hidden` and, as a flex child of the
+   `flex flex-col` scroll area, was *shrinking* — clipping the text while the section didn't grow
+   enough to scroll. Added **`shrink-0`** to the card so it keeps its full content height; the section
+   then scrolls to reveal the whole translation. Verified with a long doc: body full height
+   (3334px, no internal clip), `sectionScrolls:true`, last section visible when scrolled.
+3. **Podcast — removed the redundant inner header** (its own "Podcast Scripts" heading + Share /
+   Download / Chat buttons), which duplicated the shared `WorkspaceHeader` row ("the first line across
+   all sections"). `PodcastView.tsx` — kept the legend + dialogue; `shareScript`/`downloadScript` are
+   now unused but left in place (noUnusedLocals is off). Verified the inner heading no longer renders.
+- Type-check passes.
+
+**Pending / next:**
+- Uncommitted, same working branch as the other 2026-07-11 work.
+- **DONE** (see the entry above, "Blur the Charts/Translate proceed button…") — the user chose the
+  frontend file-type rule; implemented via `src/lib/fileSupport.ts` + the composer `notice` prop.
+
+### 2026-07-11 — Warnings xl-only, tooltips → native title on mobile, "Type here.", chat placeholder all-sizes, flashcard tooltips
+**Done (frontend, four items):**
+1. **Header mode warnings ("Translation covers text only…" / Charts equivalent) now show only at
+   `xl`+** — `WorkspaceHeader.tsx` warning div `hidden md:flex` → **`hidden xl:flex`**. Below 1280px
+   it's hidden (it was crowding the header actions); at 1280px+ it shows. Verified hidden @1000,
+   `display:flex` @1360.
+2. **Tooltips no longer *hidden* on small screens — they fall back to the native `title` tooltip**
+   (the same style the header buttons use). `Tooltip.tsx` adds a `matchMedia('(max-width:767px)')`
+   state and sets `title={isSmall ? label : undefined}` on the wrapper; the custom bubble stays
+   `hidden md:block`. So < `md` → native `title`, ≥ `md` → custom dark bubble (no double). Verified
+   @375 (bubble `display:none` + `title` set) and @800 (bubble `block`, no `title`).
+3. **`SHORT_PLACEHOLDER` "Type here…" → "Type here."** (dropped the ellipsis), `SectionComposer.tsx`.
+4. **Chat placeholder "Ask anything here." at ALL sizes** — the narrow-screen short-placeholder
+   override now excludes chat: `isNarrow && active !== 'chat' ? SHORT_PLACEHOLDER : placeholder`. Only
+   the tool sections get "Type here." on mobile; chat keeps "Ask anything here." (verified @375 in the
+   live chat view). (Chat's composer gets `active={activeMode}`, which is `'chat'` exactly when the
+   chat view is the visible one, so the check is correct.)
+5. **Flashcards: `✗`/`✓` buttons get `title="Got it wrong"`/`"Got it right"`** (`FlashcardsView.tsx`)
+   so the icon-only mobile buttons show the label as a native tooltip (task-2 style); full text still
+   shows from `sm` up.
+- Type-check passes.
+
+**Pending / next:**
+- Uncommitted, same working branch as the other 2026-07-11 work.
+- "Largest screen" for the warnings = `xl` (1280). If a different threshold is wanted (`lg` 1024 or
+  `2xl` 1536), it's a one-word change.
+
+### 2026-07-11 — Shorter chat placeholder + hide tooltips below tablet
+**Done (frontend):**
+1. **Chat input placeholder shortened** — `ChatWindow.tsx` now passes
+   `placeholder="Ask anything here."` to its `SectionComposer` (was the long default
+   "Ask anything about the document or add your preferences here. Shift+Enter for a new line."). On
+   phones the composer's narrow-screen override still swaps in "Type here…" (< `sm`); desktop shows
+   "Ask anything here.".
+2. **Tooltips hidden below `md` (tablet)** — `Tooltip.tsx` bubble is now `hidden md:block`, so on
+   phone-width screens (< 768px) no tooltip renders (hover is unreliable there and the bubble crowded
+   the UI). At `md`+ they behave as before. Verified: `display:none` @375px, `display:block` @800px.
+   Note: this makes the earlier below-`sm` left-flip effectively moot (nothing shows below `md` now),
+   but it's kept in case the hide breakpoint is lowered later.
+- Type-check passes.
+
+**Pending / next:**
+- Uncommitted, same working branch as the other 2026-07-11 work.
+- Deferred (user said "for later"): make the Translate + Charts header **mode warnings** ("Translation
+  covers text only…") show **only at the largest screen size** — they currently show at `md`+ and
+  crowd the header actions.
+- Tooltip hide breakpoint is `md` (768). If "tablet" was meant as `lg` (1024), it's a one-word change.
+
+### 2026-07-11 — Translate dropdown orange border + right-tooltips flip left on mobile
+**Done (frontend):**
+1. **Translate language dropdown highlighted** — `TranslateView.tsx` `<select>` border changed from
+   `border border-slate-200` (+ `dark:border-slate-700`) to **`border-2 border-[#E2611B]`** (brand
+   orange, both themes), dropping the redundant `focus:border` since the border is already orange.
+   **(Follow-up:) the "Translate to" label + dropdown now sit on one line at all sizes** — a
+   `flex items-center gap-2` row with the label `flex-shrink-0` and the select
+   `flex-1 min-w-0 sm:flex-none sm:w-72` (fills the row on mobile, fixed 288px on desktop), instead
+   of the label stacked above a full-width select.
+2. **`side="right"` tooltips now flip to the LEFT below `sm`** (`Tooltip.tsx`). On small screens a
+   right-opening bubble ran off the right edge and was invisible (e.g. the Landing **Proceed** button
+   tooltip, which sits at the right of the chatbox). Since `right` is the site-wide default, updating
+   just the `right` entries in `BUBBLE_POS`/`ARROW_POS` fixes **every** default tooltip at once:
+   below `sm` the bubble uses `right-full mr-2` (opens left) + a left-edge arrow; at `sm`+ it flips
+   back via `sm:right-auto sm:left-full sm:ml-2` (+ arrow `sm:left-auto sm:right-full` and the border
+   color swaps `sm:border-l-transparent sm:border-r-[#303030]`). `top`/`bottom`/`left` unchanged.
+- **Verified live** at 375px: the Proceed tooltip's bubble now sits fully within the viewport
+  (`left=85,right=283` on a 375px screen, `opensLeft:true`); Translate `<select>` border computes
+  `rgb(226,97,27)` 2px. Type-check passes.
+
+**Pending / next:**
+- Uncommitted, same working branch as the other 2026-07-11 work.
+- Trade-off of the always-flip approach: a `side="right"` tooltip on a **left-edge** element could now
+  clip on the left on mobile (rare in this app). A position-aware flip would need JS measurement;
+  deferred.
+
+### 2026-07-11 — Move Follow-up/Preferences from the pinned composer to the end of each section's content
+**Done (frontend):**
+- Per the user: they still want the **"Follow-up suggestions" + "Preferences"** placeholder rows, but
+  **not pinned above the composer** — they want them at the **end of the section content** so you can
+  scroll down to reach them (superseding the previous "hide on mobile" change).
+- **New `src/components/SectionExtras.tsx`** — the two placeholder rows (Sparkles/Follow-up +
+  SlidersHorizontal/Preferences, each with a "Coming soon" `Tooltip`), separated from the content by a
+  hairline (`pt-4 mt-2 border-t`). `show` prop gates visibility. **Each row wrapped in its own `<div>`**
+  so they stack (Tooltip is `inline-flex`, so a bare `space-y-2` would put them side by side).
+- **Removed** both placeholder blocks from `SectionComposer.tsx` (and its now-unused `Sparkles`/
+  `SlidersHorizontal`/`Tooltip` imports).
+- **Rendered `<SectionExtras>` at the end of each tool view's scroll area** (as the last child of the
+  `overflow-y-auto` content div, before the pinned `<SectionComposer>`): `SummaryView` (`show={generated}`),
+  `FlashcardsView` (`show={!!cards.length}`), `TranslateView` (`show={!!result}`), `PodcastView` /
+  `ChartsView` / `SlidesView` (`show={engagedModes.has('<mode>')}`). Chat is unaffected (it has its own
+  inline suggested questions).
+- Verified live at 390px + 1000px (Summary): the rows render **inside the scroll area** (scroll to reach
+  them), stacked, above the composer — not pinned. Type-check passes.
+
+**Pending / next:**
+- Uncommitted, same working branch as the other 2026-07-11 work.
+- Still blank placeholders ("Coming soon"). When real follow-up suggestions/preferences exist, populate
+  `SectionExtras`.
+
+### 2026-07-11 — Flashcards mobile layout + hide Follow-up/Preferences placeholders on mobile
+**Done (frontend):**
+1. **Flashcards — answer & hint no longer squeezed by buttons** (`FlashcardsView.tsx`).
+   - **Revealed answer:** was a `flex justify-between` with the answer squeezed left and the two
+     score buttons on the right. Now the **answer is a full-width `<p>` on its own line(s) below the
+     question**, and the score buttons sit on their **own row below** (`justify-end`). On mobile the
+     buttons are **just `✗` / `✓`** (`<span className="sm:hidden">✗</span>` + `hidden sm:inline` for
+     the full "✗ Got it wrong" / "✓ Got it right"); `aria-label`s added.
+   - **Hint:** was rendered in a `flex-1` span wedged between the "Show hint" and "Reveal answer"
+     buttons. Now, when shown, it's a **full-width line below the question**; the two buttons are on
+     their own row underneath (Reveal answer pushed right with `ml-auto`).
+2. **Hid the "Follow-up suggestions" + "Preferences" placeholder rows on mobile** (`SectionComposer.tsx`
+   — added `hidden sm:block` to both). They're empty "Coming soon" placeholders that only ate vertical
+   space above the composer on phones. (When real content lands, consider moving them into the
+   scrollable section body instead — the user's preferred long-term option.)
+3. **Hero font** — confirmed the `<h1>` is **27px live at 320px** (a user report of "still 24px" was a
+   stale browser/HMR cache; there is no `24px` left in the code).
+- Verified live at 390px (real flashcard generation): hint + answer full-width, `✗`/`✓` icon buttons,
+  Follow-up/Preferences not rendered. Type-check passes.
+
+**Pending / next:**
+- Uncommitted, same working branch as the other 2026-07-11 work.
+- Desktop flashcards now also stack (answer above, buttons below-right) — cleaner, but a change from
+  the old same-line look; revert to responsive stacking (`sm:flex-row`) if the old desktop look is
+  preferred.
+
+### 2026-07-11 — Remove chat scroll-to-bottom btn, bigger mobile hero, mode tabs fit 2 lines on mobile
+**Done (three frontend changes):**
+1. **Removed the chat "scroll to bottom" button** (the orange `ChevronDown` FAB, `showScrollBtn`,
+   `absolute bottom-24 right-6`) from `ChatWindow.tsx` — deleted the render block + the now-unused
+   `ChevronDown` import. (`showScrollBtn` state + `scrollToBottom` are left; `scrollToBottom` is still
+   used by the messages effect.)
+2. **Hero headline bigger on small screens.** `Landing.tsx` `<h1>` ("Upload files. Paste website
+   links. Ask anything.") mobile steps enlarged; final ladder: **base `text-[27px]`**,
+   `min-420:31`, `min-520:38`, `sm:44`, `md:56`. (First bumped each sub-`sm` step +4px, then per a
+   follow-up the smallest bucket `<360` was merged up so **320px now uses the same 27px as 360px**
+   — the user found 24px too small at the narrowest width.) At 27px the line "Upload files. Paste
+   website" renders **296px** wide (measured via Range) — it fits inside a 320px viewport, but the
+   hero `<section>`'s `px-6` (24px each side) left the title only ~272px, so it wrapped to 3 lines.
+   Fix: gave the `<h1>` **`-mx-4 min-[360px]:mx-0`** — only the headline pulls ~16px wider each side
+   at the narrowest widths (the rest of the hero keeps its padding), so 320px now fits **2 lines**
+   (box 306px > 296px). No page overflow at 320/360/375px.
+3. **Workspace mode tabs (`ModeSwitcher`) now fit ~2 wrapped lines on mobile, no horizontal scroll.**
+   Reverted the earlier one-line `overflow-x-auto` scroll back to `flex-wrap` (with `gap-1 sm:gap-1.5`);
+   tighter mobile padding (`px-2 py-1 sm:px-3 sm:py-1.5`, still `text-xs`); and **short mobile-only
+   labels** for the two longest tabs (new `SHORT_LABELS`: `flashcards → "Cards"`, `podcast →
+   "Podcast"`) via `<span className="sm:hidden">{short}</span><span className="hidden sm:inline">{full}</span>`.
+   Result at 375px: row 1 = Chat/Summary/Cards/Slides, row 2 = Translate/Podcast/Charts. Header titles
+   (`MODE_LABELS`) are unchanged (still "Flashcards"/"Podcast scripts").
+- **⚠️ Gotcha — the 16px font floor.** `index.css` has a rule forcing `.text-[9px]`…`.text-[15px]`
+  (arbitrary bracket sizes only) to `font-size: 1rem !important`. So `text-[11px]` renders at **16px**
+  (bigger, not smaller) — my first attempt at shrinking the tabs made them worse. **Named** classes
+  (`text-xs`=12px, `text-sm`=14px) are NOT floored, so use those to go below 16px. This is why the
+  tabs use `text-xs`, not an arbitrary px value.
+- Type-check passes; all three verified live via Playwright at 320/375px.
+
+**Pending / next:**
+- Uncommitted, same working branch as the other 2026-07-11 work.
+- Mobile tab labels "Cards"/"Podcast" are abbreviations — fine on a small tab, but revisit if they
+  read as ambiguous.
+
+### 2026-07-11 — Translate dropdown, one-line mobile tabs, hide overview toggle on mobile, inline chat suggestions
+**Done (four frontend changes):**
+1. **Translate: language pills → dropdown.** `TranslateView.tsx` replaced the 20+ selectable
+   language **pills + the gated "type any language" input** with a single **`<select>`**
+   (`w-full sm:w-72`) in the "Translate to" `pickerRow`. Dropped the now-dead `customLang`/
+   `isCustomLang` state + the "Coming soon" tooltip branch on the Translate button (it's always
+   enabled now), and removed the unused `Tooltip` import.
+2. **Mode tabs on one line on small screens.** `ModeSwitcher.tsx` container now
+   `flex-nowrap overflow-x-auto justify-start` (hidden scrollbar) below `sm`, reverting to
+   `sm:flex-wrap sm:justify-center` above — so the 7 tabs are a single **horizontally-scrollable
+   row** on phones instead of wrapping to 3 lines. Tabs got `flex-shrink-0 whitespace-nowrap`
+   (and the wrappers `flex-shrink-0`, incl. `Tooltip className`). No page overflow at 390px (they
+   scroll internally).
+3. **Hide the "View overview" toggle below `lg`.** The sidebar-collapse button (`PanelLeftOpen`,
+   `title="View overview"`) in **both** `ChatWindow.tsx` and `WorkspaceHeader.tsx` is now
+   `hidden lg:inline-flex` — the overview panel is `lg`-only, so the toggle did nothing on smaller
+   screens.
+4. **Chat suggested/follow-up questions now render inline with the messages.** Moved both the
+   "Suggested questions" (pre-first-exchange) and "Follow-up suggestions" (after each Sage answer)
+   blocks out of the footer (where they were pinned above the composer) into the **message scroll
+   region**, just before `messagesEndRef`, restyled to sit in the conversation flow (no `border-t`/
+   footer bg). They now scroll with the conversation instead of being attached to the chat box.
+- **Verified live** (Playwright, real upload) at 390px + 1000px: Translate shows the dropdown
+  (mobile full-width, desktop `w-72`); mode tabs are one scrollable line on mobile; the overview
+  toggle is gone from the header on mobile; chat suggested questions appear inline after the welcome
+  bubble on both widths. Type-check passes. (Follow-up-after-answer block mirrors the suggested block
+  verbatim — moved by parity, not separately driven.)
+
+**Pending / next:**
+- Uncommitted, same working branch as the other 2026-07-11 work.
+- The mobile tab row is scroll-only (no visible scrollbar/affordance) — consider a subtle fade/edge
+  hint if discoverability is a concern.
+
+### 2026-07-11 — Fix: tool-section chatbox rendered 2 lines on small screens
+**Done:**
+- Fixed the shared composer's textarea showing as **2 lines instead of 1 on small screens**
+  (reported for Slides/Charts; actually affected every tool section). Root cause: the placeholder
+  `"Add your preferences here."` **wraps to two lines below ~375px**, and `SectionComposer`'s
+  auto-grow effect runs at mount with empty text and reads that wrapped-placeholder `scrollHeight`
+  (~68px), pinning the box to two lines. (Only reproduces at narrow widths — it's fine on desktop.)
+- Two changes, both in **`SectionComposer.tsx`** (so every section is fixed at once):
+  1. **Short placeholder on small screens (all sections):** below `sm` (matchMedia
+     `max-width: 639px`) the textarea uses `SHORT_PLACEHOLDER = 'Type here…'` instead of the passed
+     placeholder, so it can't wrap. Reactive to resize via a `matchMedia('change')` listener.
+  2. **Height hardening (root cause):** the auto-grow effect now forces `height: 44px` whenever the
+     field is **empty** (`!text.trim()`), so an empty box is always exactly one line regardless of
+     placeholder length/width. Auto-grow still applies once the user types.
+- **Verified live** (Playwright, mount at width): Summary composer is **1 line at 360/375/480px**
+  with placeholder `"Type here…"`, and **1 line at 1280px** with the full `"Add your preferences
+  here."`. Type-check passes.
+
+**Pending / next:**
+- Uncommitted, same working branch as the other 2026-07-11 work.
+- The short placeholder applies to **chat too** (it also routes through `SectionComposer`) — matches
+  the "all sections" request; revisit if chat should keep a distinct mobile placeholder.
+
+### 2026-07-11 — Tool-section action buttons collapse to icon-only on small screens
+**Done:**
+- Fixed a real responsive bug the user reported: the tool sections' action buttons
+  ("Regenerate summary", "Translate to <language>", "Generate flashcards", etc.) kept their
+  **full text at every width**, so on narrow screens the fixed-width button squeezed the shared
+  chatbox/textarea. Now **below `sm` (640px) each button collapses to just its icon** (a 44px
+  square, matching the mic/send buttons); the text label returns at `sm`+.
+- Frontend only, all six tool views that pass a `proceedButton` to `SectionComposer`:
+  `SummaryView`, `TranslateView`, `FlashcardsView`, `PodcastView`, `SlidesView`, `ChartsView`.
+  Per button: className `px-5` → `justify-center … h-11 w-11 sm:w-auto px-0 sm:px-5`, the label
+  wrapped in `<span className="hidden sm:inline">…</span>`, and an **`aria-label`** added (the
+  hidden `<span>` leaves the a11y tree on mobile, so the button keeps its accessible name).
+- Chat's own send/stop button was already icon-only, so it was left as-is (this only affected the
+  tool-view generate/translate buttons).
+- **Verified live** (Playwright, real upload → Translate view): button width **222px with label at
+  768/1280px**, **44px icon-only at 360/414px** (`aria-label` intact); the textarea reclaims the
+  freed width. Type-check (`tsc --noEmit`) passes.
+
+**Pending / next:**
+- Uncommitted, on the same working branch as the other 2026-07-11 work.
+- Breakpoint chosen is `sm` (640px). If a longer label ("Generate podcast script") still feels
+  tight in the 640–767px band, bump those to collapse at `md` instead — trivial per-button change.
+
+### 2026-07-11 — Android app (Capacitor shell) + fix homepage horizontal scroll on phones
+**Done:**
+- **Android app scaffolded** as a **Capacitor** shell that loads the **live** site
+  (`https://talktofile.ai`) in a full-screen WebView — so the existing responsive React frontend *is*
+  the app, and deploys to the site flow to the app with no new Play Store release. Added to
+  **`frontend/`**: `@capacitor/core` + `@capacitor/android` (deps) + `@capacitor/cli` (dev),
+  **`capacitor.config.ts`** (`appId: ai.talktofile.app`, `appName: Talktofile`, `server.url` = live
+  site, `webDir: dist` as offline fallback), and the generated native project in **`frontend/android/`**.
+  Verified a headless **`./gradlew assembleDebug` → BUILD SUCCESSFUL** (4.5 MB `app-debug.apk`) using
+  Android Studio's bundled JDK 21 + SDK 36. **Not committed / not yet on the Play Store** — this is a
+  local shell; publishing needs a Google Play Developer account. `android/local.properties` is
+  machine-specific (git-ignored by Capacitor).
+- **Fixed horizontal (sideways) page scroll on the homepage at phone widths** — surfaced by running the
+  app on a real phone. Measured on live: **155px of overflow at 360px wide**. Two causes, both fixed:
+  1. **`Navbar.tsx` didn't shrink:** the 56px logo mark + `text-[26px]` wordmark + right-side actions
+     were slightly too wide and nothing could shrink. Made the mark `w-11 h-11 sm:w-14 sm:h-14`, the
+     wordmark `text-[22px] sm:text-[34px]` with `-ml-2 sm:-ml-3` + `truncate`, added `min-w-0` to the
+     left group and `shrink-0` to the right actions group (left yields first, actions never get pushed off).
+  2. **Tooltips overflowed (the real bulk):** `Tooltip.tsx` renders its bubble always-in-DOM at
+     `opacity-0` with `absolute w-max`; near the right edge a wide bubble (e.g. "Personalise your
+     assistant (Pro)") extended to x=515 on a 360px screen. `body` already had `overflow-x:hidden` but
+     **fixed-position** (navbar) + absolute tooltips **escape body's clip**, so the scroll happened on
+     `<html>`. Added **`html { overflow-x: hidden }`** in `index.css` (root-level clip; vertical scroll
+     intact). Empirically verified (Playwright, injected on the live navbar): overflow **155px → 0px**,
+     `maxScrollLeft` 0 at 320/360/390px.
+- Type-check (`tsc --noEmit`) + `npm run build` pass.
+
+**Pending / next:**
+- **These frontend fixes are on branch `c-cleanup`, uncommitted, and NOT deployed** — the Android app
+  loads the *live* site, so the phone won't show the navbar/overflow fix until the frontend is deployed
+  to `talktofile.ai` (DEPLOY.md: `git pull && docker compose build web && docker compose up -d web`).
+- **Android Phase 2 (not started):** app icon/splash from `talktofile_logo/`, native status-bar theming,
+  hardware back-button handling, then Phase 3 (signing key, release AAB, Play Store listing).
+- Tooltips now rely on root clipping rather than not-overflowing; a `side="right"` tooltip at the extreme
+  screen edge could clip on hover (harmless; touch devices don't hover). Fixing at source would mean
+  making the hidden bubble `display:none` (loses the fade) — deferred.
 
 ### 2026-07-10 — SEO step 1: OG image + meta tags + robots/sitemap (frontend only)
 **Done:**

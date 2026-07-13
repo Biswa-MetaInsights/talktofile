@@ -6,7 +6,9 @@ import {
 } from 'lucide-react'
 import type { SessionInfo, AppMode } from '../types'
 import api from '../api/client'
+import { withAttribution, shareOrCopy, printAsPdf, escapeHtml, type SectionShareActions } from '../lib/share'
 import SectionComposer from './SectionComposer'
+import SectionExtras from './SectionExtras'
 
 interface Props {
   session: SessionInfo
@@ -22,6 +24,10 @@ interface Props {
   // time. Only the landing-selected section gets this; switching in via a tab does not
   // (it keeps the manual button).
   autoGenerate?: boolean
+  // Register this section's header actions (Share text / Export PDF) with the shared
+  // WorkspaceHeader. Called with the actions once a deck exists, null when there isn't.
+  // (The .pptx download stays the primary export; these act on a readable outline of the deck.)
+  registerActions?: (mode: AppMode, actions: SectionShareActions | null) => void
 }
 
 // One slide's structured content (as produced by the backend slide agent).
@@ -79,7 +85,7 @@ function SlideCanvas({ slide }: { slide: SlideData }) {
   )
 }
 
-export default function SlidesView({ session, onSwitchMode, engagedModes, onActivity, autoGenerate }: Props) {
+export default function SlidesView({ session, onSwitchMode, engagedModes, onActivity, autoGenerate, registerActions }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [slides, setSlides] = useState<SlideData[] | null>(null)
@@ -138,6 +144,39 @@ export default function SlidesView({ session, onSwitchMode, engagedModes, onActi
       setDownloading(false)
     }
   }
+
+  // Register the header actions for this section: Share a readable outline of the deck as
+  // text, Export the same outline as a PDF (each slide's title, bullets, and speaker note).
+  useEffect(() => {
+    if (!slides?.length) { registerActions?.('slides', null); return }
+    registerActions?.('slides', {
+      share: () => {
+        const text = slides
+          .map((s, i) => {
+            const heading = s.title || `Slide ${i + 1}`
+            const subtitle = s.subtitle ? `\n${s.subtitle}` : ''
+            const bullets = s.bullets?.length ? '\n' + s.bullets.map((b) => `• ${b}`).join('\n') : ''
+            const note = s.speaker_note ? `\nSpeaker note: ${s.speaker_note}` : ''
+            return `Slide ${i + 1}: ${heading}${subtitle}${bullets}${note}`
+          })
+          .join('\n\n')
+        return shareOrCopy(withAttribution(text), `${deckTitle || 'Slide deck'} — Talktofile`)
+      },
+      exportPdf: () => {
+        const body = slides
+          .map((s, i) => {
+            const heading = escapeHtml(s.title || `Slide ${i + 1}`)
+            const subtitle = s.subtitle ? `<p>${escapeHtml(s.subtitle)}</p>` : ''
+            const bullets = s.bullets?.length ? `<ul>${s.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join('')}</ul>` : ''
+            const note = s.speaker_note ? `<div class="note">Speaker note: ${escapeHtml(s.speaker_note)}</div>` : ''
+            return `<div class="slide"><h3>${i + 1}. ${heading}</h3>${subtitle}${bullets}${note}</div>`
+          })
+          .join('')
+        printAsPdf({ title: deckTitle || 'Slide Deck', subtitle: session.documents.map((d) => d.filename).join(', '), bodyHtml: body })
+      },
+    })
+    return () => registerActions?.('slides', null)
+  }, [slides, deckTitle, registerActions, session])
 
   // Auto-generate once on entry when this is the section chosen on the Landing page.
   // The ref guard ensures it fires only the first time, never on a later re-render.
@@ -278,6 +317,8 @@ export default function SlidesView({ session, onSwitchMode, engagedModes, onActi
             </div>
           </motion.div>
         )}
+
+        <SectionExtras show={engagedModes.has('slides')} />
       </div>
 
       {/* Fullscreen viewer — rendered via a portal to document.body. The workspace is a
@@ -375,10 +416,11 @@ export default function SlidesView({ session, onSwitchMode, engagedModes, onActi
           <button
             onClick={generate}
             disabled={loading}
-            className="flex items-center gap-2 h-11 px-5 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
+            aria-label={genLabel}
+            className="flex items-center justify-center gap-2 h-11 w-11 sm:w-auto px-0 sm:px-5 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Presentation className="w-4 h-4" />}
-            {genLabel}
+            <span className="hidden sm:inline">{genLabel}</span>
           </button>
         }
       />

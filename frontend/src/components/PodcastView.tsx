@@ -3,8 +3,9 @@ import { Mic, Loader2, MessageSquare, Download, Radio, Share2, Check } from 'luc
 import type { SessionInfo, AppMode } from '../types'
 import type { PodcastLine } from '../api/client'
 import { toolsApi } from '../api/client'
-import { withAttribution, downloadText, shareOrCopy } from '../lib/share'
+import { withAttribution, downloadText, shareOrCopy, printAsPdf, escapeHtml, type SectionShareActions } from '../lib/share'
 import SectionComposer from './SectionComposer'
+import SectionExtras from './SectionExtras'
 
 interface Props {
   session: SessionInfo
@@ -20,9 +21,12 @@ interface Props {
   // first time. Only the landing-selected section gets this; switching in via a tab
   // does not (it keeps the manual button).
   autoGenerate?: boolean
+  // Register this section's header actions (Share text / Export PDF) with the shared
+  // WorkspaceHeader. Called with the actions once there's a script, null when there isn't.
+  registerActions?: (mode: AppMode, actions: SectionShareActions | null) => void
 }
 
-export default function PodcastView({ session, onSwitchMode, engagedModes, onActivity, autoGenerate }: Props) {
+export default function PodcastView({ session, onSwitchMode, engagedModes, onActivity, autoGenerate, registerActions }: Props) {
   const [script, setScript] = useState<PodcastLine[]>([])
   const [loading, setLoading] = useState(false)
   const [extending, setExtending] = useState(false)
@@ -31,11 +35,6 @@ export default function PodcastView({ session, onSwitchMode, engagedModes, onAct
   // similar) extends the conversation; anything else falls back to "Coming soon".
   const [chatInput, setChatInput] = useState('')
   const [shared, setShared] = useState<'shared' | 'copied' | null>(null)
-  const bottomRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (script.length) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [script.length])
 
   // Auto-generate once on entry when this is the section chosen on the Landing page.
   // The ref guard ensures it fires only the first time, never on a later re-render.
@@ -96,8 +95,28 @@ export default function PodcastView({ session, onSwitchMode, engagedModes, onAct
     return false
   }
 
+  // Display speaker labels as "Host" / "Expert" (the backend returns "HOST" / "EXPERT").
+  const formatSpeaker = (speaker: string) =>
+    speaker ? speaker.charAt(0).toUpperCase() + speaker.slice(1).toLowerCase() : speaker
+
   const scriptText = () =>
-    withAttribution(script.map((line) => `${line.speaker}: ${line.text}`).join('\n\n'))
+    withAttribution(script.map((line) => `${formatSpeaker(line.speaker)}: ${line.text}`).join('\n\n'))
+
+  // Register the header actions for this section: Share the dialogue as text, Export it
+  // as a PDF.
+  useEffect(() => {
+    if (!script.length) { registerActions?.('podcast', null); return }
+    registerActions?.('podcast', {
+      share: () => shareOrCopy(scriptText(), 'Podcast script — Talktofile'),
+      exportPdf: () => {
+        const body = script
+          .map((line) => `<div class="line"><span class="speaker">${escapeHtml(formatSpeaker(line.speaker))}</span><p>${escapeHtml(line.text)}</p></div>`)
+          .join('')
+        printAsPdf({ title: 'Podcast Script', subtitle: session.documents.map((d) => d.filename).join(', '), bodyHtml: body })
+      },
+    })
+    return () => registerActions?.('podcast', null)
+  }, [script, registerActions, session])
 
   const downloadScript = () => {
     if (!script.length) return
@@ -123,7 +142,7 @@ export default function PodcastView({ session, onSwitchMode, engagedModes, onAct
             <div>
               <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100 mb-2">Podcast Scripts</h2>
               <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">
-                Generate a two-person conversation between a HOST and an EXPERT discussing the key ideas
+                Generate a two-person conversation between a Host and an Expert discussing the key ideas
                 from your document. Perfect for preparing a talk or deepening understanding.
               </p>
             </div>
@@ -140,40 +159,10 @@ export default function PodcastView({ session, onSwitchMode, engagedModes, onAct
 
         {!!script.length && !loading && (
           <>
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Radio className="w-5 h-5 text-[#E2611B]" />
-                <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100">Podcast Scripts</h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={shareScript}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all dark:border-slate-700 dark:text-slate-300"
-                >
-                  {shared ? <Check className="w-4 h-4 text-green-600" /> : <Share2 className="w-4 h-4" />}
-                  {shared === 'copied' ? 'Copied' : shared === 'shared' ? 'Shared' : 'Share'}
-                </button>
-                <button
-                  onClick={downloadScript}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all dark:border-slate-700 dark:text-slate-300"
-                >
-                  <Download className="w-4 h-4" /> Download
-                </button>
-                <button
-                  onClick={() => onSwitchMode('chat')}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all dark:border-slate-700 dark:text-slate-300"
-                >
-                  <MessageSquare className="w-4 h-4" /> Chat
-                </button>
-              </div>
-            </div>
-
-            {/* Legend */}
-            <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#E2611B]" /> HOST: interviewer</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-400" /> EXPERT: domain specialist</span>
-            </div>
+            {/* Note explaining the two speakers */}
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Note: In the script, the host is the interviewer and the expert is the domain specialist.
+            </p>
 
             {/* Dialogue */}
             <div className="flex flex-col gap-4">
@@ -181,11 +170,11 @@ export default function PodcastView({ session, onSwitchMode, engagedModes, onAct
                 const isHost = line.speaker === 'HOST'
                 return (
                   <div key={i} className={`flex gap-3 ${isHost ? '' : 'flex-row-reverse'}`}>
-                    <div className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border ${isHost ? 'bg-[#E2611B]/10 border-[#E2611B]/20 text-[#E2611B]' : 'bg-slate-100 border-slate-200 text-slate-500 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'}`}>
+                    <div className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border bg-[#E2611B]/10 border-[#E2611B]/20 text-[#E2611B]">
                       {isHost ? 'H' : 'E'}
                     </div>
                     <div className={`max-w-[80%] ${isHost ? '' : 'text-right'}`}>
-                      <p className={`text-[10px] font-semibold mb-1 ${isHost ? 'text-[#E2611B]' : 'text-slate-500 dark:text-slate-400'}`}>{line.speaker}</p>
+                      <p className="text-[10px] font-semibold mb-1 text-[#E2611B]">{formatSpeaker(line.speaker)}</p>
                       <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed border ${isHost ? 'bg-[#E2611B]/5 border-[#E2611B]/10 text-slate-800 rounded-tl-sm dark:bg-[#E2611B]/10 dark:border-[#E2611B]/20 dark:text-slate-200' : 'bg-slate-50 border-slate-100 text-slate-700 rounded-tr-sm dark:bg-slate-800/60 dark:border-slate-700 dark:text-slate-300'}`}>
                         {line.text}
                       </div>
@@ -195,17 +184,33 @@ export default function PodcastView({ session, onSwitchMode, engagedModes, onAct
               })}
             </div>
 
-            {/* Continuing indicator — the conversation extends via the shared chatbox
-                below (type "continue"). */}
+            {/* Continue — extends the conversation via the backend (same action as typing
+                "continue" in the chatbox). Styled like the Flashcards "Finish" button. */}
+            {!extending && (
+              <div className="flex justify-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => extend('Continue the conversation naturally, going a little deeper on what was just discussed.')}
+                  aria-label="Continue the conversation"
+                  className="px-8 py-2.5 rounded-xl border border-[#E2611B] bg-[#E2611B] text-slate-100 text-sm font-medium hover:bg-[#E2611B]/90 transition-all shadow-md shadow-[#E2611B]/20"
+                >
+                  Continue
+                </button>
+              </div>
+            )}
+
+            {/* Continuing indicator — the conversation extends via this button or the shared
+                chatbox below (type "continue"). */}
             {extending && (
               <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500 pl-12">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" /> Continuing the conversation…
               </div>
             )}
             {error && <p className="text-brand-600 text-xs text-center">{error}</p>}
-            <div ref={bottomRef} />
           </>
         )}
+
+        <SectionExtras show={engagedModes.has('podcast')} />
       </div>
 
       {/* Bottom bar — the shared composer. The wide "Generate podcast script" button takes
@@ -227,10 +232,11 @@ export default function PodcastView({ session, onSwitchMode, engagedModes, onAct
           <button
             onClick={generate}
             disabled={loading}
-            className="flex items-center gap-2 h-11 px-5 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
+            aria-label={loading ? 'Generating…' : script.length ? 'Regenerate podcast script' : 'Generate podcast script'}
+            className="flex items-center justify-center gap-2 h-11 w-11 sm:w-auto px-0 sm:px-5 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
-            {loading ? 'Generating…' : script.length ? 'Regenerate podcast script' : 'Generate podcast script'}
+            <span className="hidden sm:inline">{loading ? 'Generating…' : script.length ? 'Regenerate podcast script' : 'Generate podcast script'}</span>
           </button>
         }
       />

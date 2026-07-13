@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   BarChart2, TrendingUp, PieChart, ScatterChart, AreaChart,
-  Loader2, MessageSquare, AlertCircle,
+  Loader2, AlertCircle,
 } from 'lucide-react'
 import {
   BarChart, LineChart, AreaChart as RechartsArea, PieChart as RechartsPie,
@@ -12,8 +12,11 @@ import {
 import type { SessionInfo, AppMode } from '../types'
 import type { ChartData } from '../api/client'
 import { toolsApi } from '../api/client'
+import { withAttribution, shareOrCopy, printAsPdf, escapeHtml, type SectionShareActions } from '../lib/share'
 import SectionComposer from './SectionComposer'
+import SectionExtras from './SectionExtras'
 import HintTooltip from './Tooltip'
+import { chartsSupported } from '../lib/fileSupport'
 
 interface Props {
   session: SessionInfo
@@ -29,6 +32,9 @@ interface Props {
   // time. Only the landing-selected section gets this; switching in via a tab does not
   // (it keeps the manual button). Uses the default chart type ('bar').
   autoGenerate?: boolean
+  // Register this section's header actions (Share text / Export PDF) with the shared
+  // WorkspaceHeader. Called with the actions once a chart exists, null when there isn't.
+  registerActions?: (mode: AppMode, actions: SectionShareActions | null) => void
 }
 
 const CHART_TYPES = [
@@ -139,11 +145,18 @@ function ChartRenderer({ chart }: { chart: ChartData }) {
   return null
 }
 
-export default function ChartsView({ session, onSwitchMode, engagedModes, onActivity, autoGenerate }: Props) {
+export default function ChartsView({ session, onSwitchMode, engagedModes, onActivity, autoGenerate, registerActions }: Props) {
   const [chartType, setChartType] = useState('bar')
   const [chart, setChart] = useState<ChartData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // The rendered chart container — its <svg> is serialized into the shared PDF.
+  const chartRef = useRef<HTMLDivElement>(null)
+
+  // Whether this file can produce charts (frontend file-type heuristic). When it can't,
+  // the Generate button is blurred and a warning line shows above the composer on hover/press.
+  const supported = chartsSupported(session)
+  const [showUnsupported, setShowUnsupported] = useState(false)
 
   const activeType = CHART_TYPES.find((c) => c.id === chartType)
 
@@ -153,10 +166,48 @@ export default function ChartsView({ session, onSwitchMode, engagedModes, onActi
   useEffect(() => {
     if (autoGenerate && !didAutoGen.current) {
       didAutoGen.current = true
-      generate()
+      if (supported) generate()
+      else setShowUnsupported(true)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoGenerate])
+
+  // Register the header actions for this section. Export prints the rendered chart
+  // (serialized SVG) plus a data table; Share sends the chart's data as text (a chart is
+  // visual, so its shareable form is the underlying values). Scatter has (x, y) pairs
+  // rather than one value per label, so its table is skipped in the PDF.
+  useEffect(() => {
+    if (!chart) { registerActions?.('charts', null); return }
+    const subtitle = [chart.x_label, chart.y_label].filter(Boolean).join(' · ') || session.documents.map((d) => d.filename).join(', ')
+    registerActions?.('charts', {
+      share: () => {
+        const lines: string[] = [chart.title || 'Chart']
+        if (chart.chart_type !== 'scatter') {
+          lines.push([chart.x_label || 'Label', ...chart.series.map((s) => s.name)].join('\t'))
+          chart.labels.forEach((lab, i) => lines.push([String(lab), ...chart.series.map((s) => String(s.data[i] ?? ''))].join('\t')))
+        } else {
+          chart.series.forEach((s) => {
+            lines.push(s.name)
+            ;(s.data as [number, number][]).forEach(([x, y]) => lines.push(`${x}, ${y}`))
+          })
+        }
+        return shareOrCopy(withAttribution(lines.join('\n')), `${chart.title || 'Chart'} — Talktofile`)
+      },
+      exportPdf: () => {
+        const svg = chartRef.current?.querySelector('svg')?.outerHTML ?? ''
+        let table = ''
+        if (chart.chart_type !== 'scatter') {
+          const head = `<tr><th>${escapeHtml(chart.x_label || 'Label')}</th>${chart.series.map((s) => `<th>${escapeHtml(s.name)}</th>`).join('')}</tr>`
+          const rows = chart.labels
+            .map((lab, i) => `<tr><td>${escapeHtml(String(lab))}</td>${chart.series.map((s) => `<td>${escapeHtml(String(s.data[i] ?? ''))}</td>`).join('')}</tr>`)
+            .join('')
+          table = `<table>${head}${rows}</table>`
+        }
+        printAsPdf({ title: chart.title || 'Chart', subtitle, bodyHtml: `${svg}${table}` })
+      },
+    })
+    return () => registerActions?.('charts', null)
+  }, [chart, registerActions, session])
 
   const generate = async () => {
     setLoading(true)
@@ -207,24 +258,16 @@ export default function ChartsView({ session, onSwitchMode, engagedModes, onActi
         {chart && !loading && (
           <>
             {/* Header */}
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div>
-                <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100">{chart.title}</h2>
-                {(chart.x_label || chart.y_label) && (
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{chart.x_label}{chart.x_label && chart.y_label ? ' · ' : ''}{chart.y_label}</p>
-                )}
-              </div>
-              <button
-                onClick={() => onSwitchMode('chat')}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all dark:border-slate-700 dark:text-slate-300"
-              >
-                <MessageSquare className="w-4 h-4" /> Chat
-              </button>
+            <div>
+              <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100">{chart.title}</h2>
+              {(chart.x_label || chart.y_label) && (
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{chart.x_label}{chart.x_label && chart.y_label ? ' · ' : ''}{chart.y_label}</p>
+              )}
             </div>
 
             {/* Chart — kept on a light surface so the Recharts axes/legend stay legible in
                 dark mode (their text/grid colours are light-theme defaults). */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-4 dark:border-slate-700">
+            <div ref={chartRef} className="bg-white rounded-2xl border border-slate-100 p-4 dark:border-slate-700">
               <ChartRenderer chart={chart} />
             </div>
 
@@ -233,6 +276,8 @@ export default function ChartsView({ session, onSwitchMode, engagedModes, onActi
             )}
           </>
         )}
+
+        <SectionExtras show={engagedModes.has('charts')} />
       </div>
 
       {/* Bottom bar — the shared composer. The chart-type picker takes the place of the
@@ -242,21 +287,21 @@ export default function ChartsView({ session, onSwitchMode, engagedModes, onActi
         active="charts"
         onSwitch={onSwitchMode}
         engaged={engagedModes}
-        placeholder="Add your preferences here."
+        placeholder="Add specific instructions here."
         pickerRow={
-          <div className="px-4 pb-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-1.5 mb-2 pt-3">
-              <BarChart2 className="w-3.5 h-3.5 text-brand-500" />
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Chart type</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="px-4 pb-3 pt-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <BarChart2 className="w-3.5 h-3.5 text-brand-500" />
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Chart type</span>
+              </div>
               {CHART_TYPES.map(({ id, label, Icon, desc }) => (
-                <HintTooltip key={id} label={desc} side="right">
+                <HintTooltip key={id} label={desc} side="right" className="flex-shrink-0">
                   <button
                     // Blur after a mouse click so the pill doesn't retain focus — otherwise the
                     // Tooltip's focus-within rule keeps the bubble open on the just-selected pill.
                     onClick={(e) => { setChartType(id); e.currentTarget.blur() }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all border ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border ${
                       chartType === id
                         ? 'bg-[#E2611B] text-white border-[#E2611B]'
                         : 'bg-white text-slate-600 border-slate-200 hover:border-[#E2611B] hover:text-[#E2611B] dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
@@ -269,14 +314,18 @@ export default function ChartsView({ session, onSwitchMode, engagedModes, onActi
             </div>
           </div>
         }
+        notice={!supported && showUnsupported ? 'Charts cover spreadsheets only (.xlsx and .csv files).' : undefined}
         proceedButton={
           <button
-            onClick={generate}
+            onClick={() => { if (!supported) { setShowUnsupported(true); return } generate() }}
+            onMouseEnter={() => { if (!supported) setShowUnsupported(true) }}
+            onMouseLeave={() => setShowUnsupported(false)}
             disabled={loading}
-            className="flex items-center gap-2 h-11 px-5 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
+            aria-label={loading ? 'Generating…' : `${chart ? 'Regenerate' : 'Generate'} ${activeType?.label} Chart`}
+            className={`flex items-center justify-center gap-2 h-11 w-11 sm:w-auto px-0 sm:px-5 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0 ${!supported ? 'blur-[1.2px] opacity-60 cursor-not-allowed' : ''}`}
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart2 className="w-4 h-4" />}
-            {loading ? 'Generating…' : `${chart ? 'Regenerate' : 'Generate'} ${activeType?.label} Chart`}
+            <span className="hidden sm:inline">{loading ? 'Generating…' : `${chart ? 'Regenerate' : 'Generate'} ${activeType?.label} Chart`}</span>
           </button>
         }
       />

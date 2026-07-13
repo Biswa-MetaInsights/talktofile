@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import type { ReactNode } from 'react'
 import type { FileRejection } from 'react-dropzone'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -18,6 +18,7 @@ import IntroOfferBanner from './components/IntroOfferBanner'
 import { useAuth } from './context/AuthContext'
 import { isProgrammaticReload, documentApi } from './api/client'
 import { smoothScrollTo } from './lib/smoothScroll'
+import type { SectionShareActions } from './lib/share'
 import type { SessionInfo, AppMode } from './types'
 
 const SummaryView = lazy(() => import('./components/SummaryView'))
@@ -41,14 +42,18 @@ const TOOL_MODES: AppMode[] = ['summary', 'flashcards', 'slides', 'translate', '
 const PENDING_FEEDBACK_KEY = 'ttf_pending_feedback'
 
 // The intro-offer banner is shown at most once per browser session, and no more often
-// than once every 3 days. This stores the last-shown epoch time (ms); it re-shows once
-// the cooldown has elapsed.
+// than once a day. This stores the last-shown epoch time (ms); it re-shows once the
+// cooldown has elapsed.
 const INTRO_OFFER_SEEN_KEY = 'ttf_intro_offer_seen'
-const INTRO_OFFER_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000 // 3 days
+const INTRO_OFFER_COOLDOWN_MS = 24 * 60 * 60 * 1000 // 1 day
 
 // How long after the user's first action (first chat answer / generated summary /
 // flashcards / podcast script, etc.) the intro-offer banner appears.
 const INTRO_OFFER_DELAY_MS = 5_000
+
+// On the home page, the banner also appears after this long with no user activity
+// (idle nudge). This counts as the once-a-day appearance — same gating as first action.
+const INTRO_OFFER_INACTIVITY_MS = 5_000 // 5 seconds
 
 // The left details panel is drag-resizable (like a standard resizable sidebar). These bound
 // its width in px: DEFAULT is the "standard size" it opens at (matches the old w-72), and a
@@ -59,7 +64,7 @@ const SIDEBAR_MIN_WIDTH = 220
 const SIDEBAR_MAX_WIDTH = 560
 const SIDEBAR_COLLAPSE_WIDTH = 180
 
-function AppShell({ showToast, signupNonce, onFirstAction }: { showToast: (message: string) => void; signupNonce: number; onFirstAction: () => void }) {
+function AppShell({ showToast, signupNonce, onFirstAction, onHomeInactivity }: { showToast: (message: string) => void; signupNonce: number; onFirstAction: () => void; onHomeInactivity: () => void }) {
   const { recoveryMode, sessionExpired, clearSessionExpired } = useAuth()
   const [session, setSession] = useState<SessionInfo | null>(null)
   const [authModal, setAuthModal] = useState<AuthModalState>({ open: false, mode: 'subscribe' })
@@ -84,6 +89,28 @@ function AppShell({ showToast, signupNonce, onFirstAction }: { showToast: (messa
   // Sections the user has actually produced content in (chatted, generated flashcards,
   // …). These get a star + "pick up where you left off" tooltip on their tab.
   const [engaged, setEngaged] = useState<Set<AppMode>>(() => new Set())
+  // Per-section header actions. Each tool view registers two handlers for its OWN
+  // generated content (podcast script, translation, flashcards, …): `share` opens the
+  // native share sheet / clipboard with the section's text, and `exportPdf` opens a
+  // print / Save-as-PDF view of it. The shared header's Share + Export buttons then act
+  // on whichever section is currently open — not just the summary. The ref holds the live
+  // handlers (read at click time); the Set is reactive so the header can enable/disable
+  // the buttons as content appears.
+  const sectionActions = useRef<Partial<Record<AppMode, SectionShareActions>>>({})
+  const [actionableModes, setActionableModes] = useState<Set<AppMode>>(() => new Set())
+  const registerSectionActions = useCallback((mode: AppMode, actions: SectionShareActions | null) => {
+    if (actions) sectionActions.current[mode] = actions
+    else delete sectionActions.current[mode]
+    setActionableModes((prev) => {
+      const has = prev.has(mode)
+      if (actions && !has) { const next = new Set(prev); next.add(mode); return next }
+      if (!actions && has) { const next = new Set(prev); next.delete(mode); return next }
+      return prev
+    })
+  }, [])
+  const shareActiveSection = () => sectionActions.current[viewMode]?.share()
+  const exportActiveSection = () => sectionActions.current[viewMode]?.exportPdf()
+
   // Which file's overview the left panel is showing, when there's more than one file.
   const [activeOverview, setActiveOverview] = useState(0)
   // The document whose full original text is open in the slide-in panel (null = closed).
@@ -154,6 +181,29 @@ function AppShell({ showToast, signupNonce, onFirstAction }: { showToast: (messa
     }
     setEngaged((prev) => (prev.has(mode) ? prev : new Set(prev).add(mode)))
   }
+
+  // On the home page, nudge the intro-offer banner after a stretch of inactivity (no
+  // pointer / keyboard / scroll activity). Read the callback through a ref so the timer
+  // isn't reset by unrelated re-renders. App gates it (once per day / not signed up) and
+  // dedupes it against onFirstAction, so this "counts" as the once-a-day appearance.
+  const onHomeInactivityRef = useRef(onHomeInactivity)
+  useEffect(() => { onHomeInactivityRef.current = onHomeInactivity })
+  const atHome = view === 'landing' && !session
+  useEffect(() => {
+    if (!atHome) return
+    let timer: ReturnType<typeof setTimeout>
+    const reset = () => {
+      clearTimeout(timer)
+      timer = setTimeout(() => onHomeInactivityRef.current(), INTRO_OFFER_INACTIVITY_MS)
+    }
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'] as const
+    events.forEach((e) => window.addEventListener(e, reset, { passive: true }))
+    reset() // start the idle clock on arrival
+    return () => {
+      clearTimeout(timer)
+      events.forEach((e) => window.removeEventListener(e, reset))
+    }
+  }, [atHome])
 
   // The landing page now uploads + processes the document itself, then hands us a
   // ready session along with the chosen mode and the user's first message. We drop
@@ -502,26 +552,26 @@ function AppShell({ showToast, signupNonce, onFirstAction }: { showToast: (messa
                       is active, but kept mounted so that content isn't lost. */}
                   {TOOL_MODES.some((m) => visited.has(m)) && (
                     <div className={viewMode !== 'chat' ? 'flex-1 min-h-0 flex flex-col overflow-hidden' : 'hidden'}>
-                      <WorkspaceHeader session={session} mode={viewMode} onEndSession={endWorkspaceSession} sidebarHidden={sidebarHidden} onToggleSidebar={() => setSidebarHidden((v) => !v)} docPanelOpen={!!openDoc} onToggleDocPanel={toggleDocPanel} />
+                      <WorkspaceHeader session={session} mode={viewMode} onEndSession={endWorkspaceSession} sidebarHidden={sidebarHidden} onToggleSidebar={() => setSidebarHidden((v) => !v)} docPanelOpen={!!openDoc} onToggleDocPanel={toggleDocPanel} onShare={shareActiveSection} onExport={exportActiveSection} canAct={actionableModes.has(viewMode)} />
                       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                         {TOOL_MODES.filter((m) => visited.has(m)).map((m) => (
                           <div key={m} className={viewMode === m ? 'flex-1 min-h-0 flex flex-col overflow-hidden' : 'hidden'}>
                             <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-brand-200 border-t-brand-600 rounded-full animate-spin" /></div>}>
                               {m === 'summary' ? (
-                                <SummaryView session={session!} onSwitchMode={switchMode} engagedModes={engaged} onActivity={() => markEngaged('summary')} autoGenerate={selectedMode === 'summary'} />
+                                <SummaryView session={session!} onSwitchMode={switchMode} engagedModes={engaged} onActivity={() => markEngaged('summary')} autoGenerate={selectedMode === 'summary'} registerActions={registerSectionActions} />
                               ) : m === 'flashcards' ? (
-                                <FlashcardsView session={session!} onSwitchMode={switchMode} engagedModes={engaged} onActivity={() => markEngaged('flashcards')} autoGenerate={selectedMode === 'flashcards'} />
+                                <FlashcardsView session={session!} onSwitchMode={switchMode} engagedModes={engaged} onActivity={() => markEngaged('flashcards')} autoGenerate={selectedMode === 'flashcards'} registerActions={registerSectionActions} />
                               ) : m === 'translate' ? (
                                 // Translate is intentionally excluded from auto-run — it needs a target
                                 // language choice first (like chat needs a typed prompt), so it keeps its
                                 // manual "Translate to <language>" button even when entered from Landing.
-                                <TranslateView session={session!} onSwitchMode={switchMode} engagedModes={engaged} onActivity={() => markEngaged('translate')} />
+                                <TranslateView session={session!} onSwitchMode={switchMode} engagedModes={engaged} onActivity={() => markEngaged('translate')} registerActions={registerSectionActions} />
                               ) : m === 'podcast' ? (
-                                <PodcastView session={session!} onSwitchMode={switchMode} engagedModes={engaged} onActivity={() => markEngaged('podcast')} autoGenerate={selectedMode === 'podcast'} />
+                                <PodcastView session={session!} onSwitchMode={switchMode} engagedModes={engaged} onActivity={() => markEngaged('podcast')} autoGenerate={selectedMode === 'podcast'} registerActions={registerSectionActions} />
                               ) : m === 'slides' ? (
-                                <SlidesView session={session!} onSwitchMode={switchMode} engagedModes={engaged} onActivity={() => markEngaged('slides')} autoGenerate={selectedMode === 'slides'} />
+                                <SlidesView session={session!} onSwitchMode={switchMode} engagedModes={engaged} onActivity={() => markEngaged('slides')} autoGenerate={selectedMode === 'slides'} registerActions={registerSectionActions} />
                               ) : m === 'charts' ? (
-                                <ChartsView session={session!} onSwitchMode={switchMode} engagedModes={engaged} onActivity={() => markEngaged('charts')} autoGenerate={selectedMode === 'charts'} />
+                                <ChartsView session={session!} onSwitchMode={switchMode} engagedModes={engaged} onActivity={() => markEngaged('charts')} autoGenerate={selectedMode === 'charts'} registerActions={registerSectionActions} />
                               ) : null}
                             </Suspense>
                           </div>
@@ -573,10 +623,10 @@ export default function App() {
   // and opens the subscribe modal.
   const [signupNonce, setSignupNonce] = useState(0)
 
-  // The intro-offer banner now appears 10s AFTER the user's first action (their first
-  // chat answer / generated summary / flashcards / podcast script, whichever they chose
-  // on the home page) — not on load. It shows once per browser session, and no more often
-  // than once every 3 days, and only for users who haven't signed up.
+  // The intro-offer banner appears after the user's first action (their first chat answer
+  // / generated summary / flashcards / podcast script, whichever they chose on the home
+  // page), OR after 5 seconds of inactivity on the home page — whichever comes first. It
+  // shows once per browser session, no more than once a day, only for guests (not signed up).
   const [showIntroOffer, setShowIntroOffer] = useState(false)
   const introFiredRef = useRef(false)
   const introTimerRef = useRef<ReturnType<typeof setTimeout>>()
@@ -584,9 +634,10 @@ export default function App() {
   const userRef = useRef(user)
   useEffect(() => { userRef.current = user }, [user])
 
-  // Called once per session, the first time the user produces content in any section. If
-  // they haven't signed up and the 3-day cooldown has elapsed, show it after a delay.
-  const handleFirstAction = () => {
+  // Schedule the intro-offer banner, once per session, if the user hasn't signed up and
+  // the once-a-day cooldown has elapsed. Shared by both triggers: the user's first action
+  // and (on the home page) a stretch of inactivity — whichever comes first wins the slot.
+  const scheduleIntroOffer = (delayMs: number) => {
     if (introFiredRef.current) return // once per session
     introFiredRef.current = true
     if (user && !user.is_guest) return // already signed up — don't nag them
@@ -605,8 +656,13 @@ export default function App() {
         /* best effort — worst case it shows again next visit */
       }
       setShowIntroOffer(true)
-    }, INTRO_OFFER_DELAY_MS)
+    }, delayMs)
   }
+  // First content produced in any section → show shortly after (their first chat answer /
+  // generated summary / flashcards / podcast script, whichever mode they chose on home).
+  const handleFirstAction = () => scheduleIntroOffer(INTRO_OFFER_DELAY_MS)
+  // 5 seconds of inactivity on the home page → show now. Counts as the once-a-day slot.
+  const handleHomeInactivity = () => scheduleIntroOffer(0)
   useEffect(() => () => clearTimeout(introTimerRef.current), [])
 
   useEffect(() => {
@@ -664,7 +720,7 @@ export default function App() {
       </div>
     )
   } else {
-    content = <AppShell showToast={setToast} signupNonce={signupNonce} onFirstAction={handleFirstAction} />
+    content = <AppShell showToast={setToast} signupNonce={signupNonce} onFirstAction={handleFirstAction} onHomeInactivity={handleHomeInactivity} />
   }
 
   return (

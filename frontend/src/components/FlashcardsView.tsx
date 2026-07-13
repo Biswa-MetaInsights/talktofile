@@ -4,8 +4,9 @@ import { Loader2, Trophy, RotateCcw, Eye, EyeOff, Share2, Check, Sparkles } from
 import type { SessionInfo, AppMode } from '../types'
 import type { Flashcard } from '../api/client'
 import { toolsApi } from '../api/client'
-import { withAttribution, shareOrCopy } from '../lib/share'
+import { withAttribution, shareOrCopy, printAsPdf, escapeHtml, type SectionShareActions } from '../lib/share'
 import SectionComposer from './SectionComposer'
+import SectionExtras from './SectionExtras'
 
 interface Props {
   session: SessionInfo
@@ -21,9 +22,12 @@ interface Props {
   // first time. Only the landing-selected section gets this; switching in via a tab
   // does not (it keeps the manual button).
   autoGenerate?: boolean
+  // Register this section's header actions (Share text / Export PDF) with the shared
+  // WorkspaceHeader. Called with the actions once cards exist, null when there are none.
+  registerActions?: (mode: AppMode, actions: SectionShareActions | null) => void
 }
 
-export default function FlashcardsView({ session, onSwitchMode, engagedModes, onActivity, autoGenerate }: Props) {
+export default function FlashcardsView({ session, onSwitchMode, engagedModes, onActivity, autoGenerate, registerActions }: Props) {
   const [cards, setCards] = useState<Flashcard[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -65,6 +69,33 @@ export default function FlashcardsView({ session, onSwitchMode, engagedModes, on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoGenerate])
 
+  // Register the header actions for this section: Share the Q&A set as text, Export it
+  // as a PDF.
+  useEffect(() => {
+    if (!cards.length) { registerActions?.('flashcards', null); return }
+    registerActions?.('flashcards', {
+      share: () => {
+        const text = 'Flashcards\n\n' + cards
+          .map((c, i) => {
+            const hint = c.hint ? `\nHint: ${c.hint}` : ''
+            return `${i + 1}. Q: ${c.question}${hint}\n   A: ${c.answer}`
+          })
+          .join('\n\n')
+        return shareOrCopy(withAttribution(text), 'Flashcards — Talktofile')
+      },
+      exportPdf: () => {
+        const body = cards
+          .map((c, i) => {
+            const hint = c.hint ? `<div class="hint">Hint: ${escapeHtml(c.hint)}</div>` : ''
+            return `<div class="card"><div class="q">${i + 1}. ${escapeHtml(c.question)}</div>${hint}<div class="a">Ans: ${escapeHtml(c.answer)}</div></div>`
+          })
+          .join('')
+        printAsPdf({ title: 'Flashcards', subtitle: session.documents.map((d) => d.filename).join(', '), bodyHtml: body })
+      },
+    })
+    return () => registerActions?.('flashcards', null)
+  }, [cards, registerActions, session])
+
   const totalCards = cards.length
   const answered = Object.keys(scores).length
   const correctCount = Object.values(scores).filter(Boolean).length
@@ -85,7 +116,7 @@ export default function FlashcardsView({ session, onSwitchMode, engagedModes, on
   const shareSet = async () => {
     if (!cards.length) return
     const body =
-      'FLASHCARDS\n\n' +
+      'Flashcards\n\n' +
       cards
         .map((c, i) => {
           const hint = c.hint ? `\nHint: ${c.hint}` : ''
@@ -173,52 +204,69 @@ export default function FlashcardsView({ session, onSwitchMode, engagedModes, on
                           animate={{ opacity: 1, y: 0 }}
                           className="mt-4 border-t border-slate-100 dark:border-slate-800 pt-4"
                         >
-                          {/* One-line answer + right/wrong buttons on the same line */}
-                          <div className="flex items-start justify-between gap-3">
-                            <p className="text-sm leading-relaxed">
-                              <span className="font-semibold text-slate-800 dark:text-slate-200">Ans: </span>
-                              <span className="text-[#E2611B] font-medium">{card.answer}</span>
-                            </p>
-                            <div className="flex gap-2 shrink-0">
-                              <button
-                                onClick={() => markAnswer(i, false)}
-                                className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${score === false ? 'bg-[#E2611B] border-[#E2611B] text-slate-100' : 'border-slate-900 dark:border-slate-100 text-slate-900 dark:text-slate-100 hover:bg-[#E2611B]/10'}`}
-                              >
-                                ✗ Got it wrong
-                              </button>
-                              <button
-                                onClick={() => markAnswer(i, true)}
-                                className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${score === true ? 'bg-[#E2611B] border-[#E2611B] text-slate-100' : 'border-slate-900 dark:border-slate-100 text-slate-900 dark:text-slate-100 hover:bg-[#E2611B]/10'}`}
-                              >
-                                ✓ Got it right
-                              </button>
-                            </div>
+                          {/* Answer — full width, its own line(s) below the question so the
+                              right/wrong buttons never squeeze it. */}
+                          <p className="text-sm leading-relaxed">
+                            <span className="font-semibold text-slate-800 dark:text-slate-200">Ans: </span>
+                            <span className="text-[#E2611B] font-medium">{card.answer}</span>
+                          </p>
+                          {/* Right/wrong on their own row below. Just ✗ / ✓ on mobile; full
+                              labels from `sm` up. */}
+                          <div className="flex gap-2 justify-end mt-3">
+                            <button
+                              onClick={() => markAnswer(i, false)}
+                              aria-label="Got it wrong"
+                              title="Got it wrong"
+                              className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${score === false ? 'bg-[#E2611B] border-[#E2611B] text-slate-100' : 'border-slate-900 dark:border-slate-100 text-slate-900 dark:text-slate-100 hover:bg-[#E2611B]/10'}`}
+                            >
+                              <span className="sm:hidden">✗</span>
+                              <span className="hidden sm:inline">✗ Got it wrong</span>
+                            </button>
+                            <button
+                              onClick={() => markAnswer(i, true)}
+                              aria-label="Got it right"
+                              title="Got it right"
+                              className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${score === true ? 'bg-[#E2611B] border-[#E2611B] text-slate-100' : 'border-slate-900 dark:border-slate-100 text-slate-900 dark:text-slate-100 hover:bg-[#E2611B]/10'}`}
+                            >
+                              <span className="sm:hidden">✓</span>
+                              <span className="hidden sm:inline">✓ Got it right</span>
+                            </button>
                           </div>
                         </motion.div>
                       )}
 
-                      {/* Hint (inline) + Reveal answer, on one line before the answer is shown */}
+                      {/* Before reveal: the hint (when shown) appears full-width on its own
+                          line(s) below the question; the Show-hint / Reveal-answer buttons sit on
+                          their own row underneath, so nothing squeezes the hint text. */}
                       {!isRevealed && (
-                        <div className="mt-5 flex items-center gap-3">
-                          {card.hint && (
-                            <button
-                              onClick={() => toggleHint(i)}
-                              className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all dark:border-slate-700 dark:text-slate-300"
+                        <>
+                          {showHint && card.hint && (
+                            <motion.p
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-3 text-sm text-slate-500 italic dark:text-slate-400 leading-relaxed"
                             >
-                              {showHint ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                              {showHint ? 'Hide hint' : 'Show hint'}
-                            </button>
+                              Hint: {card.hint}
+                            </motion.p>
                           )}
-                          <span className="flex-1 min-w-0 text-sm text-slate-500 italic dark:text-slate-400">
-                            {showHint && card.hint ? `Hint: ${card.hint}` : ''}
-                          </span>
-                          <button
-                            onClick={() => reveal(i)}
-                            className="shrink-0 px-6 py-2.5 rounded-xl border border-[#E2611B] bg-white text-[#E2611B] text-sm font-medium hover:bg-[#E2611B]/5 transition-all dark:bg-slate-900 dark:hover:bg-[#E2611B]/10"
-                          >
-                            Reveal answer
-                          </button>
-                        </div>
+                          <div className="mt-5 flex items-center gap-3">
+                            {card.hint && (
+                              <button
+                                onClick={() => toggleHint(i)}
+                                className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:border-[#E2611B] hover:text-[#E2611B] transition-all dark:border-slate-700 dark:text-slate-300"
+                              >
+                                {showHint ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                {showHint ? 'Hide hint' : 'Show hint'}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => reveal(i)}
+                              className="shrink-0 ml-auto px-6 py-2.5 rounded-xl border border-[#E2611B] bg-white text-[#E2611B] text-sm font-medium hover:bg-[#E2611B]/5 transition-all dark:bg-slate-900 dark:hover:bg-[#E2611B]/10"
+                            >
+                              Reveal answer
+                            </button>
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>
@@ -265,6 +313,8 @@ export default function FlashcardsView({ session, onSwitchMode, engagedModes, on
                   </div>
                 </motion.div>
               )}
+
+              <SectionExtras show={!!cards.length} />
             </div>
           </div>
         )}
@@ -281,10 +331,11 @@ export default function FlashcardsView({ session, onSwitchMode, engagedModes, on
           <button
             onClick={generate}
             disabled={loading}
-            className="flex items-center gap-2 h-11 px-5 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
+            aria-label={loading ? 'Generating…' : cards.length ? 'Regenerate flashcards' : 'Generate flashcards'}
+            className="flex items-center justify-center gap-2 h-11 w-11 sm:w-auto px-0 sm:px-5 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {loading ? 'Generating…' : cards.length ? 'Regenerate flashcards' : 'Generate flashcards'}
+            <span className="hidden sm:inline">{loading ? 'Generating…' : cards.length ? 'Regenerate flashcards' : 'Generate flashcards'}</span>
           </button>
         }
       />
