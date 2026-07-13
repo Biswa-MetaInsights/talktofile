@@ -39,7 +39,7 @@ const FEATURES = [
   { icon: FileText, title: 'Answers only from your file', body: 'Every answer is pulled straight from your document and shows where it came from. Nothing borrowed from the open web.' },
   { icon: ShieldCheck, title: 'It says “I don’t know”', body: 'If the answer isn’t in your file, you’ll be told. No guessing, no filling the gap.' },
   { icon: Lock, title: 'Nothing is stored', body: 'Your file lives in memory for one session and disappears on refresh. Never written to disk, never trained on.' },
-  { icon: Zap, title: 'No account, no setup', body: 'Drop a file and start asking. No sign-up, no email, no paywall to read your document. Sign in only when you want to chat with several files at once.' },
+  { icon: Sparkles, title: 'More than just answers', body: 'Turn any file into summaries, flashcards, slide decks, podcast scripts, translations and charts, all from a single upload.' },
   { icon: Globe, title: 'Any language in, any language out', body: 'Supports more than 15+ languages, including Arabic, Chinese, Hindi and Spanish. Upload in any of them and get clear answers in the language you choose.' },
   { icon: Files, title: 'Works with any file', body: 'PDF, Word, Excel, PowerPoint and more. If it’s a document, you can talk to it.' },
   { icon: BookOpen, title: 'Handles long documents', body: 'Drop in a 200 page report or a whole textbook. Ask about any part of it, including tables and figures, without scrolling to find it.' },
@@ -201,8 +201,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
 
   // The upload has begun (or finished/failed) — the chat box takes over the card.
   const started = stage !== ''
-  // 'charts' has no backend mode yet — fall back to chat.
-  const effectiveMode: AppMode = selectedMode === 'charts' ? 'chat' : selectedMode
+  const effectiveMode: AppMode = selectedMode
   // Proceed lights up once the document is ready. Chat needs a typed prompt first;
   // the other modes generate from the document, so they only need the upload done.
   const canProceed = !!session && (effectiveMode !== 'chat' || prompt.trim().length > 0)
@@ -567,7 +566,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
               Because the break below lg is forced (the mobile <br/>), narrowing the
               window never moves "links." back up to line 1 — it stays on line 2 the
               whole way down. Font steps are sized to keep each forced line on one row. */}
-          <h1 className="font-merriweather font-extrabold tracking-[-0.03em] text-[#303030] dark:text-slate-100 leading-[1.1] text-[20px] min-[360px]:text-[23px] min-[420px]:text-[27px] min-[520px]:text-[34px] sm:text-[44px] md:text-[56px]">
+          <h1 className="font-merriweather font-extrabold tracking-[-0.03em] text-[#303030] dark:text-slate-100 leading-[1.1] text-[27px] min-[420px]:text-[31px] min-[520px]:text-[38px] sm:text-[44px] md:text-[56px] -mx-4 min-[360px]:mx-0">
             {'Upload files. Paste website'}
             <br className="lg:hidden" />
             {' links.'}
@@ -588,7 +587,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
               <div className="w-14 h-14 rounded-full bg-[#E2611B]/10 flex items-center justify-center">
                 <Zap className="w-6 h-6 text-[#E2611B]" strokeWidth={2.25} />
               </div>
-              <span className="mt-3 font-merriweather font-medium text-[15px] text-slate-700 text-center leading-snug">No sign-up needed</span>
+              <span className="mt-3 font-merriweather font-medium text-[15px] text-slate-700 text-center leading-snug">No sign-up needed to start</span>
             </div>
             <div className="flex flex-col items-center w-28">
               <div className="w-14 h-14 rounded-full bg-[#E2611B]/10 flex items-center justify-center">
@@ -616,7 +615,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
             </span>
             <span className="inline-flex items-center gap-2 sm:gap-2.5">
               <Zap className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-[#E2611B] shrink-0" strokeWidth={2.25} />
-              <span>No sign-up needed</span>
+              <span>No sign-up needed to start</span>
             </span>
             <span className="inline-flex items-center gap-2 sm:gap-2.5">
               <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-[#E2611B] shrink-0" strokeWidth={2.25} />
@@ -663,7 +662,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                         ? 'Drop your document here'
                         : <>Drop a document, or <span className="text-[#E2611B] underline underline-offset-2">browse to upload</span></>}
                     </p>
-                    <p className="mt-1.5 text-sm text-slate-400 dark:text-slate-500">PDF · Word · Excel · PowerPoint</p>
+                    <p className="mt-1.5 text-sm text-slate-400 dark:text-slate-500">PDF · Word · Excel · PowerPoint and 49 other formats</p>
                   </div>
 
                   {heroError && (

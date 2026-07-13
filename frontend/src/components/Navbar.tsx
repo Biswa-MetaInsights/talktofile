@@ -31,17 +31,17 @@ export default function Navbar({ onOpenAuth, onHome, onHowItWorks, onSignedOut, 
       transition={{ duration: 0.4 }}
       className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-6 h-16 border-b border-[#303030] bg-[#F8FAFC] dark:border-slate-800 dark:bg-slate-900"
     >
-      <div className="flex items-center gap-5 sm:gap-7">
+      <div className="flex items-center gap-5 sm:gap-7 min-w-0">
         {atHome ? (
           // On the home page the logo isn't a link — no tooltip and no hover/click
           // animation, since there's nowhere to navigate to.
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 min-w-0">
             <img
               src={mark}
               alt="Talktofile"
-              className="w-14 h-14"
+              className="w-11 h-11 sm:w-14 sm:h-14 shrink-0"
             />
-            <span className="-ml-3 font-brand italic font-bold text-[26px] sm:text-[34px] tracking-[-0.02em] text-[#E2611B]">
+            <span className="-ml-2 sm:-ml-3 font-brand italic font-bold text-[22px] sm:text-[34px] tracking-[-0.02em] text-[#E2611B] truncate">
               Talktofile
             </span>
           </div>
@@ -49,12 +49,12 @@ export default function Navbar({ onOpenAuth, onHome, onHowItWorks, onSignedOut, 
           <Tooltip label="Back to home" side="bottom">
             <button
               onClick={onHome}
-              className="flex items-center gap-1 group"
+              className="flex items-center gap-1 group min-w-0"
             >
               <img
                 src={mark}
                 alt="Talktofile"
-                className="w-14 h-14 transition-transform group-hover:scale-105"
+                className="w-11 h-11 sm:w-14 sm:h-14 shrink-0 transition-transform group-hover:scale-105"
               />
               <span className="-ml-3 font-brand italic font-bold text-[26px] sm:text-[34px] tracking-[-0.02em] text-[#E2611B]">
                 Talktofile
@@ -82,7 +82,7 @@ export default function Navbar({ onOpenAuth, onHome, onHowItWorks, onSignedOut, 
         </nav>
       </div>
 
-      <div className="flex items-center gap-3 sm:gap-6">
+      <div className="flex items-center gap-3 sm:gap-6 shrink-0">
         {/* Light / dark theme switch */}
         <ThemeToggle side="bottom" />
 

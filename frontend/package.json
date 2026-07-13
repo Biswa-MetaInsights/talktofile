@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
     "@supabase/supabase-js": "^2.108.1",
     "axios": "^1.7.9",
     "clsx": "^2.1.1",
@@ -23,6 +25,7 @@
     "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.1",
     "@playwright/test": "^1.61.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",

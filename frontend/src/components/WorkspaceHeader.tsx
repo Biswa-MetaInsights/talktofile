@@ -3,7 +3,6 @@ import { FileText, Files, GitCompare, PanelLeftClose, PanelLeftOpen, Share2, Che
 import { MODE_LABELS } from './ModeSwitcher'
 import type { SessionInfo, AppMode } from '../types'
 import { useAuth } from '../context/AuthContext'
-import { withAttribution, shareOrCopy } from '../lib/share'
 
 interface Props {
   session: SessionInfo
@@ -18,6 +17,14 @@ interface Props {
   // show/hide control for it so it's reachable from every section, not just via the sidebar.
   docPanelOpen: boolean
   onToggleDocPanel: () => void
+  // Header actions on the CURRENTLY OPEN section. Each tool view registers both with
+  // AppShell: `onShare` opens the native share sheet / clipboard with the section's TEXT
+  // (podcast script, translation, …) and resolves to how it was handled; `onExport` opens
+  // a print / Save-as-PDF view of the section. `canAct` is false until that section has
+  // content (undefined handlers otherwise).
+  onShare: () => Promise<'shared' | 'copied'> | undefined
+  onExport: () => void
+  canAct: boolean
 }
 
 const PRO_HINT = 'Interacting with multiple files in a single conversation is a Pro feature.'
@@ -30,18 +37,14 @@ const MODE_WARNINGS: Partial<Record<AppMode, string>> = {
   charts: 'Charts cover spreadsheets only (.xlsx and .csv files).',
 }
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
-
 // The shared workspace top bar. It duplicates every property of the chat header row
 // (file icon + title, status line, View-summaries drawer, Share, Export, Add files/URLs,
 // End session) so the tool sections (summary, flashcards, slides, translate, podcast,
 // charts) look and behave consistently with the chat. Chat keeps its own inline header
-// (the reference); this is a self-contained copy for the other sections. Session-level
-// actions (Share / Export) operate on the document summary, since these views have no
-// chat transcript.
-export default function WorkspaceHeader({ session, mode, onEndSession, sidebarHidden, onToggleSidebar, docPanelOpen, onToggleDocPanel }: Props) {
+// (the reference); this is a self-contained copy for the other sections. Both Share and
+// Export now act on the currently open section: Share opens the native share sheet /
+// clipboard with the section's text, Export opens a print / Save-as-PDF view of it.
+export default function WorkspaceHeader({ session, mode, onEndSession, sidebarHidden, onToggleSidebar, docPanelOpen, onToggleDocPanel, onShare, onExport, canAct }: Props) {
   const { user } = useAuth()
   const isPro = user?.plan === 'pro'
   const [shared, setShared] = useState<'shared' | 'copied' | null>(null)
@@ -93,75 +96,14 @@ export default function WorkspaceHeader({ session, mode, onEndSession, sidebarHi
   }
   const removeExtra = (id: number) => setExtraSources((prev) => prev.filter((s) => s.id !== id))
 
-  // Share the document summary (session-level analogue of chat's "share transcript").
-  const shareSummary = async () => {
-    const parts = docs.map((doc) => {
-      const s = doc.summary
-      if (!s) return ''
-      const lines: string[] = []
-      if (docs.length > 1) lines.push(`## ${doc.filename}`)
-      if (s.doc_type) lines.push(`Type: ${s.doc_type}`)
-      if (s.overview) lines.push(`\nOverview:\n${s.overview}`)
-      if (s.key_points?.length) {
-        lines.push('\nKey points:')
-        s.key_points.forEach((p, i) => lines.push(`${i + 1}. ${p}`))
-      }
-      if (s.topics?.length) lines.push(`\nTopics: ${s.topics.join(', ')}`)
-      return lines.join('\n')
-    })
-    const body = `DOCUMENT SUMMARY\n\n${parts.filter(Boolean).join('\n\n———\n\n')}`
-    const how = await shareOrCopy(withAttribution(body), 'Document summary — Talktofile')
-    setShared(how)
-    setTimeout(() => setShared(null), 2000)
-  }
-
-  // Export the document summary as a printable report (analogue of chat's export).
-  const exportReport = () => {
-    const docTitle = docs.map((d) => d.filename).join(' & ')
-    const rows = docs.map((d) => {
-      const s = d.summary
-      const kp = (s?.key_points ?? []).map((p) => `<li>${escapeHtml(p)}</li>`).join('')
-      return `<div class="doc">
-        <h2>${escapeHtml(d.filename)}</h2>
-        ${s?.doc_type ? `<p class="type">${escapeHtml(s.doc_type)}</p>` : ''}
-        ${s?.overview ? `<p>${escapeHtml(s.overview)}</p>` : ''}
-        ${kp ? `<ul>${kp}</ul>` : ''}
-        ${s?.topics?.length ? `<p class="topics">Topics: ${escapeHtml(s.topics.join(', '))}</p>` : ''}
-      </div>`
-    }).join('')
-
-    const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<title>Talktofile: ${escapeHtml(docTitle)}</title>
-<style>
-  body{font-family:'Segoe UI',sans-serif;margin:0;padding:40px;background:#f8fafc;color:#0f172a}
-  h1{font-size:22px;font-weight:700;color:#1e293b;margin-bottom:4px}
-  h2{font-size:16px;color:#0f172a;margin:24px 0 8px}
-  .meta{font-size:12px;color:#94a3b8;margin-bottom:32px}
-  .doc{max-width:800px}
-  .type{display:inline-block;font-size:11px;font-weight:600;color:#E2611B;background:#fdf4ee;border:1px solid #f6cbab;border-radius:999px;padding:2px 10px;margin:0 0 10px}
-  p{font-size:14px;line-height:1.65}
-  ul{font-size:14px;line-height:1.7;padding-left:20px}
-  .topics{color:#64748b}
-  .footer{margin-top:40px;font-size:11px;color:#cbd5e1;border-top:1px solid #e2e8f0;padding-top:16px}
-  @media print{body{background:#fff;padding:24px}.doc{page-break-inside:avoid}}
-</style>
-</head>
-<body>
-<h1>Talktofile Summary Report</h1>
-<div class="meta">Document${docs.length > 1 ? 's' : ''}: ${escapeHtml(docTitle)} &nbsp;·&nbsp; Exported ${new Date().toLocaleString()}</div>
-${rows}
-<div class="footer">Generated by Talktofile · talktofile.ai</div>
-</body></html>`
-
-    const win = window.open('', '_blank')
-    if (win) {
-      win.document.write(html)
-      win.document.close()
-      win.focus()
-      setTimeout(() => win.print(), 400)
+  // Share the open section's TEXT via the native share sheet / clipboard, then briefly
+  // show a tick reflecting how it was handled ("shared" vs "copied").
+  const handleShare = async () => {
+    if (!canAct) return
+    const how = await onShare()
+    if (how) {
+      setShared(how)
+      setTimeout(() => setShared(null), 2000)
     }
   }
 
@@ -185,9 +127,10 @@ ${rows}
             )}
           </div>
           {/* Section scope warning (translate/charts) — sits right after the title so the
-              caveat reads with the section name. Hidden on very narrow screens to keep the row. */}
+              caveat reads with the section name. Shown ONLY on the largest screens (`xl`+); on
+              smaller widths it crowded the header actions, so it's hidden there. */}
           {MODE_WARNINGS[mode] && (
-            <div className="hidden md:flex items-center gap-1.5 flex-shrink-0 whitespace-nowrap bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 text-xs text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-400">
+            <div className="hidden xl:flex items-center gap-1.5 flex-shrink-0 whitespace-nowrap bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 text-xs text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-400">
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
               <span>{MODE_WARNINGS[mode]}</span>
             </div>
@@ -196,7 +139,7 @@ ${rows}
         <div className="relative flex items-center gap-2">
           <button
             onClick={onToggleSidebar}
-            className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-lg hover:bg-brand-50 dark:hover:bg-brand-600/15"
+            className="hidden lg:inline-flex items-center justify-center p-1.5 text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-lg hover:bg-brand-50 dark:hover:bg-brand-600/15"
             title={sidebarHidden ? 'View overview' : 'Hide overview'}
           >
             {sidebarHidden ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
@@ -209,16 +152,18 @@ ${rows}
             <ScrollText className="w-4 h-4" />
           </button>
           <button
-            onClick={shareSummary}
-            className="flex items-center gap-1 p-1.5 text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-lg hover:bg-brand-50 dark:hover:bg-brand-600/15"
-            title="Share summary"
+            onClick={handleShare}
+            disabled={!canAct}
+            className="flex items-center gap-1 p-1.5 text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-lg hover:bg-brand-50 dark:hover:bg-brand-600/15 disabled:opacity-40 disabled:hover:text-slate-400 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+            title={canAct ? `Share ${MODE_LABELS[mode]}` : `Generate ${MODE_LABELS[mode]} first to share it`}
           >
             {shared ? <Check className="w-4 h-4 text-[#E2611B]" /> : <Share2 className="w-4 h-4" />}
           </button>
           <button
-            onClick={exportReport}
-            className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-lg hover:bg-brand-50 dark:hover:bg-brand-600/15"
-            title="Export report"
+            onClick={onExport}
+            disabled={!canAct}
+            className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-lg hover:bg-brand-50 dark:hover:bg-brand-600/15 disabled:opacity-40 disabled:hover:text-slate-400 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+            title={canAct ? `Download ${MODE_LABELS[mode]} as a pdf` : `Generate ${MODE_LABELS[mode]} first to download it`}
           >
             <Download className="w-4 h-4" />
           </button>

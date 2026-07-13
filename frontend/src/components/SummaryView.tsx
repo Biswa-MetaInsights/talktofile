@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { FileText, Tag, List, Loader2 } from 'lucide-react'
 import type { SessionInfo, AppMode } from '../types'
+import { withAttribution, shareOrCopy, printAsPdf, escapeHtml, type SectionShareActions } from '../lib/share'
 import SectionComposer from './SectionComposer'
+import SectionExtras from './SectionExtras'
 
 interface Props {
   session: SessionInfo
@@ -17,9 +19,13 @@ interface Props {
   // first time. Only the landing-selected section gets this; switching in via a tab
   // does not (it keeps the manual button).
   autoGenerate?: boolean
+  // Register this section's header actions (Share text / Export PDF) with the shared
+  // WorkspaceHeader. The summary is precomputed by the upload pipeline, so it's actionable
+  // whenever any document actually has summary content.
+  registerActions?: (mode: AppMode, actions: SectionShareActions | null) => void
 }
 
-export default function SummaryView({ session, onSwitchMode, engagedModes, onActivity, autoGenerate }: Props) {
+export default function SummaryView({ session, onSwitchMode, engagedModes, onActivity, autoGenerate, registerActions }: Props) {
   // The summary itself is produced by the upload pipeline (analyst agent) and already
   // lives on `session.documents[i].summary`. Per product decision it is no longer shown
   // automatically: the user clicks "Generate summary" (below, in the bottom bar) to reveal
@@ -41,6 +47,52 @@ export default function SummaryView({ session, onSwitchMode, engagedModes, onAct
   }
 
   useEffect(() => () => { if (genTimer.current) clearTimeout(genTimer.current) }, [])
+
+  // Register the header actions for this section: Share the summary as text, Export it
+  // as a PDF (each document's overview, key points, and topics).
+  useEffect(() => {
+    const docs = session.documents
+    const hasContent = docs.some((d) => d.summary?.overview || d.summary?.key_points?.length || d.summary?.topics?.length)
+    if (!hasContent) { registerActions?.('summary', null); return }
+    registerActions?.('summary', {
+      share: () => {
+        const parts = docs.map((d) => {
+          const s = d.summary
+          if (!s) return ''
+          const lines: string[] = []
+          if (docs.length > 1) lines.push(`## ${d.filename}`)
+          if (s.doc_type) lines.push(`Type: ${s.doc_type}`)
+          if (s.overview) lines.push(`\nOverview:\n${s.overview}`)
+          if (s.key_points?.length) {
+            lines.push('\nKey points:')
+            s.key_points.forEach((p: string, i: number) => lines.push(`${i + 1}. ${p}`))
+          }
+          if (s.topics?.length) lines.push(`\nTopics: ${s.topics.join(', ')}`)
+          return lines.join('\n')
+        })
+        const text = `Document Summary\n\n${parts.filter(Boolean).join('\n\n———\n\n')}`
+        return shareOrCopy(withAttribution(text), 'Document summary — Talktofile')
+      },
+      exportPdf: () => {
+        const body = docs
+          .map((d) => {
+            const s = d.summary
+            if (!s) return ''
+            const parts: string[] = []
+            if (docs.length > 1) parts.push(`<h2>${escapeHtml(d.filename)}</h2>`)
+            if (s.doc_type) parts.push(`<span class="type">${escapeHtml(s.doc_type)}</span>`)
+            if (s.overview) parts.push(`<h3>Overview</h3><p>${escapeHtml(s.overview)}</p>`)
+            if (s.key_points?.length) parts.push(`<h3>Key Points</h3><ul>${s.key_points.map((p: string) => `<li>${escapeHtml(p)}</li>`).join('')}</ul>`)
+            if (s.topics?.length) parts.push(`<h3>Topics Covered</h3><p>${escapeHtml(s.topics.join(', '))}</p>`)
+            return parts.join('')
+          })
+          .filter(Boolean)
+          .join('')
+        printAsPdf({ title: 'Summary', subtitle: docs.map((d) => d.filename).join(', '), bodyHtml: body })
+      },
+    })
+    return () => registerActions?.('summary', null)
+  }, [session, registerActions])
 
   // Auto-reveal on entry when this is the section chosen on the Landing page. There's
   // nothing to actually generate (the summary is precomputed by the upload pipeline) —
@@ -151,6 +203,8 @@ export default function SummaryView({ session, onSwitchMode, engagedModes, onAct
             </div>
           )
         })}
+
+        <SectionExtras show={generated} />
       </div>
 
       {/* Bottom bar — the shared composer. The wide "Generate summary" button takes the
@@ -164,10 +218,11 @@ export default function SummaryView({ session, onSwitchMode, engagedModes, onAct
           <button
             onClick={generate}
             disabled={loading}
-            className="flex items-center gap-2 h-11 px-5 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
+            aria-label={loading ? 'Generating…' : generated ? 'Regenerate summary' : 'Generate summary'}
+            className="flex items-center justify-center gap-2 h-11 w-11 sm:w-auto px-0 sm:px-5 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-            {loading ? 'Generating…' : generated ? 'Regenerate summary' : 'Generate summary'}
+            <span className="hidden sm:inline">{loading ? 'Generating…' : generated ? 'Regenerate summary' : 'Generate summary'}</span>
           </button>
         }
       />
