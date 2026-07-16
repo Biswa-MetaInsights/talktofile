@@ -26,11 +26,19 @@ const MicrosoftIcon = () => (
     <path fill="#FFB900" d="M13 13h10v10H13z" />
   </svg>
 )
+const LinkedInIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] flex-shrink-0" aria-hidden="true">
+    <rect width="24" height="24" rx="4" fill="#0A66C2" />
+    <path fill="#fff" d="M8.34 18.34H5.67V9.75h2.67v8.59zM7 8.57a1.55 1.55 0 1 1 0-3.1 1.55 1.55 0 0 1 0 3.1zm11.34 9.77h-2.67v-4.18c0-1-.02-2.28-1.39-2.28-1.39 0-1.6 1.09-1.6 2.21v4.25h-2.67V9.75h2.56v1.17h.04c.36-.68 1.23-1.39 2.53-1.39 2.7 0 3.2 1.78 3.2 4.1v4.71z" />
+  </svg>
+)
 
-// `provider` is the Supabase OAuth provider id ('azure' == Microsoft).
+// `provider` is the Supabase OAuth provider id ('azure' == Microsoft,
+// 'linkedin_oidc' == LinkedIn).
 const SOCIAL_PROVIDERS = [
   { name: 'Google', provider: 'google', Icon: GoogleIcon },
   { name: 'Microsoft', provider: 'azure', Icon: MicrosoftIcon },
+  { name: 'LinkedIn', provider: 'linkedin_oidc', Icon: LinkedInIcon },
 ] as const
 
 /** Shared modal shell so the reset / recovery sub-views match the main modal. */
