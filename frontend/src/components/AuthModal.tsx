@@ -37,8 +37,10 @@ const LinkedInIcon = () => (
 // 'linkedin_oidc' == LinkedIn).
 const SOCIAL_PROVIDERS = [
   { name: 'Google', provider: 'google', Icon: GoogleIcon },
-  { name: 'Microsoft', provider: 'azure', Icon: MicrosoftIcon },
-  { name: 'LinkedIn', provider: 'linkedin_oidc', Icon: LinkedInIcon },
+  // Temporarily disabled — only Google sign-in is enabled for now. Re-add these
+  // once the Microsoft (Azure) and LinkedIn providers are configured in Supabase.
+  // { name: 'Microsoft', provider: 'azure', Icon: MicrosoftIcon },
+  // { name: 'LinkedIn', provider: 'linkedin_oidc', Icon: LinkedInIcon },
 ] as const
 
 /** Shared modal shell so the reset / recovery sub-views match the main modal. */
