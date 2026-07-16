@@ -4,8 +4,9 @@ import { supabase, SUPABASE_ENABLED } from '../lib/supabase'
 import { identifyUser, track, resetAnalytics } from '../lib/analytics'
 import type { User, UserProfile } from '../types'
 
-// Supabase provider ids. 'azure' is Microsoft's provider id in Supabase.
-export type OAuthProvider = 'google' | 'azure'
+// Supabase provider ids. 'azure' is Microsoft's, 'linkedin_oidc' is LinkedIn's
+// (the current OIDC integration — the legacy 'linkedin' provider is deprecated).
+export type OAuthProvider = 'google' | 'azure' | 'linkedin_oidc'
 
 interface AuthContextValue {
   user: User | null

@@ -52,7 +52,7 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
 ```
 Rebuild the frontend (`npm run build`) so the values are baked in.
 
-## 6. Social sign-in (Google / Apple / Microsoft)
+## 6. Social sign-in (Google / Microsoft / LinkedIn)
 
 The three social buttons in the sign-in modal are wired to Supabase OAuth
 (`supabase.auth.signInWithOAuth`). They **only appear when Supabase mode is on**
@@ -73,10 +73,17 @@ Secret you create in that provider's console:
 |---|---|---|---|
 | Google | **Google** | Google Cloud Console → APIs & Services → Credentials → OAuth client ID (Web) | `https://<ref>.supabase.co/auth/v1/callback` |
 | Microsoft | **Azure** (`azure`) | Azure Portal → App registrations → new registration | `https://<ref>.supabase.co/auth/v1/callback` |
+| LinkedIn | **LinkedIn (OIDC)** (`linkedin_oidc`) | LinkedIn Developers → create an app → Products → add **Sign In with LinkedIn using OpenID Connect** | `https://<ref>.supabase.co/auth/v1/callback` |
 
 Notes:
 - **Microsoft = the `azure` provider** in Supabase; the frontend maps the button to
   it and requests `email openid profile` scopes so the email claim comes back.
+- **LinkedIn = the `linkedin_oidc` provider** in Supabase (the current OIDC
+  integration — the legacy `linkedin` provider is deprecated). It returns
+  `openid profile email` by default, so no extra scopes are needed. In the LinkedIn
+  app you must add the **Sign In with LinkedIn using OpenID Connect** product (the
+  older r_liteprofile/r_emailaddress scopes no longer apply), then paste the app's
+  Client ID + Secret into Supabase → Authentication → Providers → LinkedIn (OIDC).
 - **Apple sign-in was removed** for now (it needs a paid Apple Developer account). To
   re-add it later: add `'apple'` back to `OAuthProvider` (`context/AuthContext.tsx`),
   re-add the Apple entry + icon to `SOCIAL_PROVIDERS` (`components/AuthModal.tsx`), and
