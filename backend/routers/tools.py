@@ -205,9 +205,57 @@ async def generate_slides(session_id: str, current_user: dict = Depends(get_curr
     return {"slides": slides, "title": _slides_doc_title(session)}
 
 
+class SlideTheme(BaseModel):
+    preset: str | None = None
+    accent: str | None = None
+
+
+class SlidesRefineRequest(BaseModel):
+    slides: list[dict]
+    instruction: str
+
+
+@router.post("/slides/{session_id}/refine")
+async def refine_slides(
+    session_id: str,
+    body: SlidesRefineRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Apply a natural-language instruction to an existing deck (e.g. 'make slide 3
+    shorter', 'add a slide on pricing') and return the updated deck. Counts against
+    the daily question limit like a generation."""
+    username = current_user["username"]
+    plan = current_user.get("plan", "free")
+    session = _get_ready_session(session_id, username)
+
+    instruction = (body.instruction or "").strip()
+    if not instruction:
+        raise HTTPException(status_code=400, detail="Please describe how to change the slides.")
+    if not body.slides:
+        raise HTTPException(status_code=400, detail="There are no slides to refine yet.")
+
+    settings = get_settings()
+    limit = settings.daily_question_limit(plan)
+    if count_today(username, "question") >= limit:
+        raise HTTPException(status_code=429, detail="Daily limit reached. Please try again tomorrow.")
+    log_usage(username, "question", "tool=slides_refine")
+
+    from agents.slide_agent import refine_slides_data
+    slides = await refine_slides_data(session.documents, body.slides, instruction)
+    if not slides:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not apply that change. Please try rephrasing your request.",
+        )
+
+    return {"slides": slides, "title": _slides_doc_title(session)}
+
+
 class SlidesDownloadRequest(BaseModel):
     slides: list[dict]
     title: str | None = None
+    theme: SlideTheme | None = None
+    author: str | None = None
 
 
 @router.post("/slides/{session_id}/download")
@@ -227,7 +275,8 @@ async def download_slides(
 
     from agents.slide_agent import build_pptx
     title = (body.title or _slides_doc_title(session)).strip() or "Document"
-    pptx_bytes = build_pptx(body.slides, title)
+    theme = body.theme.model_dump() if body.theme else None
+    pptx_bytes = build_pptx(body.slides, title, theme=theme, author=body.author)
 
     safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", title) or "presentation"
 
