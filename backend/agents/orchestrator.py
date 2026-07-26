@@ -203,6 +203,7 @@ async def _analyse_into_document(filename: str, content: bytes, client: AsyncOpe
     else:
         lang_code, _ = await detect_only(raw_text)
     chunks, embeddings, index, summary = await analyse_one(raw_text, client)
+    from agents.chapters import segment_into_chapters
     return DocumentData(
         filename=filename,
         original_language=lang_code,
@@ -212,6 +213,7 @@ async def _analyse_into_document(filename: str, content: bytes, client: AsyncOpe
         summary=summary,
         raw_text=raw_text,
         is_tabular=ext in TABULAR_EXTS,
+        chapters=segment_into_chapters(raw_text),
     )
 
 

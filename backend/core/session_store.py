@@ -23,6 +23,9 @@ class DocumentData:
     # Raw extracted text kept for table/numeric questions (e.g. Excel calculations).
     raw_text: str = ""
     is_tabular: bool = False
+    # Ordered chapters/sections derived from raw_text: {index, id, title, start, end}
+    # (start/end are char offsets into raw_text). Always at least one entry.
+    chapters: list[dict] = field(default_factory=list)
 
 
 @dataclass

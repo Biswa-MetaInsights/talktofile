@@ -131,10 +131,18 @@ class DocumentSummary(BaseModel):
     topics: list[str] = []
 
 
+class ChapterInfo(BaseModel):
+    id: str
+    index: int
+    title: str
+
+
 class DocumentInfo(BaseModel):
     filename: str
     original_language: str
     summary: DocumentSummary = DocumentSummary()
+    # Detected chapters/sections for this document (id/index/title only).
+    chapters: list[ChapterInfo] = []
 
 
 class SessionInfo(BaseModel):

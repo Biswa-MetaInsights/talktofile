@@ -287,6 +287,60 @@ async def download_slides(
     )
 
 
+# ── Summary (chapter-scoped) ───────────────────────────────────────────────────
+
+class SummaryRequest(BaseModel):
+    # Which document to summarise (defaults to the first). Chapter-scoping applies
+    # to this document's chapters.
+    filename: str | None = None
+    # Chapter ids to include (e.g. ["ch1", "ch2"]). Empty / omitted = whole document,
+    # which reuses the precomputed summary (no model call, no daily-limit charge).
+    chapter_ids: list[str] | None = None
+
+
+@router.post("/summary/{session_id}")
+async def generate_summary_tool(
+    session_id: str,
+    body: SummaryRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Summarise a document, optionally scoped to specific chapters.
+
+    Whole-document (no chapter_ids) returns the summary already built by the upload
+    pipeline — free and instant. A chapter-scoped request summarises only the selected
+    chapters via the model, and is charged against the daily question limit."""
+    username = current_user["username"]
+    plan = current_user.get("plan", "free")
+    session = _get_ready_session(session_id, username)
+
+    if body.filename:
+        doc = next((d for d in session.documents if d.filename == body.filename), None)
+        if doc is None:
+            raise HTTPException(status_code=404, detail=f"'{body.filename}' is not part of this session.")
+    else:
+        doc = session.documents[0]
+
+    # Whole document → reuse the precomputed summary (no cost).
+    if not body.chapter_ids:
+        return {"summary": doc.summary, "scope": {"filename": doc.filename, "chapter_ids": []}}
+
+    from agents.chapters import chapters_text
+    text = chapters_text(doc.raw_text, doc.chapters, body.chapter_ids)
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="The selected chapters have no text to summarise.")
+
+    settings = get_settings()
+    limit = settings.daily_question_limit(plan)
+    if count_today(username, "question") >= limit:
+        raise HTTPException(status_code=429, detail="Daily limit reached. Please try again tomorrow.")
+    log_usage(username, "question", "tool=summary")
+
+    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    from agents.analyst_agent import generate_summary
+    summary = await generate_summary(text, client)
+    return {"summary": summary, "scope": {"filename": doc.filename, "chapter_ids": body.chapter_ids}}
+
+
 # ── Voice transcription (Whisper) — ACTIVE ─────────────────────────────────────
 # Speech-to-text for the dictation mic in the chat inputs. The browser records
 # audio and posts it here; we transcribe it with OpenAI Whisper and return text.

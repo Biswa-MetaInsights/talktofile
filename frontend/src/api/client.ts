@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { UserProfile, Plan, SessionInfo } from '../types'
+import type { UserProfile, Plan, SessionInfo, DocumentSummary } from '../types'
 
 // Absolute backend origin, for split deployments where the frontend and backend
 // live on different hosts (e.g. Vercel + Render). Set VITE_API_URL to the backend
@@ -114,10 +114,14 @@ export const documentApi = {
     api.post<{ session_id: string; filenames: string[] }>('/document/url', { url }),
   getSession: (sessionId: string) =>
     api.get(`/document/${sessionId}`),
-  // Fetch one document's full extracted text (backs the "open original document" panel).
-  getContent: (sessionId: string, filename: string) =>
+  // Fetch one document's extracted text (backs the "open original document" panel).
+  // Pass chapterIds to narrow the returned text to just those chapters.
+  getContent: (sessionId: string, filename: string, chapterIds?: string[]) =>
     api.get<{ filename: string; content: string }>(`/document/${sessionId}/content`, {
-      params: { filename },
+      params: {
+        filename,
+        ...(chapterIds && chapterIds.length ? { chapters: chapterIds.join(',') } : {}),
+      },
     }),
   deleteSession: (sessionId: string) =>
     api.delete(`/document/${sessionId}`),
@@ -162,6 +166,13 @@ export interface ChartData {
 export const toolsApi = {
   flashcards: (sessionId: string) =>
     api.post<{ flashcards: Flashcard[] }>(`/tools/flashcards/${sessionId}`),
+  // Summarise a document, optionally scoped to specific chapters. Omit chapterIds
+  // (or pass none) for the whole document (returns the precomputed summary).
+  summary: (sessionId: string, opts?: { filename?: string; chapterIds?: string[] }) =>
+    api.post<{ summary: DocumentSummary; scope: { filename: string; chapter_ids: string[] } }>(
+      `/tools/summary/${sessionId}`,
+      { filename: opts?.filename, chapter_ids: opts?.chapterIds ?? [] }
+    ),
   translate: (sessionId: string, targetLanguage: string) =>
     api.post<{ target_language: string; documents: TranslateDoc[]; note: string }>(
       `/tools/translate/${sessionId}`,

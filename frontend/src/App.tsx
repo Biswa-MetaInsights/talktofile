@@ -117,6 +117,16 @@ function AppShell({ showToast, signupNonce, onFirstAction, onHomeInactivity }: {
   const [activeOverview, setActiveOverview] = useState(0)
   // The document whose full original text is open in the slide-in panel (null = closed).
   const [openDoc, setOpenDoc] = useState<string | null>(null)
+  // Active chapter scope (from a feature scoped to specific chapters, e.g. "summary of
+  // chapters 1–2"). When set, the left document panel shows only those chapters; cleared
+  // (null) means the full document.
+  const [chapterScope, setChapterScope] = useState<{ filename: string; chapterIds: string[] } | null>(null)
+  // Apply/clear a chapter scope: scoping also opens the document panel on that file so
+  // the left side immediately reflects the selected chapters.
+  const applyChapterScope = (scope: { filename: string; chapterIds: string[] } | null) => {
+    setChapterScope(scope)
+    if (scope) setOpenDoc(scope.filename)
+  }
   // The left details panel (document + overview) can be collapsed and pulled back out at
   // any time via the header toggle. It defaults to visible (on lg+ screens, where the
   // panel exists); hiding it only lasts for the current session — a reload starts visible.
@@ -219,6 +229,7 @@ function AppShell({ showToast, signupNonce, onFirstAction, onHomeInactivity }: {
     setPendingUpload(null)
     setPendingUrl(null)
     setOpenDoc(null)
+    setChapterScope(null)
     setSkippedDismissed(false)
     setSession(s)
     setView('app')
@@ -292,10 +303,10 @@ function AppShell({ showToast, signupNonce, onFirstAction, onHomeInactivity }: {
     return () => window.removeEventListener('beforeunload', handler)
   }, [session, uploading])
 
-  const handleReset = () => { setSession(null); setViewMode('chat'); setVisited(new Set(['chat'])); setEngaged(new Set()); setPendingUpload(null); setPendingUrl(null); setOpenDoc(null) }
+  const handleReset = () => { setSession(null); setViewMode('chat'); setVisited(new Set(['chat'])); setEngaged(new Set()); setPendingUpload(null); setPendingUrl(null); setOpenDoc(null); setChapterScope(null) }
   // "End session" (from the chat header or a tool-view WorkspaceHeader) drops the
   // session and returns the user to the home page — not back to the upload screen.
-  const endToHome = () => { setSession(null); setOpenDoc(null); goLanding(); promptFeedback() }
+  const endToHome = () => { setSession(null); setOpenDoc(null); setChapterScope(null); goLanding(); promptFeedback() }
   // Tool-view WorkspaceHeader's End session: also drop the server-side session first.
   const endWorkspaceSession = () => {
     if (session) documentApi.deleteSession(session.session_id).catch(() => {})
@@ -517,6 +528,9 @@ function AppShell({ showToast, signupNonce, onFirstAction, onHomeInactivity }: {
                   <DocumentPanel
                     sessionId={session.session_id}
                     filename={openDoc}
+                    chapterIds={chapterScope && chapterScope.filename === openDoc ? chapterScope.chapterIds : undefined}
+                    chapters={session.documents.find((d) => d.filename === openDoc)?.chapters}
+                    onShowFull={() => setChapterScope(null)}
                     onClose={() => setOpenDoc(null)}
                   />
                 )}
@@ -561,7 +575,7 @@ function AppShell({ showToast, signupNonce, onFirstAction, onHomeInactivity }: {
                           <div key={m} className={viewMode === m ? 'flex-1 min-h-0 flex flex-col overflow-hidden' : 'hidden'}>
                             <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-brand-200 border-t-brand-600 rounded-full animate-spin" /></div>}>
                               {m === 'summary' ? (
-                                <SummaryView session={session!} onSwitchMode={switchMode} engagedModes={engaged} onActivity={() => markEngaged('summary')} autoGenerate={selectedMode === 'summary'} registerActions={registerSectionActions} />
+                                <SummaryView session={session!} onSwitchMode={switchMode} engagedModes={engaged} onActivity={() => markEngaged('summary')} autoGenerate={selectedMode === 'summary'} registerActions={registerSectionActions} onChapterScope={applyChapterScope} />
                               ) : m === 'flashcards' ? (
                                 <FlashcardsView session={session!} onSwitchMode={switchMode} engagedModes={engaged} onActivity={() => markEngaged('flashcards')} autoGenerate={selectedMode === 'flashcards'} registerActions={registerSectionActions} />
                               ) : m === 'translate' ? (

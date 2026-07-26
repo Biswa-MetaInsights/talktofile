@@ -9,6 +9,7 @@ from core.config import get_settings
 from core.ratelimit import limiter
 from models.schemas import SessionInfo, DocumentInfo
 from agents.orchestrator import run_pipeline, PipelineStage
+from agents.chapters import public_chapters
 
 logger = logging.getLogger("talktofile.document")
 
@@ -194,6 +195,7 @@ async def process_document_ws(websocket: WebSocket, session_id: str):
                     "filename": d.filename,
                     "original_language": d.original_language,
                     "summary": d.summary,
+                    "chapters": public_chapters(d.chapters),
                 }
                 for d in session.documents
             ],
@@ -215,7 +217,7 @@ async def get_session_info(session_id: str, current_user: dict = Depends(get_cur
     return SessionInfo(
         session_id=session.session_id,
         documents=[
-            DocumentInfo(filename=d.filename, original_language=d.original_language, summary=d.summary)
+            DocumentInfo(filename=d.filename, original_language=d.original_language, summary=d.summary, chapters=public_chapters(d.chapters))
             for d in session.documents
         ],
         mode=session.mode,
@@ -229,13 +231,18 @@ async def get_session_info(session_id: str, current_user: dict = Depends(get_cur
 async def get_document_content(
     session_id: str,
     filename: str,
+    chapters: str | None = None,
     current_user: dict = Depends(get_current_user),
 ):
-    """Return the full extracted text of one document in a session.
+    """Return the extracted text of one document in a session.
 
     Backs the sidebar "open the original document" panel — clicking a filename shows
     its complete extracted text (for a URL/YouTube source, the fetched page text /
     transcript). Never persisted to disk; served straight from the in-memory session.
+
+    `chapters` (optional, comma-separated chapter ids, e.g. "ch1,ch2") narrows the
+    returned text to just those chapters — so the panel can show only the chapters a
+    feature was scoped to, and revert to the full document when omitted.
     """
     session = session_store.get(session_id)
     if not session or session.username != current_user["username"]:
@@ -243,7 +250,14 @@ async def get_document_content(
     doc = next((d for d in session.documents if d.filename == filename), None)
     if doc is None:
         raise HTTPException(status_code=404, detail=f"'{filename}' is not part of this session.")
-    return {"filename": doc.filename, "content": doc.raw_text}
+
+    chapter_ids = [c.strip() for c in chapters.split(",") if c.strip()] if chapters else None
+    if chapter_ids:
+        from agents.chapters import chapters_text
+        content = chapters_text(doc.raw_text, doc.chapters, chapter_ids)
+    else:
+        content = doc.raw_text
+    return {"filename": doc.filename, "content": content}
 
 
 @router.delete("/{session_id}")
@@ -313,7 +327,7 @@ async def remove_file(
     return SessionInfo(
         session_id=session.session_id,
         documents=[
-            DocumentInfo(filename=d.filename, original_language=d.original_language, summary=d.summary)
+            DocumentInfo(filename=d.filename, original_language=d.original_language, summary=d.summary, chapters=public_chapters(d.chapters))
             for d in session.documents
         ],
         mode=session.mode,
