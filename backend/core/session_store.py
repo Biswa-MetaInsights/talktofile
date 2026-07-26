@@ -31,6 +31,9 @@ class DocumentSession:
     username: str
     documents: list[DocumentData] = field(default_factory=list)
     suggested_questions: list[str] = field(default_factory=list)
+    # Files that were uploaded but yielded no readable text (image-only / scanned)
+    # and were skipped so the rest of the upload could still be processed.
+    skipped_files: list[str] = field(default_factory=list)
     chat_history: list[dict] = field(default_factory=list)
     ready: bool = False
     stopped: bool = False

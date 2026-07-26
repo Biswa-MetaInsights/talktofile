@@ -403,7 +403,12 @@ Not built / known gaps:
 - **Persistence of chats/documents** — by design, sessions are in-memory and lost on refresh
   (an in-app confirm dialog and a browser `beforeunload` guard mitigate accidental loss, but there
   is no save/restore).
-- **OCR** — scanned / image-only PDFs are rejected with a clear message; no OCR fallback.
+- **OCR** — there is still no OCR. Files with images are **processed** now: the app extracts whatever
+  readable text exists and ignores images/non-extractable content. A file with **no** text layer at all
+  (fully scanned / image-only) is **skipped** in a multi-file upload (the readable files still go
+  through, and the skipped names come back in `SessionInfo.skipped` → shown as an amber banner); a
+  **single** image-only file still fails with a clear "no readable text — run OCR first" message
+  (there's nothing to chat about). See the 2026-07-25 progress entry.
 - **Pre-rendered landing HTML (SEO)** — the React app is a client-side SPA, so the landing's *body*
   content (hero/features/pricing copy) isn't in the raw HTML; only the `<head>` meta tags are (title,
   description, OG image — added 2026-07-10, so social previews + search titles already work). Google
@@ -420,6 +425,43 @@ Not built / known gaps:
 ---
 
 ## Progress Log
+
+### 2026-07-25 — Files with images/non-extractable content are processed (skip empties, don't reject)
+**Done (per the user; confirmed choice: skip empty files + proceed if any file has text):**
+- **Problem framing:** the app already extracted text and ignored images for PDF/Word/PPT/Excel — the
+  *only* rejection was a file yielding **zero** extractable text (fully scanned / image-only), and in a
+  multi-file upload one such file **aborted the whole session**. Change: don't let image-only content
+  block processing.
+- **Backend (`agents/orchestrator.py`, `run_pipeline`):** the per-file loop now **catches
+  `NoReadableTextError` and skips that file** (emitting a "Skipped 'x' — no readable text; continuing"
+  progress message) instead of aborting, collecting skipped names in `session.skipped_files`. The
+  single/multi suggested-questions split is now based on the count of files that **actually yielded
+  content** (`len(documents)`), not the original upload count. It only raises `NoReadableTextError`
+  when **no** file produced any text (incl. a single image-only upload) — with a clearer message.
+  **`MalformedFileError` (corrupt files) still aborts** — that's a broken file, distinct from image-only.
+- **Surfaced end-to-end:** new `skipped_files` on `DocumentSession` (`core/session_store.py`) →
+  `SessionInfo.skipped` (`models/schemas.py`, defaults `[]`) → included in the process-WS **`ready`
+  event** and the `GET /document/{id}` + `remove-file` responses (`routers/document.py`).
+- **Frontend:** `SessionInfo.skipped?` + `PipelineUpdate.skipped?` types; `useDocumentProcessor`
+  populates `session.skipped` from the ready event (file + URL paths). **`App.tsx` shows a dismissible
+  amber banner** ("Skipped <file> — no readable text found (image-only or scanned). The rest of your
+  content was processed.") when `session.skipped` is non-empty. It's rendered **outside** the workspace
+  `motion.div` (whose inline transform would trap a `fixed` child — the same gotcha as the Slides
+  portal) so it pins under the navbar; `skippedDismissed` resets on each new session.
+- **Verified:** frontend `tsc --noEmit` passes; backend `import main` OK. **Unit-tested** the exact
+  `run_pipeline` branch logic (OpenAI stubbed) — multi-file skip+continue (→ processes the rest,
+  `skipped=[scan.pdf]`, mode recomputed), single image-only → raises, all-image batch → raises, corrupt
+  file → still aborts: **all pass**. **Live-tested** a real image-only PDF (generated via PyMuPDF, no
+  text layer) single-file upload through the running backend → fails cleanly with the new message (no
+  crash), confirming a genuine image-only PDF triggers the path.
+
+**Pending / next:**
+- **⚠️ Restart the backend** on deploy so the pipeline change loads.
+- **Multi-file skip banner not visually verified** — the free plan caps uploads at 1 file, so the
+  live multi-file skip (readable file kept + amber banner) couldn't be exercised as a guest; verified via
+  the unit test + type-check instead. Eyeball it as a Pro user (upload one good + one image-only file →
+  banner shows, good file chats). Check light/dark + 320–1280px.
+- Still **no OCR** — a single image-only file has nothing to chat about and is intentionally rejected.
 
 ### 2026-07-24 — Slides: editable + AI-refine + author cover + theme presets/colour
 **Done (per the user's three asks; choices confirmed via a question prompt — both manual + AI edit,

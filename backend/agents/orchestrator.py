@@ -222,26 +222,54 @@ async def run_pipeline(
 ) -> None:
     """Process one or more files into the session.
 
-    A single malformed/unreadable file aborts the whole session with a clear message.
+    Files that contain images / other non-extractable content are still processed:
+    we pull out whatever readable text they have and ignore the rest. A file with NO
+    extractable text at all (e.g. a fully scanned / image-only PDF) is skipped rather
+    than aborting the whole upload, so the remaining readable files still go through.
+    The session only fails if NONE of the uploaded files yield any readable text.
+    A malformed/corrupt file still aborts (it's a broken file, not an image-only one).
     """
     settings = get_settings()
     client = AsyncOpenAI(api_key=settings.openai_api_key)
 
     try:
         documents: list[DocumentData] = []
+        skipped: list[str] = []
         total = len(files)
 
         for i, (filename, content) in enumerate(files, 1):
             label = f"({i}/{total}) " if total > 1 else ""
             await on_progress(PipelineStage.EXTRACTING, f"{label}Analysing {filename}...")
-            doc = await _analyse_into_document(filename, content, client)
+            try:
+                doc = await _analyse_into_document(filename, content, client)
+            except NoReadableTextError:
+                # No extractable text (image-only / scanned). Don't fail the whole
+                # upload — skip this file and keep going with the others.
+                skipped.append(filename)
+                await on_progress(
+                    PipelineStage.EXTRACTING,
+                    f"{label}Skipped '{filename}' — no readable text found "
+                    "(image-only or scanned); continuing with the rest.",
+                )
+                continue
             documents.append(doc)
+
+        session.skipped_files = skipped
+
+        if not documents:
+            # Nothing readable across every uploaded file.
+            target = f"'{skipped[0]}'" if len(skipped) == 1 else "the uploaded file(s)"
+            raise NoReadableTextError(
+                f"No readable text could be extracted from {target}. The content looks "
+                "image-only or scanned. Please upload a text-based file (or run OCR on it first)."
+            )
 
         session.documents = documents
 
-        # Mode-aware suggested questions / actions.
+        # Mode-aware suggested questions / actions. Base the single/multi split on how
+        # many files actually yielded content (some may have been skipped above).
         await on_progress(PipelineStage.ANALYSING, "Preparing suggestions...")
-        if total == 1:
+        if len(documents) == 1:
             session.suggested_questions = await generate_suggested_questions(
                 documents[0].raw_text, client
             )
