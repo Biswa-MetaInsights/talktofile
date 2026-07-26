@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { X, FileText, Loader2 } from 'lucide-react'
+import { X, FileText, Loader2, BookOpen } from 'lucide-react'
 import { documentApi } from '../api/client'
+import type { Chapter } from '../types'
+import { selectedTitles } from '../lib/chapters'
 
 interface Props {
   sessionId: string
   filename: string
+  // When set, the panel shows only these chapters (a feature was scoped to them). The
+  // user can toggle back to the full document; `onShowFull` clears the scope upstream.
+  chapterIds?: string[]
+  chapters?: Chapter[]
+  onShowFull?: () => void
   onClose: () => void
 }
 
@@ -24,16 +31,24 @@ const EASE = [0.22, 1, 0.36, 1] as const
  * so it's revealed/hidden cleanly rather than squished during the animation. Fetches
  * the content lazily on open.
  */
-export default function DocumentPanel({ sessionId, filename, onClose }: Props) {
+export default function DocumentPanel({ sessionId, filename, chapterIds, chapters, onShowFull, onClose }: Props) {
   const [content, setContent] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Local toggle: even when a scope is active, the user can peek at the full document.
+  const [showFull, setShowFull] = useState(false)
+
+  const scoped = !!chapterIds && chapterIds.length > 0
+  const filtering = scoped && !showFull
+
+  // A new scope resets the local "show full" peek.
+  useEffect(() => { setShowFull(false) }, [chapterIds?.join(',')])
 
   useEffect(() => {
     let cancelled = false
     setContent(null)
     setError(null)
     documentApi
-      .getContent(sessionId, filename)
+      .getContent(sessionId, filename, filtering ? chapterIds : undefined)
       .then((res) => {
         if (!cancelled) setContent(res.data.content)
       })
@@ -43,7 +58,7 @@ export default function DocumentPanel({ sessionId, filename, onClose }: Props) {
     return () => {
       cancelled = true
     }
-  }, [sessionId, filename])
+  }, [sessionId, filename, filtering, chapterIds])
 
   return (
     <>
@@ -90,9 +105,33 @@ export default function DocumentPanel({ sessionId, filename, onClose }: Props) {
             </button>
           </div>
 
+          {/* Chapter-scope banner: which chapters are shown + a full/filtered toggle. */}
+          {scoped && (
+            <div className="flex items-start gap-2 px-4 py-2.5 border-b border-amber-200 bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300 flex-shrink-0">
+              <BookOpen className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+              <div className="min-w-0 flex-1 text-xs">
+                {filtering ? (
+                  <>Showing <span className="font-medium">{chapters ? selectedTitles(chapterIds!, chapters) : `${chapterIds!.length} chapters`}</span> only.</>
+                ) : (
+                  <>Showing the full document.</>
+                )}
+                <div className="mt-1 flex items-center gap-3">
+                  <button onClick={() => setShowFull((v) => !v)} className="font-medium underline underline-offset-2 hover:no-underline">
+                    {filtering ? 'Show full document' : 'Show selected chapters'}
+                  </button>
+                  {onShowFull && (
+                    <button onClick={onShowFull} className="text-amber-700/80 dark:text-amber-300/80 hover:underline">
+                      Clear filter
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex-1 overflow-y-auto px-4 py-4 scrollbar-thin text-sm leading-relaxed">
             <p className="text-[10px] font-semibold text-brand-500 uppercase tracking-wider mb-3">
-              Original document
+              {filtering ? 'Selected chapters' : 'Original document'}
             </p>
 
             {content === null && !error && (

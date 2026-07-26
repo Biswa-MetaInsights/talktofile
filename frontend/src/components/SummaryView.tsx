@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
-import { FileText, Tag, List, Loader2 } from 'lucide-react'
-import type { SessionInfo, AppMode } from '../types'
+import { FileText, Tag, List, Loader2, BookOpen, X } from 'lucide-react'
+import type { SessionInfo, AppMode, DocumentSummary } from '../types'
+import { toolsApi } from '../api/client'
 import { withAttribution, shareOrCopy, printAsPdf, escapeHtml, type SectionShareActions } from '../lib/share'
+import { parseChapterSelection, isWholeDocument, selectedTitles } from '../lib/chapters'
 import SectionComposer from './SectionComposer'
 import SectionExtras from './SectionExtras'
+import ChapterPicker from './ChapterPicker'
 
 interface Props {
   session: SessionInfo
@@ -23,9 +26,22 @@ interface Props {
   // WorkspaceHeader. The summary is precomputed by the upload pipeline, so it's actionable
   // whenever any document actually has summary content.
   registerActions?: (mode: AppMode, actions: SectionShareActions | null) => void
+  // Notify the parent when the user scopes the summary to specific chapters, so the left
+  // document panel can show only those chapters (null = back to the full document).
+  onChapterScope?: (scope: { filename: string; chapterIds: string[] } | null) => void
 }
 
-export default function SummaryView({ session, onSwitchMode, engagedModes, onActivity, autoGenerate, registerActions }: Props) {
+export default function SummaryView({ session, onSwitchMode, engagedModes, onActivity, autoGenerate, registerActions, onChapterScope }: Props) {
+  // Chapter-scoping applies to the first (active) document. Its detected chapters drive
+  // the picker; a scoped summary is fetched from the backend, whole-doc reuses the
+  // precomputed summary already on the document.
+  const activeDoc = session.documents[0]
+  const chapters = activeDoc?.chapters ?? []
+  const [selected, setSelected] = useState<string[]>([])
+  const [pref, setPref] = useState('')
+  // A chapter-scoped summary result for the active document ({filename, summary}), or null
+  // when showing the whole-document (precomputed) summaries.
+  const [override, setOverride] = useState<{ filename: string; ids: string[]; summary: DocumentSummary } | null>(null)
   // The summary itself is produced by the upload pipeline (analyst agent) and already
   // lives on `session.documents[i].summary`. Per product decision it is no longer shown
   // automatically: the user clicks "Generate summary" (below, in the bottom bar) to reveal
@@ -33,20 +49,63 @@ export default function SummaryView({ session, onSwitchMode, engagedModes, onAct
   // `generate` reveals the precomputed summary after a brief "Summarising…" beat for parity.
   const [generated, setGenerated] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const genTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const generate = () => {
+  const generate = async () => {
     if (loading) return
+    setError('')
+
+    // A typed request ("summary of chapter 1 and 2") takes priority over the checklist.
+    const typed = parseChapterSelection(pref, chapters)
+    const effective = typed.length ? typed : selected
+    if (typed.length) setSelected(typed)
+
+    // Whole document → reveal the precomputed summary (no backend call), and clear any
+    // chapter scope so the left panel goes back to the full document.
+    if (isWholeDocument(effective, chapters) || !activeDoc) {
+      if (genTimer.current) clearTimeout(genTimer.current)
+      setLoading(true)
+      setOverride(null)
+      onChapterScope?.(null)
+      genTimer.current = setTimeout(() => {
+        setLoading(false)
+        setGenerated(true)
+        onActivity?.()
+      }, 500)
+      return
+    }
+
+    // Chapter-scoped → summarise only those chapters via the backend.
     setLoading(true)
-    if (genTimer.current) clearTimeout(genTimer.current)
-    genTimer.current = setTimeout(() => {
-      setLoading(false)
+    try {
+      const res = await toolsApi.summary(session.session_id, {
+        filename: activeDoc.filename,
+        chapterIds: effective,
+      })
+      setOverride({ filename: activeDoc.filename, ids: effective, summary: res.data.summary })
       setGenerated(true)
       onActivity?.()
-    }, 500)
+      onChapterScope?.({ filename: activeDoc.filename, chapterIds: effective })
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to summarise the selected chapters. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Revert to the full-document summary (also tells the left panel to show everything).
+  const showFullDocument = () => {
+    setSelected([])
+    setPref('')
+    setOverride(null)
+    setError('')
+    onChapterScope?.(null)
   }
 
   useEffect(() => () => { if (genTimer.current) clearTimeout(genTimer.current) }, [])
+  // On unmount, drop any chapter scope so leaving Summary restores the full document.
+  useEffect(() => () => onChapterScope?.(null), [onChapterScope])
 
   // Register the header actions for this section: Share the summary as text, Export it
   // as a PDF (each document's overview, key points, and topics).
@@ -134,12 +193,36 @@ export default function SummaryView({ session, onSwitchMode, engagedModes, onAct
         {loading && (
           <div className="flex flex-col items-center justify-center h-full gap-4">
             <Loader2 className="w-8 h-8 text-[#E2611B] animate-spin" />
-            <p className="text-slate-600 dark:text-slate-300 text-sm">Summarising your document…</p>
+            <p className="text-slate-600 dark:text-slate-300 text-sm">
+              {override || selected.length ? 'Summarising the selected chapters…' : 'Summarising your document…'}
+            </p>
+          </div>
+        )}
+
+        {error && !loading && (
+          <p className="text-brand-600 text-sm bg-brand-50 border border-brand-200 rounded-xl px-4 py-3 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400">
+            {error}
+          </p>
+        )}
+
+        {/* Scoped-summary banner — shown when the summary is limited to some chapters. */}
+        {generated && !loading && override && (
+          <div className="flex items-center gap-2 text-sm rounded-xl border border-amber-300 bg-amber-50 text-amber-800 px-4 py-2.5 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300">
+            <BookOpen className="w-4 h-4 flex-shrink-0" />
+            <span className="min-w-0 flex-1">
+              Summary of <span className="font-medium">{selectedTitles(override.ids, chapters)}</span> only.
+            </span>
+            <button
+              onClick={showFullDocument}
+              className="flex-shrink-0 flex items-center gap-1 text-xs font-medium underline underline-offset-2 hover:no-underline"
+            >
+              <X className="w-3.5 h-3.5" /> Show full document
+            </button>
           </div>
         )}
 
         {generated && !loading && session.documents.map((doc, idx) => {
-          const s = doc.summary
+          const s = override && override.filename === doc.filename ? override.summary : doc.summary
           return (
             <div key={idx} className="flex flex-col gap-4">
               {session.documents.length > 1 && (
@@ -213,18 +296,30 @@ export default function SummaryView({ session, onSwitchMode, engagedModes, onAct
         active="summary"
         onSwitch={onSwitchMode}
         engaged={engagedModes}
-        placeholder="Add your preferences here."
-        proceedButton={
-          <button
-            onClick={generate}
-            disabled={loading}
-            aria-label={loading ? 'Generating…' : generated ? 'Regenerate summary' : 'Generate summary'}
-            className="flex items-center justify-center gap-2 h-11 w-11 sm:w-auto px-0 sm:px-5 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-            <span className="hidden sm:inline">{loading ? 'Generating…' : generated ? 'Regenerate summary' : 'Generate summary'}</span>
-          </button>
-        }
+        placeholder={chapters.length > 1 ? 'Tick chapters above, or type e.g. “chapters 1 and 2”.' : 'Add your preferences here.'}
+        pickerRow={<ChapterPicker chapters={chapters} selected={selected} onChange={setSelected} />}
+        value={pref}
+        onChange={setPref}
+        onSubmit={() => { generate() }}
+        proceedButton={(() => {
+          const scoped = selected.length > 0 && !isWholeDocument(selected, chapters)
+          const label = loading
+            ? 'Generating…'
+            : scoped
+              ? 'Summarise chapters'
+              : generated ? 'Regenerate summary' : 'Generate summary'
+          return (
+            <button
+              onClick={generate}
+              disabled={loading}
+              aria-label={label}
+              className="flex items-center justify-center gap-2 h-11 w-11 sm:w-auto px-0 sm:px-5 rounded-xl bg-[#E2611B] text-white text-sm font-medium hover:bg-[#E2611B]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+              <span className="hidden sm:inline">{label}</span>
+            </button>
+          )
+        })()}
       />
     </div>
   )

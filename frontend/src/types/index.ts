@@ -59,10 +59,18 @@ export interface DocumentSummary {
   topics: string[]
 }
 
+export interface Chapter {
+  id: string
+  index: number
+  title: string
+}
+
 export interface DocumentInfo {
   filename: string
   original_language: string
   summary: DocumentSummary
+  /** Detected chapters/sections (id/index/title). Empty/absent when not segmented. */
+  chapters?: Chapter[]
 }
 
 export interface SessionInfo {
