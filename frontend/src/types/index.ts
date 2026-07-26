@@ -70,6 +70,8 @@ export interface SessionInfo {
   documents: DocumentInfo[]
   mode: SessionMode
   suggested_questions: string[]
+  /** Files skipped during processing (image-only / scanned, no readable text). */
+  skipped?: string[]
   ready: boolean
 }
 
@@ -85,6 +87,7 @@ export interface PipelineUpdate {
   mode?: SessionMode
   suggested_questions?: string[]
   documents?: DocumentInfo[]
+  skipped?: string[]
 }
 
 // Plan limits — kept in sync with backend core/config.py

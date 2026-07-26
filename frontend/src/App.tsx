@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import type { ReactNode } from 'react'
 import type { FileRejection } from 'react-dropzone'
 import { AnimatePresence, motion } from 'framer-motion'
-import { FileText, Globe, Check, ChevronRight } from 'lucide-react'
+import { FileText, Globe, Check, ChevronRight, AlertTriangle, X } from 'lucide-react'
 import Navbar from './components/Navbar'
 import UploadZone from './components/UploadZone'
 import ChatWindow from './components/ChatWindow'
@@ -67,6 +67,8 @@ const SIDEBAR_COLLAPSE_WIDTH = 180
 function AppShell({ showToast, signupNonce, onFirstAction, onHomeInactivity }: { showToast: (message: string) => void; signupNonce: number; onFirstAction: () => void; onHomeInactivity: () => void }) {
   const { recoveryMode, sessionExpired, clearSessionExpired } = useAuth()
   const [session, setSession] = useState<SessionInfo | null>(null)
+  // Dismissal flag for the "some files were skipped" banner (image-only / scanned files).
+  const [skippedDismissed, setSkippedDismissed] = useState(false)
   const [authModal, setAuthModal] = useState<AuthModalState>({ open: false, mode: 'subscribe' })
   const [confirmLeave, setConfirmLeave] = useState(false)
   // When true, the feedback form is shown automatically because a session just
@@ -217,6 +219,7 @@ function AppShell({ showToast, signupNonce, onFirstAction, onHomeInactivity }: {
     setPendingUpload(null)
     setPendingUrl(null)
     setOpenDoc(null)
+    setSkippedDismissed(false)
     setSession(s)
     setView('app')
   }
@@ -367,7 +370,7 @@ function AppShell({ showToast, signupNonce, onFirstAction, onHomeInactivity }: {
               className="flex-1 flex flex-col"
             >
               <UploadZone
-                onReady={(s) => { setSession(s); setViewMode(selectedMode); setVisited(new Set<AppMode>(['chat', selectedMode])); setEngaged(new Set()) }}
+                onReady={(s) => { setSkippedDismissed(false); setSession(s); setViewMode(selectedMode); setVisited(new Set<AppMode>(['chat', selectedMode])); setEngaged(new Set()) }}
                 onRequireUpgrade={() => openAuth('subscribe')}
                 onBusyChange={setUploading}
                 initialFiles={pendingUpload?.accepted}
@@ -588,6 +591,30 @@ function AppShell({ showToast, signupNonce, onFirstAction, onHomeInactivity }: {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Skipped-files notice — some uploaded files had no readable text (image-only /
+          scanned) and were skipped so the rest could be processed. Rendered here, OUTSIDE
+          the workspace `motion.div` (whose inline transform would trap a `fixed` child),
+          so it pins correctly below the navbar. */}
+      {session?.skipped && session.skipped.length > 0 && !skippedDismissed && (
+        <div className="fixed top-16 inset-x-0 z-40 px-3 sm:px-6 pt-3 flex justify-center pointer-events-none">
+          <div className="pointer-events-auto flex items-start gap-2.5 max-w-2xl w-full rounded-xl border border-amber-300 bg-amber-50 text-amber-800 px-4 py-2.5 shadow-sm dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <p className="text-sm min-w-0 flex-1">
+              {session.skipped.length === 1
+                ? <>Skipped <span className="font-medium break-words">{session.skipped[0]}</span> — no readable text found (image-only or scanned). The rest of your content was processed.</>
+                : <>Skipped {session.skipped.length} files with no readable text (image-only or scanned): <span className="font-medium break-words">{session.skipped.join(', ')}</span>. The rest of your content was processed.</>}
+            </p>
+            <button
+              onClick={() => setSkippedDismissed(true)}
+              className="flex-shrink-0 -mr-1 p-1 rounded-md hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {authModal.open && (
         <AuthModal

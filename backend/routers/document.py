@@ -188,6 +188,7 @@ async def process_document_ws(websocket: WebSocket, session_id: str):
             "stage": "ready",
             "mode": session.mode,
             "suggested_questions": session.suggested_questions,
+            "skipped": session.skipped_files,
             "documents": [
                 {
                     "filename": d.filename,
@@ -219,6 +220,7 @@ async def get_session_info(session_id: str, current_user: dict = Depends(get_cur
         ],
         mode=session.mode,
         suggested_questions=session.suggested_questions,
+        skipped=session.skipped_files,
         ready=session.ready,
     )
 
@@ -316,6 +318,7 @@ async def remove_file(
         ],
         mode=session.mode,
         suggested_questions=session.suggested_questions,
+        skipped=session.skipped_files,
         ready=session.ready,
     )
 

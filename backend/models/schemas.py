@@ -142,6 +142,9 @@ class SessionInfo(BaseModel):
     documents: list[DocumentInfo]
     mode: str  # "single" | "compare" | "multi"
     suggested_questions: list[str]
+    # Filenames skipped during processing because they had no readable text
+    # (image-only / scanned). Empty when everything processed cleanly.
+    skipped: list[str] = []
     ready: bool
 
 

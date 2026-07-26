@@ -109,6 +109,7 @@ export function useDocumentProcessor(token: string | null, plan: Plan): Document
               documents: data.documents ?? [],
               mode: data.mode ?? 'single',
               suggested_questions: data.suggested_questions ?? [],
+              skipped: data.skipped ?? [],
               ready: true,
             }
             track('document_uploaded', { count: selected.length, mode: sessionInfo.mode, plan })
@@ -177,6 +178,7 @@ export function useDocumentProcessor(token: string | null, plan: Plan): Document
               documents: data.documents ?? [],
               mode: data.mode ?? 'single',
               suggested_questions: data.suggested_questions ?? [],
+              skipped: data.skipped ?? [],
               ready: true,
             }
             track('document_uploaded', { count: 1, mode: sessionInfo.mode, plan })
