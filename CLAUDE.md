@@ -427,6 +427,26 @@ Not built / known gaps:
 
 ## Progress Log
 
+### 2026-07-27 — Feature icons on the mode tabs + link icon in the URL input (QuillBot-style)
+**Done (frontend UI polish, per the user):**
+- Added a small icon before each feature label in the mode selectors (like the QuillBot tool-suite
+  reference). New **`MODE_ICONS` map exported from `ModeSwitcher.tsx`** (single source of truth, keyed by
+  `AppMode`): Chat→MessageSquare, Summary→FileText, Flashcards→Layers, Slides→Presentation,
+  Translate→Languages, Podcast→Mic, Charts→BarChart3 (all lucide).
+- Rendered in **both** places: the in-app `ModeSwitcher` tab bar (icon `w-3.5`, button now
+  `inline-flex items-center gap-1.5`) **and** the `Landing` hero mode tabs (icon `w-4`, imports
+  `MODE_ICONS` from `ModeSwitcher`).
+- **URL input** (`hero-url-input` in `Landing`) gained a brand-orange **`Link2`** icon before the field
+  (generic link, since it accepts web pages *and* video/YouTube URLs — user chose generic over a
+  YouTube-only glyph).
+- **Verified:** `tsc --noEmit` passes; Playwright screenshots at 1280/375/320px show icons rendering in
+  every tab + the URL field, tabs wrapping cleanly on mobile, and **no horizontal scroll** at any width.
+
+**Pending / next:**
+- Not yet committed/deployed. The in-app tab icons are only visible in a live session; the hero tabs +
+  URL icon are on the landing (verified). If the marketing "features"/"audiences" cards ever want the
+  same treatment they already have their own icons (no change needed there).
+
 ### 2026-07-26 — Chapter-scoped features (shared mechanism + Summary wired first)
 **Done (new requirement: run a feature on only some chapters — "summary of chapters 1 and 2" — and
 have the left panel show just those chapters, with a way back to the full document. Confirmed choices:

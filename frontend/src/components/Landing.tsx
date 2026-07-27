@@ -7,6 +7,7 @@ import {
   GraduationCap, Scale, LineChart, HeartPulse, Briefcase, ScrollText, Check, Crown,
 } from 'lucide-react'
 import { ACCEPT } from './UploadZone'
+import { MODE_ICONS } from './ModeSwitcher'
 import Tooltip from './Tooltip'
 import MicButton from './MicButton'
 import { smoothScrollTo } from '../lib/smoothScroll'
@@ -509,6 +510,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
       <div className={`flex flex-wrap items-center justify-center gap-1 rounded-3xl border border-[#303030] dark:border-slate-700 p-1 ${pillBg}`}>
         {MODES.map(({ value, label }) => {
           const isActive = selectedMode === value
+          const Icon = MODE_ICONS[value]
           return (
             <button
               key={value}
@@ -522,7 +524,8 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                   transition={{ type: 'spring', stiffness: 500, damping: 34 }}
                 />
               )}
-              <span className={`relative z-10 transition-colors ${isActive ? 'text-white' : 'text-slate-700 dark:text-slate-300 hover:text-[#E2611B] dark:hover:text-[#E2611B]'}`}>
+              <span className={`relative z-10 inline-flex items-center gap-1.5 transition-colors ${isActive ? 'text-white' : 'text-slate-700 dark:text-slate-300 hover:text-[#E2611B] dark:hover:text-[#E2611B]'}`}>
+                <Icon className="w-4 h-4 flex-shrink-0" aria-hidden />
                 {label}
               </span>
             </button>
@@ -682,6 +685,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-stretch gap-2">
                       <div className="flex-1 min-w-0 flex items-center gap-2 rounded-xl border border-[#303030] dark:border-slate-600 bg-white dark:bg-slate-900 px-4 hover:border-[#E2611B] dark:hover:border-[#E2611B] focus-within:border-[#E2611B] focus-within:ring-2 focus-within:ring-[#E2611B]/20 transition-all">
+                        <Link2 className="w-4 h-4 flex-shrink-0 text-[#E2611B]" aria-hidden />
                         <input
                           id="hero-url-input"
                           type="text"
