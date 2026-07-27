@@ -1,5 +1,18 @@
+import { MessageSquare, FileText, Layers, Presentation, Languages, Mic, BarChart3, type LucideIcon } from 'lucide-react'
 import Tooltip from './Tooltip'
 import type { AppMode } from '../types'
+
+// Small icon per feature — the single source of truth, reused by the Landing hero
+// tabs too (QuillBot-style icon + label). Keyed by AppMode.
+export const MODE_ICONS: Record<AppMode, LucideIcon> = {
+  chat: MessageSquare,
+  summary: FileText,
+  flashcards: Layers,
+  slides: Presentation,
+  translate: Languages,
+  podcast: Mic,
+  charts: BarChart3,
+}
 
 // The single source of truth for the feature tabs shown across the workspace
 // (Chat / Summary / Flashcards / Slides / Translate / Podcasts / Charts). Rendered
@@ -46,6 +59,7 @@ export default function ModeSwitcher({ active, onSwitch, engaged, className = ''
     <div className={`flex flex-wrap items-center justify-center gap-1 sm:gap-1.5 ${className}`}>
       {SWITCH_MODES.map(({ value, label }) => {
         const isActive = value === active
+        const Icon = MODE_ICONS[value]
         // Only remind about sections the user has left — no star on the tab they're on.
         const showStar = !!engaged?.has(value) && !isActive
         const button = (
@@ -53,7 +67,7 @@ export default function ModeSwitcher({ active, onSwitch, engaged, className = ''
             type="button"
             onClick={() => onSwitch(value)}
             aria-pressed={isActive}
-            className={`relative flex-shrink-0 whitespace-nowrap text-xs px-2 py-1 sm:px-3 sm:py-1.5 font-medium rounded-full border transition-colors ${
+            className={`relative inline-flex items-center gap-1.5 flex-shrink-0 whitespace-nowrap text-xs px-2 py-1 sm:px-3 sm:py-1.5 font-medium rounded-full border transition-colors ${
               isActive
                 ? 'bg-brand-600 text-white border-brand-600'
                 : `bg-white hover:border-brand-300 hover:text-brand-600 dark:bg-slate-800 dark:hover:border-brand-600/40 dark:hover:text-brand-300 ${
@@ -66,6 +80,7 @@ export default function ModeSwitcher({ active, onSwitch, engaged, className = ''
                   }`
             }`}
           >
+            <Icon className="w-3.5 h-3.5 flex-shrink-0" aria-hidden />
             <span className="sm:hidden">{SHORT_LABELS[value] ?? label}</span>
             <span className="hidden sm:inline">{label}</span>
             {/* Every section except Chat is still in Beta — a small badge on the tab
