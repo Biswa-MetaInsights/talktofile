@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDropzone, FileRejection } from 'react-dropzone'
 import { motion } from 'framer-motion'
 import {
-  FileText, Upload, MessageSquare, Sparkles, Globe, Files, BookOpen, Link2,
+  FileText, Upload, MessageSquare, Sparkles, Globe, Files, BookOpen, Link2, Youtube,
   ShieldCheck, Lock, Zap, ArrowUp, Loader2, CheckCircle, AlertCircle, RotateCcw, X, Plus,
   GraduationCap, Scale, LineChart, HeartPulse, Briefcase, ScrollText, Check, Crown,
 } from 'lucide-react'
@@ -511,11 +511,13 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
         {MODES.map(({ value, label }) => {
           const isActive = selectedMode === value
           const Icon = MODE_ICONS[value]
+          // Shorter tab label for the longest one so all seven fit on one row.
+          const tabLabel = value === 'podcast' ? 'Podcast' : label
           return (
             <button
               key={value}
               onClick={() => setSelectedMode(value)}
-              className="relative text-sm font-medium px-3 py-1.5 rounded-full whitespace-nowrap"
+              className="relative text-sm font-medium px-2.5 py-1.5 rounded-full whitespace-nowrap"
             >
               {isActive && (
                 <motion.span
@@ -525,8 +527,8 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                 />
               )}
               <span className={`relative z-10 inline-flex items-center gap-1.5 transition-colors ${isActive ? 'text-white' : 'text-slate-700 dark:text-slate-300 hover:text-[#E2611B] dark:hover:text-[#E2611B]'}`}>
-                <Icon className="w-4 h-4 flex-shrink-0" aria-hidden />
-                {label}
+                <Icon className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={2.25} aria-hidden />
+                {tabLabel}
               </span>
             </button>
           )
@@ -633,9 +635,9 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
 
           {/* Upload card — before an upload starts: drop a file or paste a link.
               Once an upload begins, this morphs into the chat box (below). Widened to
-              max-w-3xl so the mode tabs sit on one line at full width (they still wrap
-              on narrow screens via flex-wrap). */}
-          <div className="mt-10 max-w-3xl mx-auto text-left">
+              max-w-4xl so all seven mode tabs (with icons) sit on one line at desktop
+              width (they still wrap on narrow screens via flex-wrap). */}
+          <div className="mt-10 max-w-4xl mx-auto text-left">
             {/* Plain conditional swap (no AnimatePresence): the mode-tab spotlight's
                 layoutId animation prevents framer's exit from ever completing, which
                 left the exiting uploader mounted (invisible but occupying space) and
@@ -685,7 +687,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-stretch gap-2">
                       <div className="flex-1 min-w-0 flex items-center gap-2 rounded-xl border border-[#303030] dark:border-slate-600 bg-white dark:bg-slate-900 px-4 hover:border-[#E2611B] dark:hover:border-[#E2611B] focus-within:border-[#E2611B] focus-within:ring-2 focus-within:ring-[#E2611B]/20 transition-all">
-                        <Link2 className="w-4 h-4 flex-shrink-0 text-[#E2611B]" aria-hidden />
+                        <Youtube className="w-5 h-5 flex-shrink-0 text-[#E2611B]" aria-hidden />
                         <input
                           id="hero-url-input"
                           type="text"
