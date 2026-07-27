@@ -442,6 +442,14 @@ Not built / known gaps:
 - **Verified:** `tsc --noEmit` passes; Playwright screenshots at 1280/375/320px show icons rendering in
   every tab + the URL field, tabs wrapping cleanly on mobile, and **no horizontal scroll** at any width.
 
+**Follow-up (same day, per user):** URL-input icon changed **`Link2` → `Youtube`** (user wanted the
+YouTube glyph even though the field also accepts web pages), hero tab icons enlarged to **18px +
+`strokeWidth 2.25`** ("bigger and fancier"), the hero card widened **`max-w-3xl` → `max-w-4xl`**, and the
+longest hero tab label shortened (**"Podcast scripts" → "Podcast"**) so **all seven tabs sit on one row**
+(Charts was wrapping to a 2nd row). Verified via Playwright: 7 tabs on **one row at 1024/1280/1440px**, no
+horizontal scroll; mobile still wraps via flex-wrap. (`ModeSwitcher` in-app tabs unchanged — still
+`w-3.5`.)
+
 **Pending / next:**
 - Not yet committed/deployed. The in-app tab icons are only visible in a live session; the hero tabs +
   URL icon are on the landing (verified). If the marketing "features"/"audiences" cards ever want the
