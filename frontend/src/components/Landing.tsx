@@ -58,6 +58,8 @@ const AUDIENCES = [
 
 // Plan comparison rows. `basic` / `pro` mark whether the feature is included on each
 // plan (tick vs cross). Kept in sync with the plan tiers in CLAUDE.md / core/config.py.
+// Unused while the Plans section is commented out (search "DISABLED FOR NOW" below) —
+// kept deliberately, so restoring the section needs no data rebuild.
 const PLAN_FEATURES: { name: string; basic: boolean; pro: boolean }[] = [
   { name: 'Chat with your documents', basic: true, pro: true },
   { name: 'Summaries, flashcards and slides', basic: true, pro: true },
@@ -566,18 +568,20 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
               it larger than the 18px body at every width.
 
               The break is a single, monotonic transition:
-                • lg and up  → line 1 "Upload files. Paste website links." / line 2 "Ask anything."
-                • below lg   → line 1 "Upload files. Paste website" / line 2 "links. Ask anything."
+                • lg and up  → line 1 "Upload files. Paste web or video links." / line 2 "Make anything."
+                • below lg   → line 1 "Upload files. Paste web or" / line 2 "video links. Make anything."
               Because the break below lg is forced (the mobile <br/>), narrowing the
-              window never moves "links." back up to line 1 — it stays on line 2 the
-              whole way down. Font steps are sized to keep each forced line on one row. */}
+              window never moves "video links." back up to line 1 — it stays on line 2 the
+              whole way down. Font steps are sized to keep each forced line on one row.
+              The orange payoff must stay SHORT for this to hold — a long phrase here
+              overflows `whitespace-nowrap` and blows the 2-line shape apart. */}
           <h1 className="font-merriweather font-extrabold tracking-[-0.03em] text-[#303030] dark:text-slate-100 leading-[1.1] text-[27px] min-[420px]:text-[31px] min-[520px]:text-[38px] sm:text-[44px] md:text-[56px] -mx-4 min-[360px]:mx-0">
-            {'Upload files. Paste website'}
+            {'Upload files. Paste web or'}
             <br className="lg:hidden" />
-            {' links.'}
+            {' video links.'}
             <br className="hidden lg:block" />
             {' '}
-            <span className="italic text-[#E2611B] whitespace-nowrap">Ask anything.</span>
+            <span className="italic text-[#E2611B] whitespace-nowrap">Make anything.</span>
           </h1>
           {/* Trust medallions — circular icon-over-label version. Kept commented out in
               favour of the hairline-divider row below; re-enable if we want the medallions.
@@ -608,12 +612,29 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
             </div>
           </div>
           */}
-          {/* Trust row — four reassurance signals as inline orange-icon + label items,
-              separated by whitespace only (no dividers). Labels use the headline's font
-              treatment (Merriweather extrabold, tight tracking, near-black) at a smaller
-              size. Wraps on narrow screens. Sits between the headline and (a hidden)
-              subheading. */}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-8 gap-y-2 sm:gap-y-3 font-merriweather tracking-[-0.03em] text-[#303030] dark:text-slate-200 text-sm min-[420px]:text-base sm:text-lg md:text-xl lg:text-2xl">
+          {/* Payoff line — the one-sentence "what you get", sitting directly under the
+              headline and above the trust row.
+              Type treatment is deliberately IDENTICAL to that row (same Merriweather +
+              tracking + responsive size steps), so the two read as one block rather than
+              two competing sizes — keep them in sync if either changes.
+              The orange sparkle is the line's only accent: an italic orange payoff phrase
+              was tried here and removed (2026-08-06) because at this size it competed with
+              the headline's "Make anything." instead of echoing it. Keep this line plain.
+              Free-wrapping (no forced <br/>): unlike the headline it has no fixed line
+              count to protect, so it just reflows. The leading sparkle is inline (not a
+              flex item) so it sits on the text baseline and the sentence keeps wrapping
+              and centring normally. */}
+          <p className="mt-6 font-merriweather tracking-[-0.03em] text-[#303030] dark:text-slate-200 leading-relaxed text-sm min-[420px]:text-base sm:text-lg md:text-xl lg:text-2xl max-w-4xl mx-auto">
+            <Sparkles className="inline-block align-[-0.15em] w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-[#E2611B] mr-2" strokeWidth={2.25} aria-hidden />
+            Get flashcards, slides, charts, answers, and more. All from your file.
+          </p>
+          {/* Trust row — reassurance signals as inline orange-icon + label items, separated
+              by whitespace only (no dividers). Same type treatment as the payoff line above
+              (Merriweather, tight tracking, near-black) so the two read as one block. Wraps
+              on narrow screens. A third item, "Answers only from your file", was removed
+              (2026-08-06) once the payoff line above ended with "All from your file" — it
+              was the same promise twice, one line apart. */}
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-8 gap-y-2 sm:gap-y-3 font-merriweather tracking-[-0.03em] text-[#303030] dark:text-slate-200 text-sm min-[420px]:text-base sm:text-lg md:text-xl lg:text-2xl">
             <span className="inline-flex items-center gap-2 sm:gap-2.5">
               <Lock className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-[#E2611B] shrink-0" strokeWidth={2.25} />
               <span>Nothing stored</span>
@@ -621,10 +642,6 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
             <span className="inline-flex items-center gap-2 sm:gap-2.5">
               <Zap className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-[#E2611B] shrink-0" strokeWidth={2.25} />
               <span>No sign-up needed to start</span>
-            </span>
-            <span className="inline-flex items-center gap-2 sm:gap-2.5">
-              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-[#E2611B] shrink-0" strokeWidth={2.25} />
-              <span>Answers only from your file</span>
             </span>
           </div>
           {/* Subline hidden for now — re-enable if the hero feels like it needs it.
@@ -868,7 +885,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
                           rows={1}
                           placeholder={effectiveMode === 'chat'
                             ? 'Type your first question here.'
-                            : 'Add specific instructions here (optional).'}
+                            : 'Add instructions (optional).'}
                           className="flex-1 min-w-0 bg-transparent px-2 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none resize-none leading-relaxed"
                           style={{ maxHeight: '120px' }}
                         />
@@ -1067,7 +1084,16 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
         </div>
       </section>
 
-      {/* Plans — Basic vs Pro feature comparison */}
+      {/* Plans — Basic vs Pro feature comparison ("Start free, upgrade anytime.").
+
+          DISABLED FOR NOW — hidden by request, to be brought back later. Nothing was deleted:
+          the whole section is commented out below, and its `PLAN_FEATURES` data still sits at the
+          top of this file. Nothing links to `#plans` (checked), so no dead anchors were left behind.
+
+          To restore: un-comment the block below and put the `{`/`}` braces back around the two
+          inner "Header row" / "Feature rows" comments — they had to be un-braced here, because a
+          nested `*∕}` would close this outer comment early.
+
       <section id="plans" className="scroll-mt-20 px-6 py-16 max-w-4xl mx-auto">
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-3 mb-4">
@@ -1087,7 +1113,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          {/* Header row */}
+          Header row
           <div className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-3 items-center bg-white border-b border-slate-200 dark:bg-slate-900 dark:border-slate-800">
             <div className="px-4 sm:px-6 py-4 text-[20px] font-bold text-[#303030] dark:text-slate-100">Feature</div>
             <div className="px-3 sm:px-6 py-4 text-center text-[20px] font-bold text-[#303030] dark:text-slate-100">Basic plan</div>
@@ -1096,7 +1122,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
             </div>
           </div>
 
-          {/* Feature rows */}
+          Feature rows
           {PLAN_FEATURES.map((f) => (
             <div
               key={f.name}
@@ -1117,6 +1143,7 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
           ))}
         </div>
       </section>
+      */}
 
       {/* Footer */}
       <footer className="bg-[#E2611B] text-slate-50 px-6 py-8 sm:py-12">
