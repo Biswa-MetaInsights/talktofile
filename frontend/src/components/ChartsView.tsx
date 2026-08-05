@@ -287,7 +287,7 @@ export default function ChartsView({ session, onSwitchMode, engagedModes, onActi
         active="charts"
         onSwitch={onSwitchMode}
         engaged={engagedModes}
-        placeholder="Add specific instructions here."
+        placeholder="Add instructions (optional)."
         pickerRow={
           <div className="px-4 pb-3 pt-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

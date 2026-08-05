@@ -14,6 +14,8 @@ import Tooltip from './components/Tooltip'
 import ConfirmDialog from './components/ConfirmDialog'
 import FeedbackModal from './components/FeedbackModal'
 import Landing from './components/Landing'
+// Unused while the promo banner is switched off (INTRO_OFFER_ENABLED) — kept so restoring
+// it is a one-line change. See the commented-out render at the bottom of this file.
 import IntroOfferBanner from './components/IntroOfferBanner'
 import { useAuth } from './context/AuthContext'
 import { isProgrammaticReload, documentApi } from './api/client'
@@ -40,6 +42,12 @@ const TOOL_MODES: AppMode[] = ['summary', 'flashcards', 'slides', 'translate', '
 // the next load and we open the feedback form then. If the user cancels the reload,
 // the guard clears it again (see the beforeunload effect).
 const PENDING_FEEDBACK_KEY = 'ttf_pending_feedback'
+
+// Master switch for the intro-offer promo banner. Turned OFF for now — the offer is meant
+// to come back, so the component, its gating and its render site are all kept intact.
+// To bring it back: flip this to `true` AND un-comment the <IntroOfferBanner> render at the
+// bottom of this file. Nothing else needs changing.
+const INTRO_OFFER_ENABLED = false
 
 // The intro-offer banner is shown at most once per browser session, and no more often
 // than once a day. This stores the last-shown epoch time (ms); it re-shows once the
@@ -679,6 +687,7 @@ export default function App() {
   // the once-a-day cooldown has elapsed. Shared by both triggers: the user's first action
   // and (on the home page) a stretch of inactivity — whichever comes first wins the slot.
   const scheduleIntroOffer = (delayMs: number) => {
+    if (!INTRO_OFFER_ENABLED) return // banner is off for now — don't burn the once-a-day slot
     if (introFiredRef.current) return // once per session
     introFiredRef.current = true
     if (user && !user.is_guest) return // already signed up — don't nag them
@@ -771,12 +780,16 @@ export default function App() {
       {/* Promo splash — a centered offer card that counts down and auto-closes. It appears
           10s after the user's first action (see handleFirstAction), not on load. Sits above
           everything (incl. the toast) via its own z-index. "Sign up free" bumps signupNonce,
-          which AppShell watches to open the subscribe modal. */}
+          which AppShell watches to open the subscribe modal.
+
+          DISABLED FOR NOW — kept here on purpose, to be brought back later. To restore:
+          un-comment the block below and set INTRO_OFFER_ENABLED = true at the top of this file.
       <IntroOfferBanner
         show={showIntroOffer}
         onClose={() => setShowIntroOffer(false)}
         onSignUp={() => setSignupNonce((n) => n + 1)}
       />
+      */}
     </>
   )
 }

@@ -129,7 +129,8 @@ export default function IntroOfferBanner({
                 </span>
               </div>
               <div className="flex items-center gap-2.5">
-                <span className="text-xs uppercase tracking-wider text-[#E2611B]">
+                {/* Hidden below sm — on phones it collided with the wordmark; the ring alone reads fine. */}
+                <span className="hidden sm:inline text-xs uppercase tracking-wider text-[#E2611B]">
                   closes in
                 </span>
                 <CountdownRing remaining={remaining} total={TOTAL_SECONDS} />

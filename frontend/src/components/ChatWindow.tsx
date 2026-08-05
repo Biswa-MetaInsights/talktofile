@@ -11,6 +11,7 @@ import { createChatWebSocket, documentApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { track } from '../lib/analytics'
 import { withAttribution, shareOrCopy, printAsPdf, escapeHtml } from '../lib/share'
+import { displayName } from '../lib/displayName'
 
 interface Props {
   session: SessionInfo
@@ -43,8 +44,8 @@ function greetingPrefix(user: User | null): string {
   // Greet registered (non-guest) users by name. Guests have a random
   // generated username, so we keep their welcome generic.
   if (!user || user.is_guest) return ''
-  const fullName = user.profile?.full_name?.trim()
-  const name = (fullName ? fullName.split(/\s+/)[0] : user.username)?.trim()
+  // displayName never returns a raw email — first word of it reads as a first name.
+  const name = displayName(user).split(/\s+/)[0]?.trim()
   return name ? `Hi ${name}! ` : ''
 }
 
