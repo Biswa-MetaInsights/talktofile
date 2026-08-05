@@ -10,6 +10,7 @@ import FeedbackModal from './FeedbackModal'
 import ProfileModal from './ProfileModal'
 import Tooltip from './Tooltip'
 import ThemeToggle from './ThemeToggle'
+import { displayName } from '../lib/displayName'
 
 export default function Navbar({ onOpenAuth, onHome, onHowItWorks, onSignedOut, atHome = false }: { onOpenAuth: (mode: 'subscribe' | 'login') => void; onHome?: () => void; onHowItWorks?: () => void; onSignedOut?: () => void; atHome?: boolean }) {
   const { user, logout } = useAuth()
@@ -21,6 +22,8 @@ export default function Navbar({ onOpenAuth, onHome, onHowItWorks, onSignedOut, 
   const isGuest = user?.is_guest ?? true
   const isPro = user?.plan === 'pro'
   const avatar = user?.profile?.avatar
+  // Never show a raw email here — full name if we have one, else the bit before "@".
+  const name = displayName(user)
   // The dark mark reads on the dark navbar; the color mark reads on the light one.
   const mark = theme === 'dark' ? markWhite : markColor
 
@@ -129,7 +132,7 @@ export default function Navbar({ onOpenAuth, onHome, onHowItWorks, onSignedOut, 
                 {avatar ? (
                   <img
                     src={avatar}
-                    alt={user?.username ?? 'Account'}
+                    alt={name || 'Account'}
                     className="w-7 h-7 rounded-full object-cover ring-1 ring-[#E2611B]/30"
                   />
                 ) : (
@@ -137,7 +140,7 @@ export default function Navbar({ onOpenAuth, onHome, onHowItWorks, onSignedOut, 
                     <User className="w-3.5 h-3.5 text-white" />
                   </div>
                 )}
-                <span className="hidden sm:block max-w-[140px] truncate">{user?.username}</span>
+                <span className="hidden sm:block max-w-[140px] truncate">{name}</span>
               </button>
             </Tooltip>
             {menuOpen && (
