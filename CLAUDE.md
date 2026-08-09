@@ -324,7 +324,8 @@ All six render their own bottom bar via `SectionComposer` and their own `ModeSwi
 | File | Purpose | Gotcha |
 |---|---|---|
 | `src/components/AuthModal.tsx` | Login / signup / password reset | Social buttons come from `SOCIAL_PROVIDERS`; **only Google is live** — Microsoft + LinkedIn are commented out (see *Temporarily Hidden UI*), though their icons and the `OAuthProvider` union in `AuthContext` still carry them. `provider` values are **Supabase ids**, not display names: `azure` = Microsoft, `linkedin_oidc` = LinkedIn (the legacy `linkedin` id is deprecated). |
-| `src/components/PersonaModal.tsx` | Pro persona configuration | |
+| `src/components/RoleOnboarding.tsx` | **Mandatory** post-signup role picker | Self-gates (signed-in, non-guest, no `persona` yet, not recovery) and renders at the top of `App` over everything (`z-[130]`). 10 professional roles + a "General" fallback; picking one calls `authApi.setPersonaRole(key)` → `POST /auth/persona/role` (in-depth LLM persona, curated fallback) and saves it, which flips `user.persona` truthy and unmounts the modal. **No close / skip / backdrop-dismiss / Escape** — the only exit is choosing a role. Role `key`s must match backend `agents/persona_agent.ROLE_PRESETS`. |
+| `src/components/PersonaModal.tsx` | Persona configuration (refine the role later) | Reachable from the navbar **Personalise** button, now open to **all registered users** (was Pro-only). Guided presets + manual edit + AI generate/save. |
 | `src/components/FeedbackModal.tsx` | Feedback form | |
 | `src/components/ConfirmDialog.tsx` | Reusable confirm dialog | |
 | `src/components/SummaryCard.tsx` | Summary display | `compact` variant for the side panel + drawer. |

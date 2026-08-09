@@ -17,6 +17,13 @@ predate this convention and are longer than it allows; leave them as they are.
 
 ---
 
+### 2026-08-10 — Mandatory role personalisation at signup
+- A non-skippable role picker (`RoleOnboarding`) now appears for any signed-in registered user with no
+  persona: 10 professional roles (Financial / Legal / Real-Estate / Medical / Academic / Consulting /
+  Data / Marketing / HR / Educator) + a "General" fallback. Picking one sets an in-depth persona via new
+  `POST /auth/persona/role` — LLM-generated with a comprehensive curated fallback so it can never fail or
+  dead-end. **Personalise is now free for all registered users** (was Pro-only in the navbar).
+
 ### 2026-08-06 — Names shown to users: no raw emails, no "Sage"
 - **The UI never shows a raw email as a name.** New `frontend/src/lib/displayName.ts` returns
   `profile.full_name` if set, else the part before `@`; used by the navbar and the chat greeting.

@@ -18,7 +18,7 @@ describes the present. There are no dates and no history here; that's `CHANGELOG
 | **Tool sections** | Summary, Flashcards, Podcast, Slides, Translate, Charts — all six render and generate. |
 | **Slides** | Editable, AI-refinable, themeable decks; free for all (Pro gate removed). Inline render + opt-in .pptx download that reuses already-generated slides. |
 | **Chapters** | Segmentation + chapter-scoped summaries. Left doc panel filters to the selected chapters. |
-| **Ops** | Plan limits, per-day usage caps, rate limiting, feedback capture, persona (Pro), Dockerized production serving behind Caddy. |
+| **Ops** | Plan limits, per-day usage caps, rate limiting, feedback capture, mandatory role personalisation at signup (`RoleOnboarding` → in-depth persona per role, free for all registered users), Dockerized production serving behind Caddy. |
 | **SEO `<head>`** | Title, description, and OG image are in the raw HTML — social previews and search titles work. |
 
 ---

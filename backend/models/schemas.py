@@ -186,6 +186,19 @@ class PersonaUpdateRequest(BaseModel):
         return v
 
 
+class PersonaRoleRequest(BaseModel):
+    # A predefined onboarding role key (see agents/persona_agent.ROLE_PRESETS).
+    role: str
+
+    @field_validator("role")
+    @classmethod
+    def trim(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v or len(v) > 40:
+            raise ValueError("Invalid role")
+        return v
+
+
 class PersonaResponse(BaseModel):
     persona: Optional[str] = None
 

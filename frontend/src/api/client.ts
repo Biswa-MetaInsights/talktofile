@@ -95,6 +95,10 @@ export const authApi = {
     api.post<{ persona: string | null }>('/auth/persona/generate', { role, specialty, address_as }),
   setPersona: (persona: string | null) =>
     api.put<{ persona: string | null }>('/auth/persona', { persona }),
+  // Mandatory onboarding: generate + save an in-depth persona for a predefined role
+  // in one call (reliable — the backend falls back to a curated persona on any failure).
+  setPersonaRole: (role: string) =>
+    api.post<{ persona: string | null }>('/auth/persona/role', { role }),
 }
 
 export const feedbackApi = {

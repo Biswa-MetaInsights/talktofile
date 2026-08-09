@@ -100,13 +100,14 @@ export default function Navbar({ onOpenAuth, onHome, onHowItWorks, onSignedOut, 
           </button>
         </Tooltip>
 
-        {/* Personalise — Pro-only feature */}
-        <Tooltip label={!isPro ? 'Personalise your assistant (Pro feature)' : 'Personalise your assistant'} side="bottom">
+        {/* Personalise — available to every signed-in (registered) user, since the role
+            step is now a mandatory part of signup. Guests are prompted to sign up first. */}
+        <Tooltip label={isGuest ? 'Sign up to personalise your assistant' : 'Personalise your assistant'} side="bottom">
           <button
-            onClick={() => (!isPro ? onOpenAuth('subscribe') : setPersonaOpen(true))}
+            onClick={() => (isGuest ? onOpenAuth('subscribe') : setPersonaOpen(true))}
             className="flex items-center gap-1.5 text-lg font-medium text-[#303030] dark:text-slate-300 hover:text-[#E2611B] dark:hover:text-[#E2611B] transition-colors"
           >
-            {!isPro ? <Lock className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+            {isGuest ? <Lock className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
             {/* Collapse to icon-only at the same width Feedback does (below md). */}
             <span className="hidden md:block">{user?.persona ? 'Persona active' : 'Personalise'}</span>
           </button>

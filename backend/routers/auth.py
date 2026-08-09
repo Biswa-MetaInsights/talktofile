@@ -11,6 +11,7 @@ from models.schemas import (
     UserInfo,
     PersonaGenerateRequest,
     PersonaUpdateRequest,
+    PersonaRoleRequest,
     PersonaResponse,
 )
 from core.auth import (
@@ -27,7 +28,7 @@ from core.auth import (
 from core.config import get_settings
 from core.email import send_password_reset_email
 from models.schemas import UserProfile
-from agents.persona_agent import generate_persona
+from agents.persona_agent import generate_persona, generate_role_persona
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -168,3 +169,18 @@ async def update_my_persona(
 ):
     set_persona_for(db, current_user, body.persona)
     return PersonaResponse(persona=body.persona)
+
+
+@router.post("/persona/role", response_model=PersonaResponse)
+async def set_persona_by_role(
+    body: PersonaRoleRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Mandatory-onboarding path: generate a professional persona for a predefined
+    role and persist it in one step. Reliable by construction — a model failure
+    falls back to a curated persona (see generate_role_persona), so the step that
+    blocks the app after signup can never dead-end."""
+    persona = await generate_role_persona(body.role)
+    set_persona_for(db, current_user, persona)
+    return PersonaResponse(persona=persona)

@@ -14,6 +14,7 @@ import Tooltip from './components/Tooltip'
 import ConfirmDialog from './components/ConfirmDialog'
 import FeedbackModal from './components/FeedbackModal'
 import Landing from './components/Landing'
+import RoleOnboarding from './components/RoleOnboarding'
 // Unused while the promo banner is switched off (INTRO_OFFER_ENABLED) — kept so restoring
 // it is a one-line change. See the commented-out render at the bottom of this file.
 import IntroOfferBanner from './components/IntroOfferBanner'
@@ -777,6 +778,9 @@ export default function App() {
     <>
       {content}
       {toastEl}
+      {/* Mandatory post-signup step: pick a professional role so the assistant is tuned to
+          your field. Self-gates (signed-in, non-guest, no persona yet) and can't be skipped. */}
+      <RoleOnboarding />
       {/* Promo splash — a centered offer card that counts down and auto-closes. It appears
           10s after the user's first action (see handleFirstAction), not on load. Sits above
           everything (incl. the toast) via its own z-index. "Sign up free" bumps signupNonce,
