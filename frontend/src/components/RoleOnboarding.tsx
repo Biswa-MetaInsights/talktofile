@@ -4,6 +4,8 @@ import { Sparkles, Loader2, AlertCircle } from 'lucide-react'
 import { authApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { ROLES, GENERAL, type Role } from '../lib/roles'
+import markColor from '../assets/mark-color.svg'
+import markWhite from '../assets/mark-white.svg'
 
 /**
  * Mandatory post-signup step: the user must pick the role that best matches their
@@ -72,17 +74,20 @@ export default function RoleOnboarding() {
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
         className="relative w-full max-w-3xl max-h-[92vh] overflow-y-auto scrollbar-thin rounded-2xl bg-white border border-slate-200 shadow-2xl p-6 sm:p-8 dark:bg-slate-900 dark:border-slate-800"
       >
-        {/* Header — no close button (this step is mandatory). */}
-        <div className="flex items-center gap-3 mb-1.5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E2611B] to-[#bc4d14] flex items-center justify-center shadow-sm shadow-[#E2611B]/20">
-            <Sparkles className="w-5 h-5 text-white" />
+        {/* Header — Talktofile brand lockup + title. No close button (mandatory step).
+            Theme-aware mark: mark-color on the light card, mark-white on the dark card. */}
+        <div className="text-center mb-6">
+          <div className="flex items-center justify-center gap-1 mb-3">
+            <img src={markColor} alt="" aria-hidden className="w-12 h-12 block dark:hidden" />
+            <img src={markWhite} alt="" aria-hidden className="w-12 h-12 hidden dark:block" />
+            <span className="font-brand italic font-bold text-[26px] tracking-[-0.02em] text-[#E2611B] -ml-3">Talktofile</span>
           </div>
           <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100">Set up your assistant</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5 max-w-md mx-auto">
+            Pick the role that best fits your work. Your assistant will analyse your documents like a
+            professional in that field. You can refine or change this anytime under Personalise.
+          </p>
         </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-          Pick the role that best fits your work. Your assistant will analyse your documents like a
-          professional in that field. You can refine or change this anytime under Personalise.
-        </p>
 
         {pending && (
           <div className="mb-4 flex items-center gap-2 text-sm text-[#E2611B] bg-[#E2611B]/10 border border-[#E2611B]/20 rounded-lg px-3 py-2">
