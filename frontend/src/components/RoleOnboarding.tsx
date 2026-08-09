@@ -1,30 +1,9 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import {
-  LineChart, Scale, Building2, Stethoscope, GraduationCap, Briefcase,
-  BarChart3, Megaphone, Users, School, Sparkles, Loader2, AlertCircle, type LucideIcon,
-} from 'lucide-react'
+import { Sparkles, Loader2, AlertCircle } from 'lucide-react'
 import { authApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
-
-// The 10 professional roles + a General fallback. `key` must match the backend
-// ROLE_PRESETS keys (agents/persona_agent.py) — that's the source of truth for the
-// persona each one produces. Labels/icons/descriptions are display-only.
-interface Role { key: string; label: string; desc: string; Icon: LucideIcon }
-
-const ROLES: Role[] = [
-  { key: 'financial', label: 'Financial Analyst', desc: 'Statements, valuation, markets', Icon: LineChart },
-  { key: 'legal', label: 'Legal Analyst', desc: 'Contracts, compliance, risk', Icon: Scale },
-  { key: 'real_estate', label: 'Real Estate Analyst', desc: 'Valuation, yields, leases', Icon: Building2 },
-  { key: 'medical', label: 'Medical / Clinical', desc: 'Clinical docs, terminology', Icon: Stethoscope },
-  { key: 'academic', label: 'Academic Researcher', desc: 'Literature, methodology', Icon: GraduationCap },
-  { key: 'consulting', label: 'Management Consultant', desc: 'Strategy, operations', Icon: Briefcase },
-  { key: 'data', label: 'Data / Technical Analyst', desc: 'Metrics, statistics, specs', Icon: BarChart3 },
-  { key: 'marketing', label: 'Marketing Analyst', desc: 'Campaigns, funnel, insight', Icon: Megaphone },
-  { key: 'hr', label: 'HR / Talent Analyst', desc: 'Policy, talent, org', Icon: Users },
-  { key: 'education', label: 'Educator / Teaching', desc: 'Curriculum, pedagogy', Icon: School },
-]
-const GENERAL: Role = { key: 'general', label: 'General', desc: 'A strong all-round analyst', Icon: Sparkles }
+import { ROLES, GENERAL, type Role } from '../lib/roles'
 
 /**
  * Mandatory post-signup step: the user must pick the role that best matches their

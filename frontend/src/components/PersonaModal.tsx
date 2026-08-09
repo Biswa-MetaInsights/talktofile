@@ -1,29 +1,19 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, X, Wand2, Pencil, RotateCcw, AlertCircle, Check } from 'lucide-react'
+import { Sparkles, X, Wand2, Pencil, RotateCcw, AlertCircle, Check, Loader2 } from 'lucide-react'
 import { authApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
-
-const ROLE_PRESETS = [
-  { label: 'Legal & Compliance', role: 'legal analyst', specialty: 'contract law' },
-  { label: 'Healthcare & Clinical', role: 'clinical documentation specialist', specialty: 'ICD-10 coding' },
-  { label: 'Finance & Accounting', role: 'financial analyst', specialty: 'financial statements' },
-  { label: 'Engineering & Technical', role: 'technical analyst', specialty: 'engineering specifications' },
-  { label: 'Academic & Research', role: 'research assistant', specialty: 'academic literature' },
-]
+import { ALL_ROLES } from '../lib/roles'
 
 export default function PersonaModal({ onClose }: { onClose: () => void }) {
   const { user, setPersona } = useAuth()
-  const [tab, setTab] = useState<'guided' | 'manual'>(user?.persona ? 'manual' : 'guided')
-
-  // Guided
-  const [role, setRole] = useState('')
-  const [specialty, setSpecialty] = useState('')
-  const [addressAs, setAddressAs] = useState('')
+  const [tab, setTab] = useState<'guided' | 'manual'>('guided')
 
   // Manual / preview
   const [draft, setDraft] = useState(user?.persona ?? '')
   const [loading, setLoading] = useState(false)
+  // Which role card is currently being applied (its key), for a per-card spinner.
+  const [pickingRole, setPickingRole] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [hint, setHint] = useState(false)
@@ -39,25 +29,22 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const handleGenerate = async () => {
-    if (!role && !specialty && !addressAs) {
-      setError('Add at least one detail so your assistant knows your domain.')
-      return
-    }
+  // One-click role change: regenerate the in-depth persona for that role and apply it
+  // immediately (same backend path as signup onboarding).
+  const handlePickRole = async (roleKey: string) => {
+    if (pickingRole) return
     setError('')
     setHint(false)
-    setLoading(true)
+    setPickingRole(roleKey)
     try {
-      const res = await authApi.generatePersona(role, specialty, addressAs)
-      // Draft only — do not save or activate yet. Route the user to the edit tab
-      // so they can review/tweak the generated persona and save it themselves.
+      const res = await authApi.setPersonaRole(roleKey)
+      setPersona(res.data.persona ?? null)
       setDraft(res.data.persona ?? '')
-      setTab('manual')
-      setHint(true)
+      flash()
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Could not generate persona. Try again.')
+      setError(err.response?.data?.detail || 'Could not update your assistant. Try again.')
     } finally {
-      setLoading(false)
+      setPickingRole(null)
     }
   }
 
@@ -175,67 +162,40 @@ export default function PersonaModal({ onClose }: { onClose: () => void }) {
           </div>
 
           {tab === 'guided' ? (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">What best describes your work?</label>
-                <div className="flex flex-wrap gap-2">
-                  {ROLE_PRESETS.map((p) => (
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                {user?.persona ? 'Switch your assistant to a different role' : 'Pick the role that fits your work'}
+              </label>
+              <p className="text-xs text-slate-500 dark:text-slate-400 -mt-1">
+                Choosing a role instantly rebuilds your assistant to analyse like a professional in that field.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {ALL_ROLES.map((r) => {
+                  const isPicking = pickingRole === r.key
+                  const dim = pickingRole && !isPicking
+                  return (
                     <button
-                      key={p.label}
-                      onClick={() => { setRole(p.role); setSpecialty(p.specialty) }}
-                      className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                        role === p.role
-                          ? 'bg-[#E2611B]/10 border-[#E2611B]/20 text-[#E2611B]'
-                          : 'border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:border-slate-600 dark:hover:bg-slate-800'
-                      }`}
+                      key={r.key}
+                      onClick={() => handlePickRole(r.key)}
+                      disabled={!!pickingRole}
+                      className={`group flex flex-col items-start gap-1.5 rounded-xl border p-3 text-left transition-all ${
+                        isPicking
+                          ? 'border-[#E2611B] bg-[#E2611B]/5'
+                          : 'border-slate-200 bg-white hover:border-[#E2611B] hover:bg-[#E2611B]/5 dark:border-slate-700 dark:bg-slate-800/60 dark:hover:border-[#E2611B]'
+                      } ${dim ? 'opacity-40' : ''} disabled:cursor-not-allowed`}
                     >
-                      {p.label}
+                      <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#E2611B]/10 text-[#E2611B]">
+                        {isPicking ? <Loader2 className="w-4 h-4 animate-spin" /> : <r.Icon className="w-4 h-4" />}
+                      </span>
+                      <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 leading-tight">{r.label}</span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">{r.desc}</span>
                     </button>
-                  ))}
-                </div>
+                  )
+                })}
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Your role / field</label>
-                <input
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  placeholder="e.g. legal analyst"
-                  className="input-field"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Specialty or focus</label>
-                <input
-                  value={specialty}
-                  onChange={(e) => setSpecialty(e.target.value)}
-                  placeholder="e.g. Belgian contract law, ICD-10 coding"
-                  className="input-field"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">What should your assistant call you? <span className="text-slate-400 dark:text-slate-500">(optional)</span></label>
-                <input
-                  value={addressAs}
-                  onChange={(e) => setAddressAs(e.target.value)}
-                  placeholder="e.g. Counsel, Dr. Smith"
-                  className="input-field"
-                />
-              </div>
-
-              <button
-                onClick={handleGenerate}
-                disabled={loading}
-                className="btn-primary w-full flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <><Wand2 className="w-4 h-4" /> Generate persona</>
-                )}
-              </button>
+              <p className="text-xs text-slate-400 dark:text-slate-500 pt-1">
+                Want to fine-tune the wording? Use the <span className="font-medium">Edit prompt</span> tab.
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
