@@ -51,17 +51,17 @@ export default function RoleOnboarding() {
       <button
         onClick={() => choose(role)}
         disabled={!!pending}
-        className={`group relative flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-all ${
+        className={`group relative flex flex-col items-start gap-1 rounded-xl border p-2.5 text-left transition-all ${
           isPending
             ? 'border-[#E2611B] bg-[#E2611B]/5'
             : 'border-slate-200 bg-white hover:border-[#E2611B] hover:bg-[#E2611B]/5 hover:shadow-sm dark:border-slate-700 dark:bg-slate-800/60 dark:hover:border-[#E2611B]'
         } ${dim ? 'opacity-40' : ''} disabled:cursor-not-allowed`}
       >
-        <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-[#E2611B]/10 text-[#E2611B]">
-          {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <role.Icon className="w-5 h-5" />}
+        <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#E2611B]/10 text-[#E2611B]">
+          {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <role.Icon className="w-4 h-4" />}
         </span>
-        <span className="font-semibold text-sm text-slate-900 dark:text-slate-100">{role.label}</span>
-        <span className="text-xs text-slate-500 dark:text-slate-400 leading-snug">{role.desc}</span>
+        <span className="font-semibold text-[13px] text-slate-900 dark:text-slate-100 leading-tight">{role.label}</span>
+        <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">{role.desc}</span>
       </button>
     )
   }
@@ -72,55 +72,54 @@ export default function RoleOnboarding() {
         initial={{ opacity: 0, scale: 0.96, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-3xl max-h-[92vh] overflow-y-auto scrollbar-thin rounded-2xl bg-white border border-slate-200 shadow-2xl p-6 sm:p-8 dark:bg-slate-900 dark:border-slate-800"
+        className="relative w-full max-w-4xl max-h-[94vh] overflow-y-auto scrollbar-thin rounded-2xl bg-white border border-slate-200 shadow-2xl p-5 sm:p-6 dark:bg-slate-900 dark:border-slate-800"
       >
         {/* Header — Talktofile brand lockup + title. No close button (mandatory step).
             Theme-aware mark: mark-color on the light card, mark-white on the dark card. */}
-        <div className="text-center mb-6">
-          <div className="flex items-center justify-center gap-1 mb-3">
-            <img src={markColor} alt="" aria-hidden className="w-12 h-12 block dark:hidden" />
-            <img src={markWhite} alt="" aria-hidden className="w-12 h-12 hidden dark:block" />
-            <span className="font-brand italic font-bold text-[26px] tracking-[-0.02em] text-[#E2611B] -ml-3">Talktofile</span>
+        <div className="text-center mb-4">
+          <div className="flex items-center justify-center gap-1 mb-1.5">
+            <img src={markColor} alt="" aria-hidden className="w-10 h-10 block dark:hidden" />
+            <img src={markWhite} alt="" aria-hidden className="w-10 h-10 hidden dark:block" />
+            <span className="font-brand italic font-bold text-[22px] tracking-[-0.02em] text-[#E2611B] -ml-3">Talktofile</span>
           </div>
-          <h2 className="font-brand font-bold text-xl text-slate-900 dark:text-slate-100">Set up your assistant</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5 max-w-md mx-auto">
-            Pick the role that best fits your work. Your assistant will analyse your documents like a
-            professional in that field. You can refine or change this anytime under Personalise.
+          <h2 className="font-brand font-bold text-lg text-slate-900 dark:text-slate-100">Set up your assistant</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-lg mx-auto">
+            Pick the role that best fits your work — your assistant will analyse your documents like a pro
+            in that field. Change it anytime under Personalise.
           </p>
         </div>
 
         {pending && (
-          <div className="mb-4 flex items-center gap-2 text-sm text-[#E2611B] bg-[#E2611B]/10 border border-[#E2611B]/20 rounded-lg px-3 py-2">
+          <div className="mb-3 flex items-center gap-2 text-sm text-[#E2611B] bg-[#E2611B]/10 border border-[#E2611B]/20 rounded-lg px-3 py-1.5">
             <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
             Preparing your professional assistant…
           </div>
         )}
         {error && (
-          <div className="mb-4 flex items-center gap-2 text-sm text-brand-600 bg-brand-50 border border-brand-200 rounded-lg px-3 py-2 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400">
+          <div className="mb-3 flex items-center gap-2 text-sm text-brand-600 bg-brand-50 border border-brand-200 rounded-lg px-3 py-1.5 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400">
             <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
           </div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
           {ROLES.map((r) => <Card key={r.key} role={r} />)}
         </div>
 
         {/* General — the always-valid choice, set apart so no one is dead-ended. */}
-        <div className="mt-3 pt-4 border-t border-slate-200 dark:border-slate-800">
-          <p className="text-xs text-slate-400 dark:text-slate-500 mb-2">Not one of these? Pick a strong all-round assistant:</p>
+        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
           <button
             onClick={() => choose(GENERAL)}
             disabled={!!pending}
-            className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${
+            className={`w-full flex items-center gap-3 rounded-xl border p-2.5 text-left transition-all ${
               pending === 'general' ? 'border-[#E2611B] bg-[#E2611B]/5' : 'border-slate-200 bg-white hover:border-[#E2611B] hover:bg-[#E2611B]/5 dark:border-slate-700 dark:bg-slate-800/60'
             } ${pending && pending !== 'general' ? 'opacity-40' : ''} disabled:cursor-not-allowed`}
           >
-            <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-[#E2611B]/10 text-[#E2611B] flex-shrink-0">
-              {pending === 'general' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+            <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#E2611B]/10 text-[#E2611B] flex-shrink-0">
+              {pending === 'general' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             </span>
             <span className="min-w-0">
-              <span className="block font-semibold text-sm text-slate-900 dark:text-slate-100">{GENERAL.label}</span>
-              <span className="block text-xs text-slate-500 dark:text-slate-400">{GENERAL.desc}</span>
+              <span className="block font-semibold text-[13px] text-slate-900 dark:text-slate-100">Not one of these? {GENERAL.label} assistant</span>
+              <span className="block text-[11px] text-slate-500 dark:text-slate-400">{GENERAL.desc}</span>
             </span>
           </button>
         </div>
