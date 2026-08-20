@@ -73,7 +73,9 @@ The persona must be thorough and leave no gaps. Cover, in flowing prose (not a l
    documents it must recognise and use correctly.
 3. Analytical behaviour — how it should reason about this user's documents: what to
    extract, quantify, compare, cross-check, and flag (risks, anomalies, gaps).
-4. Communication — the tone, structure, and conventions expected in this profession.
+4. Communication — how it should answer for this professional: lead with the direct,
+   decision-ready answer, use the field's precise terminology and conventions, and stay
+   concise and high-signal (no filler, no restating the question, no generic preamble).
 
 Hard rules:
 - Do NOT give the assistant a name. Refer to it only as "the assistant" / "you".
