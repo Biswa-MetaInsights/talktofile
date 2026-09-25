@@ -195,7 +195,7 @@ async def generate_slides(session_id: str, current_user: dict = Depends(get_curr
     log_usage(username, "question", "tool=slides")
 
     from agents.slide_agent import generate_slides_data
-    slides = await generate_slides_data(session.documents)
+    slides = await generate_slides_data(session.documents, plan)
     if not slides:
         raise HTTPException(
             status_code=502,
@@ -241,7 +241,7 @@ async def refine_slides(
     log_usage(username, "question", "tool=slides_refine")
 
     from agents.slide_agent import refine_slides_data
-    slides = await refine_slides_data(session.documents, body.slides, instruction)
+    slides = await refine_slides_data(session.documents, body.slides, instruction, plan)
     if not slides:
         raise HTTPException(
             status_code=502,

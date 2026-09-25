@@ -13,10 +13,10 @@ describes the present. There are no dates and no history here; that's `CHANGELOG
 | Area | State |
 |---|---|
 | **Auth** | Guest + registered (legacy JWT *or* Supabase). **Google** social sign-in live. Password reset works in both modes (Supabase-handled, or native single-use 30-min token via Resend). |
-| **Upload & pipeline** | Single / multi / compare modes. Extract → index → summarize across PDF, Word, Excel, PowerPoint, HTML, JSON, CSV, Markdown, text, and many source formats. Zero-text files are skipped (not fatal) in a multi-file batch. |
+| **Upload & pipeline** | Single / multi / compare modes. Extract → index → summarize across PDF, Word, Excel, PowerPoint, HTML, JSON, CSV, Markdown, text, and many source formats. Zero-text files are skipped (not fatal) in a multi-file batch. Once ready, the landing page drops the user straight into the section they picked (e.g. Slides) — no Proceed click. |
 | **Chat** | Streaming Q&A over WebSocket with auto-reconnect, suggested questions, citation grounding. |
 | **Tool sections** | Summary, Flashcards, Podcast, Slides, Translate, Charts — all six render and generate. |
-| **Slides** | Editable, AI-refinable, themeable decks; free for all (Pro gate removed). Inline render + opt-in .pptx download that reuses already-generated slides. |
+| **Slides** | Designed decks: the AI picks from 10 layouts (cover, agenda, section divider, bullets, big numbers, comparison, process, cards, quote, closing) across 3 redesigned themes (Classic corporate / Minimal editorial / Bold dark keynote) + accent colour; the preview and the .pptx match. Pro sends more of each document to the model (10k vs 8k chars — `slides_context_chars` in `core/config.py`). Editable per layout (incl. switching a slide's layout), AI-refinable; free for all (Pro gate removed). Inline render + opt-in .pptx download that reuses already-generated slides. |
 | **Chapters** | Segmentation + chapter-scoped summaries. Left doc panel filters to the selected chapters. |
 | **Ops** | Plan limits, per-day usage caps, rate limiting, feedback capture, mandatory role personalisation at signup (`RoleOnboarding` → in-depth persona per role, free for all registered users), Dockerized production serving behind Caddy. |
 | **SEO `<head>`** | Title, description, and OG image are in the raw HTML — social previews and search titles work. |
@@ -59,9 +59,8 @@ constraint that governs it is documented in `CLAUDE.md` → Design / Brand.
   `localStorage`, WebSockets, the theme script, PostHog.
 
 **Easy wins, not yet taken:**
-- Two unused webfonts (**Inter**, **Plus Jakarta Sans**) are still downloaded in
-  `frontend/index.html` despite 0 uses in `src/`. Deleting the `<link>` is a free perf win with zero
-  visual change. Same for the unused `obsidian` / `cyan` palettes in `tailwind.config.js`.
+- An unused webfont (**Plus Jakarta Sans**) is still downloaded in `frontend/index.html` despite
+  0 uses in `src/` — drop it from the Google Fonts `<link>` (keep **Inter**, the slides use it). Same for the unused `obsidian` / `cyan` palettes in `tailwind.config.js`.
 
 ---
 

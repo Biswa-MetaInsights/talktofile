@@ -17,6 +17,10 @@ predate this convention and are longer than it allows; leave them as they are.
 
 ---
 
+### 2026-09-25 — Slides redesigned: 10 AI-chosen layouts, premium Classic/Minimal/Bold themes, Inter in previews; .pptx matches the preview
+
+### 2026-09-25 — Landing auto-enters the selected section once the upload is ready (no Proceed click)
+
 ### 2026-08-10 — Mandatory role personalisation at signup
 - A non-skippable role picker (`RoleOnboarding`) now appears for any signed-in registered user with no
   persona: 10 professional roles (Financial / Legal / Real-Estate / Medical / Academic / Consulting /

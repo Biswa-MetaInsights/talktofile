@@ -34,6 +34,14 @@ class Settings(BaseSettings):
     def daily_upload_limit(self, plan: str) -> int:
         return self.pro_daily_uploads if plan == "pro" else self.free_daily_uploads
 
+    # How much of each document's text the slide generator sends to the model
+    # (characters per document). More context = better decks but a pricier call.
+    free_slides_context_chars: int = 8000
+    pro_slides_context_chars: int = 10000
+
+    def slides_context_chars(self, plan: str) -> int:
+        return self.pro_slides_context_chars if plan == "pro" else self.free_slides_context_chars
+
     # Supabase Auth (optional). When supabase_jwt_secret is set, the backend
     # verifies Supabase-issued JWTs instead of its own. Empty = legacy custom auth.
     supabase_url: str = ""

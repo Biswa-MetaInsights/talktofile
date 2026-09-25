@@ -386,6 +386,14 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
     }
   }, [proceedPending, removing, error, session, effectiveMode, prompt, onEnter])
 
+  // Auto-navigate to the selected section the moment the upload is ready — pick
+  // Slides before/while uploading and you land in Slides, no Proceed click needed.
+  // Chat goes straight to the chat view (with the typed prompt, if any).
+  useEffect(() => {
+    if (!session || removing || error) return
+    onEnter(session, effectiveMode, prompt.trim())
+  }, [session, removing, error, effectiveMode, prompt, onEnter])
+
   // ── Multi-source add (controls visible to all; only Pro can add — front-end only) ──
   const openExtraFilePicker = () => {
     if (!isPro) { setMultiHint('Adding more files is a Pro feature. Upgrade to add several sources.'); return }
