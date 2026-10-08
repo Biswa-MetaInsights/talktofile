@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDropzone, FileRejection } from 'react-dropzone'
 import { motion } from 'framer-motion'
 import {
@@ -10,7 +10,9 @@ import { ACCEPT } from './UploadZone'
 import { MODE_ICONS } from './ModeSwitcher'
 import Tooltip from './Tooltip'
 import MicButton from './MicButton'
+import FaqSection from './FaqSection'
 import { smoothScrollTo } from '../lib/smoothScroll'
+import { HOME_VARIANT, applyVariantMeta, getLandingVariant } from '../lib/landingVariants'
 import { useAuth } from '../context/AuthContext'
 import { useDocumentProcessor } from '../hooks/useDocumentProcessor'
 import markWhite from '../assets/mark-white.svg'
@@ -171,8 +173,14 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
   const { stage, stageMsg, progress, error, session, processing, removing, files, processFiles, processUrl, removeFile, reset } =
     useDocumentProcessor(token, plan)
 
+  // Which use-case page this is (/students, /legal, …) — drives the hero copy,
+  // trust row, default mode and footer note. See lib/landingVariants.ts.
+  const variant = useMemo(() => getLandingVariant(window.location.pathname), [])
+  const isHome = variant === HOME_VARIANT
+  useEffect(() => { applyVariantMeta(variant) }, [variant])
+
   // Mode chosen inside the chat box that appears once an upload starts.
-  const [selectedMode, setSelectedMode] = useState<AppMode | 'charts'>('chat')
+  const [selectedMode, setSelectedMode] = useState<AppMode | 'charts'>(variant.defaultMode)
   // What the user wants to do with the document — becomes the first chat message.
   const [prompt, setPrompt] = useState('')
   const [urlInput, setUrlInput] = useState('')
@@ -582,14 +590,21 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
               window never moves "video links." back up to line 1 — it stays on line 2 the
               whole way down. Font steps are sized to keep each forced line on one row.
               The orange payoff must stay SHORT for this to hold — a long phrase here
-              overflows `whitespace-nowrap` and blows the 2-line shape apart. */}
-          <h1 className="font-merriweather font-extrabold tracking-[-0.03em] text-[#303030] dark:text-slate-100 leading-[1.1] text-[27px] min-[420px]:text-[31px] min-[520px]:text-[38px] sm:text-[44px] md:text-[56px] -mx-4 min-[360px]:mx-0">
-            {'Upload files. Paste web or'}
-            <br className="lg:hidden" />
-            {' video links.'}
-            <br className="hidden lg:block" />
+              overflows `whitespace-nowrap` and blows the 2-line shape apart.
+
+              The text and break positions come from the page's variant (see
+              lib/landingVariants.ts); the description above is the home page's. */}
+          <h1 className="font-merriweather font-extrabold tracking-[-0.03em] text-[#303030] dark:text-slate-100 leading-[1.1] text-[27px] min-[420px]:text-[31px] min-[520px]:text-[38px] sm:text-[44px] md:text-[56px] -mx-4 min-[360px]:mx-0 lg:-mx-8">
+            {variant.headline.map((seg, i) => (
+              <Fragment key={i}>
+                {seg.text}
+                {seg.br === 'mobile' && <br className="lg:hidden" />}
+                {seg.br === 'desktop' && <br className="hidden lg:block" />}
+                {seg.br === 'always' && <br />}
+              </Fragment>
+            ))}
             {' '}
-            <span className="italic text-[#E2611B] whitespace-nowrap">Make anything.</span>
+            <span className="italic text-[#E2611B] whitespace-nowrap">{variant.payoff}</span>
           </h1>
           {/* Trust medallions — circular icon-over-label version. Kept commented out in
               favour of the hairline-divider row below; re-enable if we want the medallions.
@@ -632,9 +647,9 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
               count to protect, so it just reflows. The leading sparkle is inline (not a
               flex item) so it sits on the text baseline and the sentence keeps wrapping
               and centring normally. */}
-          <p className="mt-6 font-merriweather tracking-[-0.03em] text-[#303030] dark:text-slate-200 leading-relaxed text-sm min-[420px]:text-base sm:text-lg md:text-xl lg:text-2xl max-w-4xl mx-auto">
+          <p className="mt-6 font-merriweather tracking-[-0.03em] text-[#303030] dark:text-slate-200 leading-relaxed text-sm min-[420px]:text-base sm:text-lg md:text-xl lg:text-2xl max-w-4xl mx-auto lg:max-w-none lg:-mx-8 [text-wrap:balance]">
             <Sparkles className="inline-block align-[-0.15em] w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-[#E2611B] mr-2" strokeWidth={2.25} aria-hidden />
-            Get flashcards, slides, charts, answers, and more. All from your file.
+            {variant.subhead}
           </p>
           {/* Trust row — reassurance signals as inline orange-icon + label items, separated
               by whitespace only (no dividers). Same type treatment as the payoff line above
@@ -643,14 +658,12 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
               (2026-08-06) once the payoff line above ended with "All from your file" — it
               was the same promise twice, one line apart. */}
           <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-8 gap-y-2 sm:gap-y-3 font-merriweather tracking-[-0.03em] text-[#303030] dark:text-slate-200 text-sm min-[420px]:text-base sm:text-lg md:text-xl lg:text-2xl">
-            <span className="inline-flex items-center gap-2 sm:gap-2.5">
-              <Lock className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-[#E2611B] shrink-0" strokeWidth={2.25} />
-              <span>Nothing stored</span>
-            </span>
-            <span className="inline-flex items-center gap-2 sm:gap-2.5">
-              <Zap className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-[#E2611B] shrink-0" strokeWidth={2.25} />
-              <span>No sign-up needed to start</span>
-            </span>
+            {variant.trust.map(({ icon: Icon, label }) => (
+              <span key={label} className="inline-flex items-center gap-2 sm:gap-2.5">
+                <Icon className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-[#E2611B] shrink-0" strokeWidth={2.25} />
+                <span>{label}</span>
+              </span>
+            ))}
           </div>
           {/* Subline hidden for now — re-enable if the hero feels like it needs it.
           <p className="mt-4 font-merriweather text-lg text-[#303030] mx-auto leading-relaxed lg:whitespace-nowrap">
@@ -1050,47 +1063,50 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
         </div>
       </section>
 
-      {/* Who it's for */}
-      <section className="px-6 py-16 max-w-5xl mx-auto">
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <span className="h-px w-8 bg-[#E2611B]/40" />
-            <span className="text-xs font-semibold tracking-[0.25em] text-[#E2611B] uppercase">Who it's for</span>
-            <span className="h-px w-8 bg-[#E2611B]/40" />
+      {/* Who it's for — home page only. Each use-case page is already about one
+          audience, so the cross-audience grid is dropped there. */}
+      {isHome && (
+        <section className="px-6 py-16 max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <span className="h-px w-8 bg-[#E2611B]/40" />
+              <span className="text-xs font-semibold tracking-[0.25em] text-[#E2611B] uppercase">Who it's for</span>
+              <span className="h-px w-8 bg-[#E2611B]/40" />
+            </div>
+            <h2 className="font-merriweather font-bold text-3xl sm:text-4xl md:text-5xl text-[#303030] dark:text-slate-100 tracking-[-0.02em]">
+              One tool, <span className="italic text-[#E2611B]">many use cases.</span>
+            </h2>
+            <div className="mt-5 flex items-center justify-center gap-3">
+              <span className="h-px w-10 bg-[#E2611B]/30" />
+              <span className="w-1.5 h-1.5 rotate-45 bg-[#E2611B]" />
+              <span className="h-px w-10 bg-[#E2611B]/30" />
+            </div>
+            <p className="mt-3 text-[18px] text-slate-500 dark:text-slate-400 italic">Grounded in your file, private by default, whatever you’re using it for.</p>
           </div>
-          <h2 className="font-merriweather font-bold text-3xl sm:text-4xl md:text-5xl text-[#303030] dark:text-slate-100 tracking-[-0.02em]">
-            One tool, <span className="italic text-[#E2611B]">many use cases.</span>
-          </h2>
-          <div className="mt-5 flex items-center justify-center gap-3">
-            <span className="h-px w-10 bg-[#E2611B]/30" />
-            <span className="w-1.5 h-1.5 rotate-45 bg-[#E2611B]" />
-            <span className="h-px w-10 bg-[#E2611B]/30" />
-          </div>
-          <p className="mt-3 text-[18px] text-slate-500 dark:text-slate-400 italic">Grounded in your file, private by default, whatever you’re using it for.</p>
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {AUDIENCES.map((a, i) => (
-            <motion.div
-              key={a.title}
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: (i % 3) * 0.08 }}
-              className="group font-merriweather bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm hover:bg-[#E2611B] dark:hover:bg-[#E2611B] hover:border-[#E2611B] dark:hover:border-[#E2611B] hover:shadow-md transition-all"
-            >
-              {/* Mobile (single column): icon + title sit side by side. From sm up
-                  (multi-column) they stack, icon on top. */}
-              <div className="flex items-center gap-3 mb-1.5 sm:block sm:mb-0">
-                <div className="w-10 h-10 shrink-0 rounded-xl bg-[#E2611B]/10 border border-[#E2611B]/20 group-hover:bg-white/15 group-hover:border-white/30 flex items-center justify-center sm:mb-4 transition-colors">
-                  <a.icon className="w-5 h-5 text-[#E2611B] group-hover:text-white transition-colors" />
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {AUDIENCES.map((a, i) => (
+              <motion.div
+                key={a.title}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: (i % 3) * 0.08 }}
+                className="group font-merriweather bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm hover:bg-[#E2611B] dark:hover:bg-[#E2611B] hover:border-[#E2611B] dark:hover:border-[#E2611B] hover:shadow-md transition-all"
+              >
+                {/* Mobile (single column): icon + title sit side by side. From sm up
+                    (multi-column) they stack, icon on top. */}
+                <div className="flex items-center gap-3 mb-1.5 sm:block sm:mb-0">
+                  <div className="w-10 h-10 shrink-0 rounded-xl bg-[#E2611B]/10 border border-[#E2611B]/20 group-hover:bg-white/15 group-hover:border-white/30 flex items-center justify-center sm:mb-4 transition-colors">
+                    <a.icon className="w-5 h-5 text-[#E2611B] group-hover:text-white transition-colors" />
+                  </div>
+                  <h3 className="text-[18px] font-semibold text-slate-900 dark:text-slate-100 group-hover:text-white dark:group-hover:text-white sm:mb-1.5 transition-colors">{a.title}</h3>
                 </div>
-                <h3 className="text-[18px] font-semibold text-slate-900 dark:text-slate-100 group-hover:text-white dark:group-hover:text-white sm:mb-1.5 transition-colors">{a.title}</h3>
-              </div>
-              <p className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-white dark:group-hover:text-white leading-relaxed transition-colors">{a.body}</p>
-            </motion.div>
-          ))}
-        </div>
-      </section>
+                <p className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-white dark:group-hover:text-white leading-relaxed transition-colors">{a.body}</p>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Plans — Basic vs Pro feature comparison ("Start free, upgrade anytime.").
 
@@ -1153,6 +1169,9 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
       </section>
       */}
 
+      {/* FAQ — use-case pages only (home has no `meta`). Questions live in lib/landingSeo.ts. */}
+      {variant.meta && <FaqSection faqs={variant.meta.faqs} />}
+
       {/* Footer */}
       <footer className="bg-[#E2611B] text-slate-50 px-6 py-8 sm:py-12">
         <div className="max-w-5xl mx-auto">
@@ -1189,6 +1208,10 @@ export default function Landing({ onEnter, onBusyChange }: Props) {
             <span>© {new Date().getFullYear()} MetaInsights. All rights reserved.</span>
             <span>Private by default · No file storage · Answers only from your document</span>
           </div>
+          {/* Per-page disclaimer (e.g. "Not legal advice" on /legal). */}
+          {variant.footerNote && (
+            <p className="mt-3 text-center sm:text-left text-sm text-slate-50/80">{variant.footerNote}</p>
+          )}
         </div>
       </footer>
     </div>

@@ -1,0 +1,95 @@
+{
+  "projectId": "97f7a89e-1db8-49fc-a679-f1926d7b1a4e",
+  "shape": "package",
+  "pkg": "talktofile",
+  "globalName": "Talktofile",
+  "entry": ".design-sync/entry.ts",
+  "tsconfig": "tsconfig.json",
+  "buildCmd": "./node_modules/.bin/tailwindcss -c .design-sync/tailwind.config.js -i .design-sync/styles.input.css -o .design-sync/.cache/tailwind.css",
+  "cssEntry": ".design-sync/.cache/tailwind.css",
+  "runtimeFontPrefixes": [
+    "Merriweather",
+    "JetBrains Mono",
+    "Inter"
+  ],
+  "provider": {
+    "component": "ThemeProvider"
+  },
+  "componentSrcMap": {
+    "AvatarUpload": "src/components/AvatarUpload.tsx",
+    "ChapterPicker": "src/components/ChapterPicker.tsx",
+    "CitationMarker": "src/components/CitationMarker.tsx",
+    "CitationPanel": "src/components/CitationPanel.tsx",
+    "ConfirmDialog": "src/components/ConfirmDialog.tsx",
+    "FaqSection": "src/components/FaqSection.tsx",
+    "MessageBubble": "src/components/MessageBubble.tsx",
+    "MicButton": "src/components/MicButton.tsx",
+    "ModeSwitcher": "src/components/ModeSwitcher.tsx",
+    "SectionComposer": "src/components/SectionComposer.tsx",
+    "SectionExtras": "src/components/SectionExtras.tsx",
+    "SummaryCard": "src/components/SummaryCard.tsx",
+    "ThemeToggle": "src/components/ThemeToggle.tsx",
+    "Tooltip": "src/components/Tooltip.tsx",
+    "TypingIndicator": "src/components/TypingIndicator.tsx"
+  },
+  "docsMap": {
+    "MessageBubble": ".design-sync/groups/chat.md",
+    "CitationMarker": ".design-sync/groups/chat.md",
+    "CitationPanel": ".design-sync/groups/chat.md",
+    "TypingIndicator": ".design-sync/groups/chat.md",
+    "SectionComposer": ".design-sync/groups/workspace.md",
+    "ModeSwitcher": ".design-sync/groups/workspace.md",
+    "ChapterPicker": ".design-sync/groups/workspace.md",
+    "SectionExtras": ".design-sync/groups/workspace.md",
+    "SummaryCard": ".design-sync/groups/workspace.md",
+    "MicButton": ".design-sync/groups/workspace.md",
+    "Tooltip": ".design-sync/groups/primitives.md",
+    "ConfirmDialog": ".design-sync/groups/primitives.md",
+    "ThemeToggle": ".design-sync/groups/primitives.md",
+    "AvatarUpload": ".design-sync/groups/primitives.md",
+    "FaqSection": ".design-sync/groups/marketing.md"
+  },
+  "dtsPropsFor": {
+    "AvatarUpload": "/** Current avatar as an image data URL (\"\" for none). */\n  value: string;\n  /** Receives a downscaled 256x256 JPEG data URL. */\n  onChange: (dataUrl: string) => void;\n  /** Used to derive fallback initials when there's no image. */\n  name?: string;\n  /** Diameter in px. Default 72. */\n  size?: number;",
+    "ChapterPicker": "/** Detected chapters. Renders nothing when there are fewer than 2. */\n  chapters: { id: string; index: number; title: string }[];\n  /** Selected chapter ids. Empty array = \"All chapters\" (whole document). */\n  selected: string[];\n  onChange: (ids: string[]) => void;\n  className?: string;",
+    "CitationMarker": "/** One grounded citation; `marker` is the 1-based superscript number. */\n  cite: { marker: number; source: { filename: string; text: string; score: number; chunk_index?: number; context_before?: string; context_after?: string }; matchedPhrase: string; score: number; location: string };\n  /** Fires when the user clicks \"Jump to source\". */\n  onJump?: (source: { filename: string; text: string; score: number }) => void;",
+    "CitationPanel": "/** The cited passage to show (score is 0..1 relevance). */\n  source: { filename: string; text: string; score: number; chunk_index?: number; context_before?: string; context_after?: string };\n  onClose: () => void;",
+    "ConfirmDialog": "open: boolean;\n  title: string;\n  message: string;\n  /** Default \"Leave\". */\n  confirmLabel?: string;\n  /** Default \"Stay\". */\n  cancelLabel?: string;\n  onConfirm: () => void;\n  onCancel: () => void;",
+    "FaqSection": "/** Question/answer pairs, rendered as an always-open card grid. */\n  faqs: { q: string; a: string }[];",
+    "MessageBubble": "/** One chat message. Assistant content is rendered as GitHub-flavoured markdown. */\n  message: { id: string; role: 'user' | 'assistant' | 'system'; content: string; timestamp: Date; isStreaming?: boolean; isGuardReject?: boolean; isPeriodicFeedback?: boolean; sources?: { filename: string; text: string; score: number; chunk_index?: number; context_before?: string; context_after?: string }[]; followups?: string[] };\n  username?: string;\n  sessionId?: string;\n  onCiteSource?: (source: { filename: string; text: string; score: number }) => void;\n  autoOpenSources?: boolean;\n  /** True while this finished answer's citation passages are still being fetched. */\n  awaitingSources?: boolean;",
+    "MicButton": "/** Receives the transcribed text to append to the input. */\n  onTranscript: (text: string) => void;\n  disabled?: boolean;\n  /** Tooltip side. Default 'right'. */\n  side?: 'top' | 'right' | 'bottom' | 'left';\n  /** Square edge in Tailwind units: 9 = 36px, 10 = 40px (default), 11 = 44px. */\n  size?: 9 | 10 | 11;",
+    "ModeSwitcher": "/** The open section. */\n  active: 'chat' | 'summary' | 'flashcards' | 'slides' | 'translate' | 'podcast' | 'charts';\n  onSwitch: (mode: 'chat' | 'summary' | 'flashcards' | 'slides' | 'translate' | 'podcast' | 'charts') => void;\n  /** Sections with content; engaged-but-inactive tabs get a brand-orange border. */\n  engaged?: Set<'chat' | 'summary' | 'flashcards' | 'slides' | 'translate' | 'podcast' | 'charts'>;\n  className?: string;",
+    "SectionComposer": "active: 'chat' | 'summary' | 'flashcards' | 'slides' | 'translate' | 'podcast' | 'charts';\n  onSwitch: (mode: 'chat' | 'summary' | 'flashcards' | 'slides' | 'translate' | 'podcast' | 'charts') => void;\n  engaged: Set<'chat' | 'summary' | 'flashcards' | 'slides' | 'translate' | 'podcast' | 'charts'>;\n  /** Right-hand action button (send, \"Generate summary\", ...). */\n  proceedButton: React.ReactNode;\n  /** Optional controls row above the input (e.g. a ChapterPicker or language picker). */\n  pickerRow?: React.ReactNode;\n  /** Optional warning line above the input. */\n  notice?: string;\n  placeholder?: string;\n  /** Controlled input. Omit value/onChange/onSubmit and Enter shows a \"Coming soon\" bubble. */\n  value?: string;\n  onChange?: (v: string) => void;\n  /** Return false to mean \"not handled\" (shows the \"Coming soon\" bubble). */\n  onSubmit?: () => void | boolean;\n  disabled?: boolean;\n  showEnterHint?: boolean;\n  inputRef?: React.RefObject<HTMLTextAreaElement>;",
+    "SectionExtras": "/** Renders the \"Follow-up suggestions\" + \"Preferences\" placeholder rows when true. */\n  show: boolean;",
+    "SummaryCard": "/** Renders nothing when overview and key_points are both empty. */\n  summary: { overview: string; doc_type: string; key_points: string[]; topics: string[] };\n  /** Smaller text for side panels and drawers. */\n  compact?: boolean;",
+    "ThemeToggle": "/** Tooltip side. Default 'bottom'. Must be inside <ThemeProvider>. */\n  side?: 'top' | 'bottom' | 'left' | 'right';",
+    "Tooltip": "label: string;\n  /** Which side the bubble opens on. Default 'right' (site-wide convention). */\n  side?: 'top' | 'right' | 'bottom' | 'left';\n  children: React.ReactNode;\n  /** Extra classes for the wrapper. */\n  className?: string;",
+    "TypingIndicator": ""
+  },
+  "overrides": {
+    "ConfirmDialog": {
+      "cardMode": "single",
+      "viewport": "720x420"
+    },
+    "CitationPanel": {
+      "cardMode": "single",
+      "viewport": "1100x560"
+    },
+    "FaqSection": {
+      "cardMode": "column"
+    },
+    "SectionComposer": {
+      "cardMode": "column"
+    },
+    "ModeSwitcher": {
+      "cardMode": "column"
+    },
+    "Tooltip": {
+      "cardMode": "column"
+    },
+    "MicButton": {
+      "cardMode": "column"
+    }
+  },
+  "readmeHeader": ".design-sync/conventions.md"
+}

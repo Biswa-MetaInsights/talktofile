@@ -16,3 +16,10 @@ blog/.astro/
 *.egg-info/
 .DS_Store
 Thumbs.db
+
+# Claude Design sync (design-sync) - staged scripts, build output, machine state
+frontend/.ds-sync/
+frontend/ds-bundle/
+frontend/.design-sync/.cache/
+frontend/.design-sync/learnings/
+frontend/.design-sync/node_modules

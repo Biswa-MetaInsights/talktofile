@@ -20,6 +20,7 @@ describes the present. There are no dates and no history here; that's `CHANGELOG
 | **Chapters** | Segmentation + chapter-scoped summaries. Left doc panel filters to the selected chapters. |
 | **Ops** | Plan limits, per-day usage caps, rate limiting, feedback capture, mandatory role personalisation at signup (`RoleOnboarding` → in-depth persona per role, free for all registered users), Dockerized production serving behind Caddy. |
 | **SEO `<head>`** | Title, description, and OG image are in the raw HTML — social previews and search titles work. |
+| **Use-case landing pages** | `/students`, `/research`, `/legal`, `/business` (plus the home page `/`) — same page, different hero copy, trust row, pre-selected mode, and (legal) a "Not legal advice" footer line. Data in `src/lib/landingVariants.ts`. Linked from a **"Use cases" dropdown in the navbar** (desktop only — the mobile navbar has no primary links). Each has its own `<title>`, description, canonical, OG/Twitter tags, an **FAQ section above the footer** and **FAQPage JSON-LD**, all **in the raw HTML**: the build writes `dist/<slug>.html` (Vite plugin in `vite.config.ts`, data in `src/lib/landingSeo.ts`) and Caddy serves `/students` from `students.html`. Listed in `sitemap.xml`. |
 
 ---
 
@@ -51,9 +52,12 @@ constraint that governs it is documented in `CLAUDE.md` → Design / Brand.
   endpoint. **Charts is tabular** (different shape). **Chat is the biggest** — retrieval needs
   chunk-level chapter tagging, and chunks aren't tagged yet. Multi-document scoping currently targets
   the first document only.
-- **Pre-rendered landing HTML.** Low priority — **do this well after the blog has posts**, which is
-  the bigger SEO lever. Decided approach: a **Vite prerender plugin** emitting static HTML for the
-  landing route, with React hydrating it, so the in-place upload UX needs no refactor. (Rejected:
+- **Pre-rendered landing HTML (full page).** Low priority — **do this well after the blog has posts**,
+  which is the bigger SEO lever. Partly done: each use-case page already gets its own `<head>`,
+  JSON-LD and FAQ in the raw HTML (see *Shipped*), but the hero and the rest of the body are still
+  client-rendered (React replaces `#root` on mount; no hydration). Decided approach for the rest: extend
+  the **Vite plugin** in `vite.config.ts` to prerender the whole landing, with React hydrating it, so
+  the in-place upload UX needs no refactor. (Rejected:
   an Astro rewrite — real refactor, since `Landing.tsx` couples marketing to the upload flow; and
   Next.js — a full rewrite for one page.) Guard SSR-unsafe code at snapshot time: `window`,
   `localStorage`, WebSockets, the theme script, PostHog.

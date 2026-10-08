@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Talktofile · Business reports &amp; data poster (1080×1350)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&display=swap" rel="stylesheet">
+<style>
+@page{size:1080px 1350px;margin:0}
+:root{
+  --brand-50:#fdf4ee;--brand-100:#fbe6d6;--brand-200:#f6cbab;--brand-500:#e56f2d;
+  --brand-600:#E2611B;--brand-700:#bc4d14;--brand-800:#963d14;
+  --ink:#303030;--slate-900:#0f172a;--slate-700:#334155;--slate-600:#475569;--slate-500:#64748b;
+  --slate-400:#94a3b8;--slate-300:#cbd5e1;--slate-200:#e2e8f0;--slate-50:#F8FAFC;
+  --accent:var(--brand-600);--accent-ink:var(--brand-700);
+  --pad:56px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--slate-50)}
+body{font-family:'Merriweather',Georgia,serif;color:var(--slate-900);-webkit-font-smoothing:antialiased;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+.page{width:864px;height:1080px;zoom:1.25;position:relative;overflow:hidden;display:flex;flex-direction:column;background-color:var(--slate-50);
+  /* .bg-grid from src/index.css */
+  background-image:radial-gradient(circle,rgba(226,97,27,.08) 1px,transparent 1px);background-size:24px 24px}
+.watermark{position:absolute;top:-56px;right:-96px;width:440px;height:440px;color:var(--accent);opacity:.07;transform:rotate(-12deg);pointer-events:none}
+.watermark svg{width:100%;height:100%}
+
+/* Top: logo lockup (Navbar) + audience tag */
+.top{position:relative;display:flex;align-items:center;justify-content:space-between;padding:30px var(--pad) 0}
+.logo{display:flex;align-items:center;gap:4px}
+.logo .mark{width:56px;height:56px;flex-shrink:0}
+.logo span{margin-left:-12px;font-style:italic;font-weight:700;font-size:34px;letter-spacing:-0.02em;color:var(--brand-600)}
+.tag{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:9999px;background:#fff;
+  border:1px solid var(--slate-200);box-shadow:0 1px 2px 0 rgb(0 0 0 / .05);
+  color:var(--accent-ink);font-weight:600;font-size:15px;letter-spacing:-0.01em;white-space:nowrap}
+.tag svg{width:18px;height:18px}
+
+/* Hero (Landing h1 + payoff line) */
+.hero{position:relative;padding:28px var(--pad) 0}
+h1{margin:0;font-weight:800;font-size:48px;line-height:1.1;letter-spacing:-0.03em;color:var(--ink)}
+h1 .l{display:block;white-space:nowrap}
+h1 .payoff{display:block;font-style:italic;color:var(--brand-600);text-wrap:balance}
+.sub{margin:16px 0 0;font-size:19px;line-height:1.55;letter-spacing:-0.03em;color:var(--ink);text-wrap:pretty}
+.sub svg{display:inline-block;vertical-align:-0.15em;width:22px;height:22px;color:var(--brand-600);margin-right:8px}
+
+/* Chat mockup (ChatWindow + MessageBubble + CitationMarker) */
+.zone{position:relative;flex:1;display:flex;align-items:stretch;padding:18px var(--pad)}
+.chat{width:100%;display:flex;flex-direction:column;background:#fff;border:1px solid var(--slate-200);border-radius:16px;overflow:hidden;
+  box-shadow:0 10px 15px -3px rgb(226 232 240 / .6),0 4px 6px -4px rgb(226 232 240 / .6),0 1px 2px 0 rgb(0 0 0 / .04)}
+.head{display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--slate-200);background:#fff}
+.hchip{width:32px;height:32px;border-radius:8px;background:var(--brand-50);border:1px solid var(--brand-100);
+  display:flex;align-items:center;justify-content:center;color:var(--brand-500);flex-shrink:0}
+.hchip svg{width:16px;height:16px}
+.htitle{font-size:15px;font-weight:500;color:#1e293b;margin:0;line-height:1.3}
+.hfile{font-size:13px;color:var(--slate-500);margin:2px 0 0;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dots{margin-left:auto;display:flex;gap:6px;color:var(--slate-400)}
+.dots svg{width:16px;height:16px}
+.body{flex:1;background:rgb(253 244 238 / .25);padding:14px 18px 16px;display:flex;flex-direction:column;gap:12px}
+.msg{display:flex;align-items:flex-end;gap:10px}
+.msg.user{flex-direction:row-reverse}
+.av{width:32px;height:32px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(to bottom right,var(--brand-500),var(--brand-700));color:#fff;font-weight:700;font-size:14px;
+  box-shadow:0 1px 2px 0 rgb(0 0 0 / .05)}
+.av svg{width:14px;height:14px}
+.bubble{max-width:85%;min-width:0;font-size:14.5px;line-height:1.55}
+.user .bubble{background:linear-gradient(to bottom right,var(--brand-600),var(--brand-700));color:#fff;
+  border-radius:16px 16px 6px 16px;padding:10px 16px;box-shadow:0 1px 2px 0 var(--brand-200)}
+.bot .bubble{background:#fff;border:1px solid var(--slate-200);border-radius:16px 16px 16px 6px;padding:11px 16px;
+  color:var(--slate-700);box-shadow:0 1px 2px 0 rgb(226 232 240 / .5)}
+.bot .bubble p{margin:0}
+.bot .bubble p + ul{margin-top:6px}
+.bot .bubble ul{margin:0;padding-left:18px}
+.bot .bubble li{margin:2px 0}
+.bot .bubble strong{color:var(--slate-900);font-weight:600}
+sup{display:inline-block;margin:0 2px;border-radius:6px;background:var(--brand-50);color:var(--brand-600);font-weight:700;
+  font-size:.72em;line-height:1.35;min-width:1.15em;padding:0 .28em;text-align:center;vertical-align:super}
+sup.on{background:var(--brand-600);color:#fff}
+.src{margin-left:42px;max-width:85%;background:#fff;border:1px solid var(--slate-200);border-radius:12px;padding:10px 14px;
+  box-shadow:0 20px 25px -5px rgb(15 23 42 / .1),0 8px 10px -6px rgb(15 23 42 / .1)}
+.src-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;font-size:12px}
+.src-f{font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--brand-700);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.src-m{display:flex;align-items:center;gap:6px;flex-shrink:0;color:var(--slate-500);white-space:nowrap}
+.src-m i{width:1px;height:10px;background:var(--slate-200)}
+.src-m b{color:var(--brand-700);font-weight:600}
+.src-t{margin:0;font-size:13px;line-height:1.6;color:var(--slate-600)}
+/* Composer (ChatWindow input block) */
+.composer{display:flex;align-items:center;gap:8px;padding:10px 16px 12px;border-top:1px solid var(--slate-200);background:#fff}
+.field{flex:1;min-width:0;height:40px;display:flex;align-items:center;padding:0 14px;border:1px solid var(--slate-200);border-radius:12px;
+  font-size:14px;color:var(--slate-400);white-space:nowrap}
+.send{width:40px;height:40px;border-radius:12px;background:var(--brand-600);color:#fff;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;box-shadow:0 1px 2px 0 rgb(0 0 0 / .05)}
+.send svg{width:16px;height:16px}
+mark{background:var(--brand-100);color:var(--brand-800);border-radius:4px;padding:0 2px}
+
+/* Benefits (landing icon-chip style) */
+.benefits{position:relative;list-style:none;margin:0;padding:0 var(--pad);display:flex;flex-direction:column;gap:10px}
+.benefits li{display:flex;align-items:center;gap:14px;font-size:17.5px;line-height:1.35;letter-spacing:-0.01em;color:var(--ink)}
+.ichip{width:38px;height:38px;border-radius:12px;flex-shrink:0;background:rgb(226 97 27 / .1);border:1px solid rgb(226 97 27 / .2);
+  display:flex;align-items:center;justify-content:center;color:var(--brand-600)}
+.ichip svg{width:19px;height:19px}
+
+/* Legal disclaimer — sits on the light surface so it stays readable at small size */
+.note{position:relative;margin:14px 0 0;padding:0 var(--pad);font-size:12.5px;line-height:1.5;color:var(--slate-500)}
+
+/* CTA band — the site footer's surface (bg #E2611B, white text) */
+.cta{position:relative;margin-top:24px;background:var(--brand-600);color:#fff;padding:22px var(--pad);
+  display:flex;align-items:center;justify-content:space-between;gap:28px}
+.cta .url{margin:0;font-size:40px;font-weight:800;line-height:1.15;letter-spacing:-0.03em;white-space:nowrap}
+.qr{width:120px;height:120px;flex-shrink:0;background:#fff;border-radius:12px;padding:10px;box-shadow:0 1px 2px 0 rgb(0 0 0 / .1)}
+.qr svg{display:block;width:100%;height:100%}
+
+/* Social (864×1080 before zoom): wider, shorter → benefits go to 3 columns */
+.social{--pad:52px}
+.social .top{padding-top:34px}
+.social .hero{padding-top:34px}
+.social h1{font-size:52px}
+.social .sub{margin-top:18px;font-size:20px}
+.social .zone{padding-top:16px;padding-bottom:16px}
+.social .benefits{flex-direction:row;gap:16px}
+.social .benefits li{flex:1;flex-direction:column;align-items:flex-start;gap:10px;font-size:17px}
+.social .cta{margin-top:22px;padding-top:18px;padding-bottom:18px}
+.social .note{margin-top:12px}
+.social .qr{width:112px;height:112px}
+</style>
+</head>
+<body>
+<main class="page social">
+  <div class="watermark"><svg class="" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
+
+  <header class="top">
+    <div class="logo"><svg class="mark" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <path d="M32 16 H58 L74 32 V78 Q74 84 68 84 H32 Q26 84 26 78 V22 Q26 16 32 16 Z" fill="none" stroke="#0e1413" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"></path>
+  <path d="M58 16 V32 H74" fill="none" stroke="#0e1413" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"></path>
+  <line x1="34" y1="44" x2="66" y2="44" stroke="#0e1413" stroke-width="5" stroke-linecap="round"></line>
+  <line x1="34" y1="54" x2="60" y2="54" stroke="#0e1413" stroke-width="5" stroke-linecap="round"></line>
+  <path d="M37 62 H63 Q67 62 67 66 V70 Q67 74 63 74 H46 L40 80 L41 74 H37 Q33 74 33 70 V66 Q33 62 37 62 Z" fill="#C2410C"></path>
+</svg><span>Talktofile</span></div>
+    <div class="tag"><svg class="" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg>Business reports &amp; data</div>
+  </header>
+
+  <section class="hero">
+    <h1><span class="l">Upload reports.</span><span class="l">Paste website links.</span><span class="payoff">Walk in prepared.</span></h1>
+    <p class="sub"><svg class="" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>Get key points, charts, slides, and quick answers from any report before your next meeting.</p>
+  </section>
+
+  <section class="zone">
+    <div class="chat">
+      <div class="head">
+        <div class="hchip"><svg class="" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></div>
+        <div style="min-width:0">
+          <p class="htitle">Chat</p>
+          <p class="hfile">Q3_Board_Report.xlsx</p>
+        </div>
+        <div class="dots"><svg class="" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/></svg><svg class="" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg><svg class="" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></div>
+      </div>
+      <div class="body">
+        <div class="msg user"><div class="av"><svg class="" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div class="bubble">Give me the key numbers before my board meeting</div></div>
+        <div class="msg bot"><div class="av">T</div><div class="bubble"><ul>
+          <li><strong>Revenue:</strong> $4.2M, up 12% on Q2.<sup>1</sup></li>
+          <li><strong>Gross margin:</strong> 61%, down 2 pts on higher freight costs.<sup class="on">2</sup></li>
+          <li><strong>Churn:</strong> 3.1%, the lowest this year.<sup>3</sup></li>
+        </ul></div></div>
+        <div class="src">
+          <div class="src-h"><span class="src-f">Q3_Board_Report.xlsx</span><span class="src-m">¶ 6<i></i><b>95% match</b></span></div>
+          <p class="src-t">Gross margin closed at <mark>61%, down 2 points</mark> quarter on quarter, driven by freight.</p>
+        </div>
+      </div>
+      <div class="composer"><div class="field">Ask anything here.</div><div class="send"><svg class="" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg></div></div>
+    </div>
+  </section>
+
+  <ul class="benefits">
+    <li><span class="ichip"><svg class="" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span><span>Turn spreadsheets into charts for your deck</span></li>
+    <li><span class="ichip"><svg class="" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></svg></span><span>Turn a report’s key points into finished slides</span></li>
+    <li><span class="ichip"><svg class="" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><span>Your company data is never stored</span></li>
+  </ul>
+
+  
+
+  <footer class="cta">
+    <div>
+      <p class="url">talktofile.ai/business</p>
+    </div>
+    <div class="qr" aria-label="QR code for talktofile.ai/business"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" shape-rendering="crispEdges"><path fill="#ffffff" d="M0 0h29v29H0z"/><path stroke="#303030" d="M0 0.5h7m1 0h1m1 0h1m2 0h3m2 0h3m1 0h7M0 1.5h1m5 0h1m1 0h1m3 0h2m2 0h1m5 0h1m5 0h1M0 2.5h1m1 0h3m1 0h1m3 0h1m5 0h1m3 0h1m1 0h1m1 0h3m1 0h1M0 3.5h1m1 0h3m1 0h1m1 0h1m2 0h2m1 0h2m1 0h1m1 0h1m2 0h1m1 0h3m1 0h1M0 4.5h1m1 0h3m1 0h1m3 0h3m1 0h1m1 0h5m1 0h1m1 0h3m1 0h1M0 5.5h1m5 0h1m6 0h1m1 0h2m1 0h3m1 0h1m5 0h1M0 6.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M8 7.5h1m1 0h1m4 0h4m1 0h1M0 8.5h1m1 0h2m1 0h3m3 0h1m1 0h1m1 0h1m1 0h2m3 0h1m2 0h1m1 0h2M0 9.5h1m2 0h2m2 0h2m2 0h5m3 0h2m1 0h3m3 0h1M0 10.5h2m2 0h1m1 0h1m5 0h2m2 0h1m4 0h1m2 0h1m1 0h2M0 11.5h1m2 0h1m1 0h1m1 0h3m1 0h2m3 0h1m1 0h2m2 0h1m1 0h1m3 0h1M3 12.5h1m1 0h2m1 0h1m5 0h2m1 0h1m7 0h2M0 13.5h5m2 0h2m5 0h1m1 0h1m2 0h1m2 0h1m3 0h3M0 14.5h1m2 0h1m2 0h1m1 0h1m2 0h3m1 0h2m2 0h1m1 0h1m4 0h3M0 15.5h1m3 0h2m4 0h2m2 0h1m1 0h1m2 0h2m1 0h2m3 0h1M4 16.5h1m1 0h2m1 0h4m1 0h3m1 0h4m1 0h3m1 0h1M4 17.5h1m5 0h1m3 0h1m1 0h2m5 0h1m1 0h3M0 18.5h1m3 0h3m1 0h4m1 0h5m2 0h1m2 0h2m1 0h1M2 19.5h1m1 0h1m3 0h2m1 0h4m2 0h1m4 0h2m2 0h1M1 20.5h1m1 0h4m4 0h1m1 0h2m1 0h11M8 21.5h1m1 0h3m2 0h2m1 0h1m1 0h1m3 0h5M0 22.5h7m1 0h2m1 0h2m1 0h2m1 0h4m1 0h1m1 0h2m1 0h1M0 23.5h1m5 0h1m1 0h2m1 0h1m1 0h3m2 0h1m1 0h1m3 0h2M0 24.5h1m1 0h3m1 0h1m2 0h1m1 0h1m5 0h1m2 0h5m1 0h1m1 0h1M0 25.5h1m1 0h3m1 0h1m1 0h2m7 0h2m1 0h2m1 0h3m1 0h1M0 26.5h1m1 0h3m1 0h1m1 0h1m1 0h1m2 0h1m3 0h1m2 0h1m2 0h1m2 0h1m1 0h1M0 27.5h1m5 0h1m2 0h1m1 0h1m2 0h1m5 0h3m1 0h2m1 0h1M0 28.5h7m1 0h1m1 0h1m3 0h1m1 0h1m1 0h4m3 0h1m1 0h1"/></svg>
+</div>
+  </footer>
+</main>
+</body>
+</html>

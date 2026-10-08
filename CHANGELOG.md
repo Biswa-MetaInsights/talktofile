@@ -17,6 +17,10 @@ predate this convention and are longer than it allows; leave them as they are.
 
 ---
 
+### 2026-10-08 — Use-case pages get their own `<head>`, an FAQ section and FAQPage JSON-LD, baked into static HTML at build (`dist/<slug>.html`); added to `sitemap.xml`
+
+### 2026-10-08 — Use-case landing pages: `/students`, `/research`, `/legal`, `/business` (hero copy + default mode per page; `src/lib/landingVariants.ts`)
+
 ### 2026-09-25 — Slides redesigned: 10 AI-chosen layouts, premium Classic/Minimal/Bold themes, Inter in previews; .pptx matches the preview
 
 ### 2026-09-25 — Landing auto-enters the selected section once the upload is ready (no Proceed click)

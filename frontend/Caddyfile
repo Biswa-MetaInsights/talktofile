@@ -42,7 +42,9 @@
 		@shell not path /assets/*
 		header @shell Cache-Control "no-cache"
 
-		try_files {path} /index.html
+		# {path}.html serves the use-case landing pages (/students → students.html),
+		# which the build bakes with their own title, meta and FAQ — see vite.config.ts.
+		try_files {path} {path}.html /index.html
 		file_server
 	}
 
