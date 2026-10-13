@@ -52,8 +52,9 @@ async def submit_message_feedback(
         username=current_user["username"],
         session_id=body.session_id,
         vote=body.vote,
-        question=body.question,
-        answer_excerpt=body.answer_excerpt,
+        # Avoid storing document-related questions and AI answer text.
+        question="",
+        answer_excerpt="",
     ))
     db.commit()
     return {"message": "Recorded"}
