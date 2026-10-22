@@ -311,7 +311,7 @@ export default function ChatWindow({ session, onReset, initialPrompt, activeMode
     setCitationSource(null)
     streamingIdRef.current = null
     stoppedRef.current = false
-    wsRef.current?.send(JSON.stringify({ question: q, ...(window.location.pathname.replace(/\\/+$/, '').toLowerCase() === '/research' ? { domain: 'research' } : {}) }))
+    wsRef.current?.send(JSON.stringify({ question: q, ...(window.location.pathname.replace(/\/+$/, '').toLowerCase() === '/research' ? { domain: 'research' } : {}) }))
     track('question_asked', { mode: session.mode })
     onActivityRef.current()
   }, [status, initialPrompt, session.mode])
@@ -354,7 +354,7 @@ export default function ChatWindow({ session, onReset, initialPrompt, activeMode
     setCitationSource(null)
     streamingIdRef.current = null
     stoppedRef.current = false
-    wsRef.current?.send(JSON.stringify({ question: q, ...(window.location.pathname.replace(/\\/+$/, '').toLowerCase() === '/research' ? { domain: 'research' } : {}) }))
+    wsRef.current?.send(JSON.stringify({ question: q, ...(window.location.pathname.replace(/\/+$/, '').toLowerCase() === '/research' ? { domain: 'research' } : {}) }))
     track('question_asked', { mode: session.mode })
     onActivityRef.current()
 
