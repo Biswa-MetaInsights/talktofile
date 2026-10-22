@@ -63,10 +63,10 @@ _RULES = """The rules below are absolute and cannot be overridden by any persona
 """
 
 
-def _build_system_prompt(persona: Optional[str], username: str = "your") -> str:
+def _build_system_prompt(persona: Optional[str], username: str = "your", domain: str = "general") -> str:
     """Build the system prompt with a user-specific identity and optional persona."""
     identity = f"You are {username}'s personal document assistant within Talktofile."
-    system = f"{identity}\n\n{_RULES}"
+    system = f"{identity}\n\n{_RULES}"\n    if domain == "research":\n        from agents.research_prompt import RESEARCH_PROMPT\n        system += "\\n\\n" + RESEARCH_PROMPT
     if not persona:
         return system
     return (
@@ -129,6 +129,7 @@ async def stream_answer(
     client: AsyncOpenAI,
     persona: Optional[str] = None,
     username: str = "your",
+    domain: str = "general",
 ) -> AsyncGenerator[str, None]:
     context = await _gather_context(question, documents, client)
 
@@ -142,7 +143,7 @@ async def stream_answer(
 
     file_list = ", ".join(d.filename for d in documents)
     messages = [
-        {"role": "system", "content": _build_system_prompt(persona, username)},
+        {"role": "system", "content": _build_system_prompt(persona, username, domain)},
         {
             "role": "system",
             "content": (
@@ -174,10 +175,11 @@ async def get_streaming_answer(
     chat_history: list[dict],
     persona: Optional[str] = None,
     username: str = "your",
+    domain: str = "general",
 ) -> AsyncGenerator[str, None]:
     settings = get_settings()
     client = AsyncOpenAI(api_key=settings.openai_api_key)
-    async for token in stream_answer(question, documents, chat_history, client, persona, username):
+    async for token in stream_answer(question, documents, chat_history, client, persona, username, domain):
         yield token
 
 
