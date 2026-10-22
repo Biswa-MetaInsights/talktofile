@@ -57,7 +57,8 @@ async def chat_ws(websocket: WebSocket, session_id: str):
             raw = await websocket.receive_text()
             try:
                 data = json.loads(raw)
-                question = data.get("question", "").strip()\n                domain = "research" if data.get("domain") == "research" else "general"
+                question = data.get("question", "").strip()
+                domain = "research" if data.get("domain") == "research" else "general"
             except json.JSONDecodeError:
                 await websocket.send_json({"type": "error", "content": "Invalid message format"})
                 continue
