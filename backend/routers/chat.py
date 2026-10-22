@@ -57,7 +57,7 @@ async def chat_ws(websocket: WebSocket, session_id: str):
             raw = await websocket.receive_text()
             try:
                 data = json.loads(raw)
-                question = data.get("question", "").strip()
+                question = data.get("question", "").strip()\n                domain = "research" if data.get("domain") == "research" else "general"
             except json.JSONDecodeError:
                 await websocket.send_json({"type": "error", "content": "Invalid message format"})
                 continue
@@ -100,7 +100,7 @@ async def chat_ws(websocket: WebSocket, session_id: str):
             full_response = []
             try:
                 async for token_text in get_streaming_answer(
-                    question, session.documents, session.chat_history, persona, username
+                    question, session.documents, session.chat_history, persona, username, domain
                 ):
                     await websocket.send_json({"type": "token", "content": token_text})
                     full_response.append(token_text)
