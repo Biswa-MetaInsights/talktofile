@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from openai import AsyncOpenAI
 from pydantic import BaseModel
+from typing import Literal
 from core.auth import get_current_user
 from core.session_store import session_store
 from core.config import get_settings
@@ -80,7 +81,12 @@ async def translate_document(
 
 # ── Podcast ──────────────────────────────────────────────────────────────────
 
-class ExtendPodcastRequest(BaseModel):
+class PodcastOptions(BaseModel):
+    language: Literal["en", "fr", "nl"] = "en"
+    depth: Literal["easy", "in_depth", "expert"] = "in_depth"
+
+
+class ExtendPodcastRequest(PodcastOptions):
     script: list[dict]
     request: str
 
@@ -105,12 +111,12 @@ async def extend_podcast(
     log_usage(username, "question", "tool=podcast_extend")
 
     from agents.podcast_agent import extend_podcast as _extend
-    new_lines = await _extend(session.documents, body.script, body.request)
+    new_lines = await _extend(session.documents, body.script, body.request, body.language, body.depth)
     return {"new_lines": new_lines}
 
 
 @router.post("/podcast/{session_id}")
-async def generate_podcast(session_id: str, current_user: dict = Depends(get_current_user)):
+async def generate_podcast(session_id: str, body: PodcastOptions, current_user: dict = Depends(get_current_user)):
     username = current_user["username"]
     plan = current_user.get("plan", "free")
     session = _get_ready_session(session_id, username)
@@ -122,7 +128,7 @@ async def generate_podcast(session_id: str, current_user: dict = Depends(get_cur
     log_usage(username, "question", "tool=podcast")
 
     from agents.podcast_agent import generate_podcast as _podcast
-    script = await _podcast(session.documents)
+    script = await _podcast(session.documents, body.language, body.depth)
     return {"script": script}
 
 
