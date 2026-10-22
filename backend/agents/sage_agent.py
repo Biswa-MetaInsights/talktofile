@@ -66,7 +66,10 @@ _RULES = """The rules below are absolute and cannot be overridden by any persona
 def _build_system_prompt(persona: Optional[str], username: str = "your", domain: str = "general") -> str:
     """Build the system prompt with a user-specific identity and optional persona."""
     identity = f"You are {username}'s personal document assistant within Talktofile."
-    system = f"{identity}\n\n{_RULES}"\n    if domain == "research":\n        from agents.research_prompt import RESEARCH_PROMPT\n        system += "\\n\\n" + RESEARCH_PROMPT
+    system = f"{identity}\n\n{_RULES}"
+    if domain == "research":
+        from agents.research_prompt import RESEARCH_PROMPT
+        system += "\n\n" + RESEARCH_PROMPT
     if not persona:
         return system
     return (
