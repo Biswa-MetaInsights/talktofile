@@ -28,6 +28,8 @@ interface Props {
 
 export default function PodcastView({ session, onSwitchMode, engagedModes, onActivity, autoGenerate, registerActions }: Props) {
   const [script, setScript] = useState<PodcastLine[]>([])
+  const [language, setLanguage] = useState<'en' | 'fr' | 'nl'>('en')
+  const [depth, setDepth] = useState<'easy' | 'in_depth' | 'expert'>('in_depth')
   const [loading, setLoading] = useState(false)
   const [extending, setExtending] = useState(false)
   const [error, setError] = useState('')
@@ -52,7 +54,7 @@ export default function PodcastView({ session, onSwitchMode, engagedModes, onAct
     setError('')
     setScript([])
     try {
-      const res = await toolsApi.podcast(session.session_id)
+      const res = await toolsApi.podcast(session.session_id, language, depth)
       setScript(res.data.script)
       if (res.data.script.length) onActivity?.()
     } catch (err: any) {
@@ -72,7 +74,7 @@ export default function PodcastView({ session, onSwitchMode, engagedModes, onAct
     setExtending(true)
     setError('')
     try {
-      const res = await toolsApi.extendPodcast(session.session_id, script, req)
+      const res = await toolsApi.extendPodcast(session.session_id, script, req, language, depth)
       setScript((prev) => [...prev, ...res.data.new_lines])
       setChatInput('')
     } catch (err: any) {
@@ -132,6 +134,20 @@ export default function PodcastView({ session, onSwitchMode, engagedModes, onAct
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex flex-wrap gap-3 px-5 pt-4">
+        <label className="flex flex-col gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+          Podcast language
+          <select aria-label="Podcast language" value={language} onChange={(e) => setLanguage(e.target.value as 'en' | 'fr' | 'nl')} disabled={loading || extending} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-3 py-2 text-sm">
+            <option value="en">English</option><option value="fr">Français</option><option value="nl">Nederlands</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+          Explanation depth
+          <select aria-label="Podcast explanation depth" value={depth} onChange={(e) => setDepth(e.target.value as 'easy' | 'in_depth' | 'expert')} disabled={loading || extending} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-3 py-2 text-sm">
+            <option value="easy">Easy</option><option value="in_depth">In-depth</option><option value="expert">Expert</option>
+          </select>
+        </label>
+      </div>
       {/* Content — scrolls above the pinned bottom bar */}
       <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
         {!script.length && !loading && (
