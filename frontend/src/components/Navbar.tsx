@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { LogOut, User, Sparkles, Crown, LogIn, Lock, MessageSquare } from 'lucide-react'
+import { LogOut, User, Sparkles, Crown, LogIn, Lock, MessageSquare, ChevronDown } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import markColor from '../assets/mark-color.svg'
@@ -11,6 +11,7 @@ import ProfileModal from './ProfileModal'
 import Tooltip from './Tooltip'
 import ThemeToggle from './ThemeToggle'
 import { displayName } from '../lib/displayName'
+import { USE_CASES, getLandingVariant } from '../lib/landingVariants'
 
 export default function Navbar({ onOpenAuth, onHome, onHowItWorks, onSignedOut, atHome = false }: { onOpenAuth: (mode: 'subscribe' | 'login') => void; onHome?: () => void; onHowItWorks?: () => void; onSignedOut?: () => void; atHome?: boolean }) {
   const { user, logout } = useAuth()
@@ -19,6 +20,45 @@ export default function Navbar({ onOpenAuth, onHome, onHowItWorks, onSignedOut, 
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  // "Use cases" dropdown. Opens on mouse hover (with a short close delay so the
+  // cursor can cross into the menu), or on click/tap/Enter for touch + keyboard.
+  // Closes on outside click / Escape via document listeners rather than a fixed
+  // backdrop, which this transformed (motion) nav could trap.
+  const [useCasesOpen, setUseCasesOpen] = useState(false)
+  const useCasesRef = useRef<HTMLDivElement>(null)
+  const closeTimerRef = useRef<number>()
+  // Pointer type of the press that led to the current click ('' for keyboard).
+  const lastPointerRef = useRef('')
+  const currentSlug = getLandingVariant(window.location.pathname).slug
+  const hoverOpen = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'mouse') return  // touch "hover" would fight the tap toggle
+    window.clearTimeout(closeTimerRef.current)
+    setUseCasesOpen(true)
+  }
+  const hoverClose = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'mouse') return
+    closeTimerRef.current = window.setTimeout(() => setUseCasesOpen(false), 150)
+  }
+  // A mouse click on a hover-opened menu shouldn't close it; touch/keyboard toggle.
+  const clickTrigger = () => {
+    const wasMouse = lastPointerRef.current === 'mouse'
+    lastPointerRef.current = ''
+    setUseCasesOpen((o) => (wasMouse ? true : !o))
+  }
+  useEffect(() => () => window.clearTimeout(closeTimerRef.current), [])
+  useEffect(() => {
+    if (!useCasesOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (!useCasesRef.current?.contains(e.target as Node)) setUseCasesOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setUseCasesOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [useCasesOpen])
   const isGuest = user?.is_guest ?? true
   const isPro = user?.plan === 'pro'
   const avatar = user?.profile?.avatar
@@ -69,6 +109,58 @@ export default function Navbar({ onOpenAuth, onHome, onHowItWorks, onSignedOut, 
         {/* Primary nav links — only on wider screens (lg+) so they don't crowd the
             right-side actions (Feedback etc.) near the breakpoint. */}
         <nav className="hidden lg:flex items-center gap-5">
+          {/* Use-case landing pages (lib/landingVariants.ts). Plain links → a full
+              page load, since Landing picks its content from the path on mount.
+              Mid-session, App's beforeunload guard asks before leaving. No tooltip:
+              it would sit on top of the open menu. Hover handlers sit on the wrapper,
+              and the menu hangs off it with top padding (not margin) so the gap
+              between button and panel still counts as "inside" while the cursor
+              crosses it. */}
+          <div
+            ref={useCasesRef}
+            className="relative"
+            onPointerEnter={hoverOpen}
+            onPointerLeave={hoverClose}
+          >
+            <button
+              onPointerDown={(e) => { lastPointerRef.current = e.pointerType }}
+              onClick={clickTrigger}
+              aria-haspopup="menu"
+              aria-expanded={useCasesOpen}
+              className={`flex items-center gap-1 text-lg font-medium transition-colors hover:text-[#E2611B] dark:hover:text-[#E2611B] ${useCasesOpen ? 'text-[#E2611B] dark:text-[#E2611B]' : 'text-[#303030] dark:text-slate-300'}`}
+            >
+              Use cases
+              <ChevronDown className={`w-4 h-4 transition-transform ${useCasesOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {useCasesOpen && (
+              <div className="absolute left-0 top-full pt-3 z-50">
+                <div
+                  role="menu"
+                  className="w-72 rounded-xl border border-slate-200 bg-white shadow-lg py-1.5 dark:border-slate-700 dark:bg-slate-800"
+                >
+                  {USE_CASES.map(({ slug, nav: { label, icon: Icon } }) => {
+                    const active = slug === currentSlug
+                    return (
+                      <a
+                        key={slug}
+                        href={`/${slug}`}
+                        role="menuitem"
+                        aria-current={active ? 'page' : undefined}
+                        className={`flex items-center gap-3 px-3 py-2 text-sm transition-colors focus-visible:outline-none ${active
+                          ? 'text-[#E2611B] dark:text-[#E2611B] bg-[#E2611B]/5'
+                          : 'text-slate-700 dark:text-slate-200 hover:text-[#E2611B] dark:hover:text-[#E2611B] focus-visible:text-[#E2611B] dark:focus-visible:text-[#E2611B] hover:bg-slate-50 focus-visible:bg-slate-50 dark:hover:bg-slate-700/60 dark:focus-visible:bg-slate-700/60'}`}
+                      >
+                        <span className="w-8 h-8 rounded-lg bg-[#E2611B]/10 flex items-center justify-center shrink-0">
+                          <Icon className="w-4 h-4 text-[#E2611B]" />
+                        </span>
+                        {label}
+                      </a>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
           <Tooltip label="Click here to go to this section." side="bottom">
             <button onClick={onHowItWorks ?? onHome} className="text-lg font-medium text-[#303030] dark:text-slate-300 hover:text-[#E2611B] dark:hover:text-[#E2611B] transition-colors">How it works</button>
           </Tooltip>
