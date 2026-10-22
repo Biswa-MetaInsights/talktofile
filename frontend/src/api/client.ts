@@ -182,10 +182,10 @@ export const toolsApi = {
       `/tools/translate/${sessionId}`,
       { target_language: targetLanguage }
     ),
-  podcast: (sessionId: string) =>
-    api.post<{ script: PodcastLine[] }>(`/tools/podcast/${sessionId}`),
-  extendPodcast: (sessionId: string, script: PodcastLine[], request: string) =>
-    api.post<{ new_lines: PodcastLine[] }>(`/tools/podcast/${sessionId}/extend`, { script, request }),
+  podcast: (sessionId: string, language: 'en' | 'fr' | 'nl', depth: 'easy' | 'in_depth' | 'expert') =>
+    api.post<{ script: PodcastLine[] }>(`/tools/podcast/${sessionId}`, { language, depth }),
+  extendPodcast: (sessionId: string, script: PodcastLine[], request: string, language: 'en' | 'fr' | 'nl', depth: 'easy' | 'in_depth' | 'expert') =>
+    api.post<{ new_lines: PodcastLine[] }>(`/tools/podcast/${sessionId}/extend`, { script, request, language, depth }),
   chart: (sessionId: string, chartType: string) =>
     api.post<ChartData>(`/tools/chart/${sessionId}`, { chart_type: chartType }),
   slidesDownloadUrl: (sessionId: string) => `${API_ORIGIN}/api/tools/slides/${sessionId}`,
