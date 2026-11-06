@@ -26,10 +26,10 @@ export default function FeedbackModal({ onClose }: { onClose: () => void }) {
   }, [onClose])
 
   const submit = async () => {
-    if (!message.trim()) { setError('Please write a short message.'); return }
+    if (!message.trim() && !rating) { setError('Please select a star rating or write a message.'); return }
     setError(''); setLoading(true)
     try {
-      await feedbackApi.submit({ message, rating: rating || null, category })
+      await feedbackApi.submit({ message: message.trim(), rating: rating || null, category })
       setDone(true)
       setTimeout(onClose, 1300)
     } catch (err: any) {
@@ -105,7 +105,7 @@ export default function FeedbackModal({ onClose }: { onClose: () => void }) {
 
               {/* Message */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Message</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Message <span className="text-slate-400">(optional)</span></label>
                 <textarea
                   value={message} onChange={(e) => setMessage(e.target.value)} rows={4} maxLength={4000}
                   placeholder="What did you like, or what could be better?"

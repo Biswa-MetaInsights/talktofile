@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional
 import re
 
@@ -213,8 +213,6 @@ class FeedbackRequest(BaseModel):
     @classmethod
     def message_valid(cls, v: str) -> str:
         v = (v or "").strip()
-        if not v:
-            raise ValueError("Feedback message cannot be empty")
         if len(v) > 4000:
             raise ValueError("Feedback too long (max 4000 chars)")
         return v
@@ -227,6 +225,12 @@ class FeedbackRequest(BaseModel):
         if v < 1 or v > 5:
             raise ValueError("Rating must be between 1 and 5")
         return v
+
+    @model_validator(mode="after")
+    def require_rating_or_message(self):
+        if self.rating is None and not self.message:
+            raise ValueError("Please provide a rating or a message")
+        return self
 
     @field_validator("category")
     @classmethod
