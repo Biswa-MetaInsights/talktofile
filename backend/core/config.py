@@ -47,10 +47,6 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_jwt_secret: str = ""
 
-    # Comma-separated emails that should be granted the Pro plan automatically
-    # (e.g. test accounts / early users) until real billing exists.
-    pro_emails: str = ""
-
     # Proxy for YouTube transcript fetches. YouTube blocks transcript requests from
     # datacenter/cloud IPs, so a production deploy on a VM/container will hit
     # "RequestBlocked"/"IpBlocked" without one. Two options (Webshare takes priority):
@@ -93,11 +89,6 @@ class Settings(BaseSettings):
     def supabase_enabled(self) -> bool:
         return bool(self.supabase_jwt_secret)
 
-    def is_pro_email(self, email: str) -> bool:
-        if not email:
-            return False
-        allow = {e.strip().lower() for e in self.pro_emails.split(",") if e.strip()}
-        return email.lower() in allow
 
     class Config:
         env_file = ".env"
