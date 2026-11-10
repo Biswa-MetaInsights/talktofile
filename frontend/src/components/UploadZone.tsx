@@ -64,6 +64,8 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
   const [upgradeHint, setUpgradeHint] = useState<string>('')
   // Notice when a duplicate file (same name) is dropped within the same selection.
   const [dupWarning, setDupWarning] = useState<string>('')
+  // Keep files staged until the user confirms whether to continue with one or add more.
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const error = limitError || pipelineError
 
   // Mirror upload/processing state up to the parent (drives the refresh guard).
@@ -85,9 +87,8 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
     setUpgradeHint('')
     setDupWarning('')
 
-    // Reject duplicate filenames within the dropped batch (same file selected
-    // twice) — keep the first copy, drop the rest, and warn.
-    const seen = new Set<string>()
+    // Reject duplicate filenames already staged or repeated in this selection.
+    const seen = new Set(selectedFiles.map((f) => f.name.trim().toLowerCase()))
     const deduped: File[] = []
     const dupNames: string[] = []
     for (const f of accepted) {
@@ -98,22 +99,24 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
     }
     accepted = deduped
 
-    if (accepted.length + rejections.length > limits.maxFiles) {
-      if (plan === 'free') {
-        setUpgradeHint(`The free plan handles ${limits.maxFiles} file at a time. Multi-file compare & analysis is coming soon with Pro.`)
+    if (selectedFiles.length + accepted.length + rejections.length > limits.maxFiles) {
+      if (user?.is_guest) {
+        setUpgradeHint(`Sign in or create an account to upload multiple files and compare documents (up to ${PLAN_LIMITS.pro.maxFiles} files).`)
         return
       }
-      setLimitError(`You can upload at most ${limits.maxFiles} files.`)
+      setLimitError(`You can upload at most ${limits.maxFiles} files at a time.`)
       return
     }
 
     const tooBig = [...accepted, ...rejections.map((r) => r.file)].find((f) => f.size > limits.maxSizeMb * 1024 * 1024)
     if (tooBig) {
-      if (plan === 'free') {
-        setUpgradeHint(`'${tooBig.name}' is over the ${limits.maxSizeMb}MB free limit. Larger uploads are coming soon with Pro.`)
-        return
+      if (tooBig.size > PLAN_LIMITS.pro.maxSizeMb * 1024 * 1024) {
+        setLimitError(`'${tooBig.name}' exceeds the ${PLAN_LIMITS.pro.maxSizeMb}MB maximum file size.`)
+      } else if (user?.is_guest) {
+        setUpgradeHint(`Guest uploads are limited to ${limits.maxSizeMb}MB. Sign in or create an account to upload files up to ${PLAN_LIMITS.pro.maxSizeMb}MB.`)
+      } else {
+        setLimitError(`'${tooBig.name}' exceeds the ${limits.maxSizeMb}MB limit.`)
       }
-      setLimitError(`'${tooBig.name}' exceeds the ${limits.maxSizeMb}MB limit.`)
       return
     }
 
@@ -125,9 +128,14 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
       if (dupNames.length) {
         setDupWarning(`${dupNames.map((n) => `'${n}'`).join(', ')} ${dupNames.length === 1 ? 'was' : 'were'} rejected since a copy already exists.`)
       }
-      processFiles(accepted)
+      setSelectedFiles((current) => [...current, ...accepted])
     }
-  }, [limits, plan, processFiles])
+  }, [limits, plan, processFiles, selectedFiles, user?.is_guest])
+
+  const startProcessing = () => {
+    if (selectedFiles.length === 0) return
+    processFiles(selectedFiles)
+  }
 
   const consumedInitial = useRef(false)
   useEffect(() => {
@@ -141,7 +149,7 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
     }
   }, [initialFiles, initialRejections, initialUrl, onDrop, processUrl])
 
-  const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, isDragReject, open } = useDropzone({
     onDrop,
     accept: selectedMode === 'charts' ? ACCEPT_EXCEL : ACCEPT,
     maxFiles: limits.maxFiles,
@@ -224,9 +232,15 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
                 </motion.div>
                 <div>
                   <p className="text-slate-800 dark:text-slate-100 font-medium">
-                    {isDragActive ? 'Drop them here!' : plan === 'pro' ? 'Drag & drop your files' : 'Drag & drop your file'}
+                    {isDragActive
+                      ? 'Drop them here!'
+                      : selectedFiles.length > 0
+                        ? 'Add more files before continuing'
+                        : plan === 'pro' ? 'Drag & drop your files' : 'Drag & drop your file'}
                   </p>
-                  <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">or click to browse</p>
+                  <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">
+                    {selectedFiles.length > 0 ? 'or click to add more' : 'or click to browse'}
+                  </p>
                 </div>
                 <div className="flex flex-wrap justify-center gap-2">
                   {['PDF', 'DOCX', 'XLSX', 'PPTX', 'HTML', 'JSON', 'TXT', 'CSV', 'MD'].map((t) => (
@@ -243,6 +257,36 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
           </AnimatePresence>
         </div>
 
+        {/* Review the selection before any processing starts. */}
+        {selectedFiles.length > 0 && !isProcessing && (
+          <div className="mt-4 rounded-xl border border-brand-200 bg-white p-4 dark:border-brand-600/30 dark:bg-slate-900">
+            <p className="text-sm font-medium text-slate-800 dark:text-slate-100">
+              {selectedFiles.length === 1
+                ? 'You selected 1 file. Would you like to add more before continuing?'
+                : `You selected ${selectedFiles.length} files. You can add more or continue.`}
+            </p>
+            <ul className="mt-2 space-y-1 text-xs text-slate-500 dark:text-slate-400">
+              {selectedFiles.map((file, index) => (
+                <li key={`${file.name}-${index}`} className="truncate">{file.name}</li>
+              ))}
+            </ul>
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              {user?.is_guest ? (
+                <button onClick={onRequireUpgrade} className="rounded-lg border border-brand-300 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-brand-50 dark:border-brand-600 dark:text-brand-300 dark:hover:bg-brand-600/10">
+                  Sign in to add more files
+                </button>
+              ) : selectedFiles.length < limits.maxFiles ? (
+                <button onClick={open} className="rounded-lg border border-brand-300 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-brand-50 dark:border-brand-600 dark:text-brand-300 dark:hover:bg-brand-600/10">
+                  Add more files
+                </button>
+              ) : null}
+              <button onClick={startProcessing} className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700">
+                Continue with {selectedFiles.length} {selectedFiles.length === 1 ? 'file' : 'files'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Upgrade prompt */}
         <AnimatePresence>
           {upgradeHint && (
@@ -257,7 +301,7 @@ export default function UploadZone({ onReady, onRequireUpgrade, onBusyChange, in
                 <p className="text-sm text-slate-700 dark:text-slate-300">{upgradeHint}</p>
                 {user?.is_guest && (
                   <button onClick={onRequireUpgrade} className="mt-2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-all">
-                    Create a free account
+                    Sign in or create an account
                   </button>
                 )}
               </div>

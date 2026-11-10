@@ -76,7 +76,7 @@ async def upload_documents(
                 f"You've reached today's limit of {upload_limit} uploads on the "
                 f"{'Pro' if plan == 'pro' else 'free'} plan. "
                 + ("Please try again tomorrow." if plan == "pro"
-                   else "Subscribe to Pro for more daily uploads.")
+                   else "Sign in or create an account for a higher daily upload limit.")
             ),
         )
 
@@ -85,8 +85,8 @@ async def upload_documents(
             raise HTTPException(
                 status_code=402,
                 detail=(
-                    f"Your free plan allows {max_files} file at a time. "
-                    "Subscribe to upload up to 5 files and compare them."
+                    f"Guest sessions allow {max_files} file at a time. "
+                    "Sign in or create an account to upload up to 5 files and compare them."
                 ),
             )
         raise HTTPException(status_code=413, detail=f"Too many files. Max is {max_files}.")
@@ -101,8 +101,8 @@ async def upload_documents(
                 raise HTTPException(
                     status_code=402,
                     detail=(
-                        f"'{f.filename}' exceeds the free plan limit of {max_mb}MB per file. "
-                        "Subscribe to upload files up to 8MB."
+                        f"'{f.filename}' exceeds the guest limit of {max_mb}MB per file. "
+                        "Sign in or create an account to upload files up to 8MB."
                     ),
                 )
             raise HTTPException(

@@ -290,7 +290,7 @@ export default function AuthModal({
                 <h2 className="text-slate-900 font-semibold dark:text-slate-100">{mode === 'subscribe' ? 'Create your account' : 'Welcome back'}</h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 sm:whitespace-nowrap">
                   {mode === 'subscribe'
-                    ? 'Free account: Have access to a personalised assistant.'
+                    ? 'Create an account for document chat, multi-file comparison, and all tools.'
                     : 'Sign in to your account'}
                 </p>
               </div>
@@ -311,16 +311,6 @@ export default function AuthModal({
               <p className="flex items-center gap-1.5 text-xs text-amber-800 dark:text-amber-300">
                 <AlertCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                 {notice}
-              </p>
-            </div>
-          )}
-
-          {/* Free account note */}
-          {mode === 'subscribe' && (
-            <div className="mb-5 bg-[#E2611B]/5 rounded-xl p-3 border border-[#E2611B]/20">
-              <p className="flex items-center gap-1.5 text-xs text-slate-500">
-                <Crown className="w-3.5 h-3.5 text-[#E2611B] flex-shrink-0" />
-                Pro: multi-file compare &amp; larger uploads, coming soon.
               </p>
             </div>
           )}
@@ -444,7 +434,7 @@ export default function AuthModal({
                       onClick={() => { setMode('subscribe'); setError(''); setOfferSignup(false) }}
                       className="mt-2 text-xs font-semibold text-[#E2611B] hover:text-[#E2611B]/80 underline underline-offset-2"
                     >
-                      New here? Create a free account →
+                      New here? Create an account →
                     </button>
                   )}
                 </motion.div>
@@ -455,7 +445,7 @@ export default function AuthModal({
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
               ) : mode === 'subscribe' ? (
-                <><Sparkles className="w-4 h-4" /> Create free account</>
+                <><Sparkles className="w-4 h-4" /> Create account</>
               ) : (
                 <><LogIn className="w-4 h-4" /> Sign in</>
               )}
