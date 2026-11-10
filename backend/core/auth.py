@@ -65,9 +65,8 @@ def create_guest() -> dict:
 def create_user(db: Session, username: str, password: str, profile: Optional[dict] = None) -> dict:
     """Create a persisted account with profile.
 
-    New registrations are on the FREE plan. Pro is granted only through a real
-    payment/subscription event (not implemented yet) — never automatically on
-    signup, so an open registration endpoint can't hand out uncapped usage.
+    Every registered account receives the Pro feature set. Guest sessions remain
+    on the free limits. Account limits can be adjusted later as usage grows.
     """
     from models.db_models import User
 
@@ -88,7 +87,7 @@ def create_user(db: Session, username: str, password: str, profile: Optional[dic
     user = User(
         username=username,
         hashed_password=hash_password(password),
-        plan="free",
+        plan="pro",
         full_name=p.get("full_name", ""),
         email=email,
         phone=p.get("phone", ""),
@@ -112,14 +111,10 @@ def _db_user(db: Session, username: str):
 def get_or_create_supabase_user(db: Session, claims) -> dict:
     """Map a verified Supabase token to our users row, creating it on first sight.
 
-    All users — anonymous guests and email-backed accounts alike — start on the
-    FREE plan. Pro is granted only via a real payment/subscription event, never
-    automatically on signup. Profile/company data live here.
+    Anonymous Supabase sessions use the free guest limits. Every registered
+    Supabase account receives the Pro feature set. Profile/company data live here.
     """
     from models.db_models import User
-
-    # Test accounts / early users on the Pro allowlist are provisioned as Pro.
-    pro_by_email = get_settings().is_pro_email(claims.email)
 
     user = db.scalar(select(User).where(User.supabase_user_id == claims.user_id))
     if user is None:
@@ -127,7 +122,7 @@ def get_or_create_supabase_user(db: Session, claims) -> dict:
             supabase_user_id=claims.user_id,
             username=None,
             hashed_password=None,
-            plan="pro" if pro_by_email else "free",
+            plan="free" if claims.is_anonymous else "pro",
             email=claims.email or "",
         )
         db.add(user)
@@ -139,8 +134,8 @@ def get_or_create_supabase_user(db: Session, claims) -> dict:
         if not claims.is_anonymous and claims.email and not user.email:
             user.email = claims.email
             changed = True
-        # Promote allowlisted users to Pro (e.g. added to the list after signup).
-        if pro_by_email and user.plan != "pro":
+        # Promote any existing account when an anonymous session becomes registered.
+        if not claims.is_anonymous and user.plan != "pro":
             user.plan = "pro"
             changed = True
         if changed:
@@ -167,6 +162,8 @@ def update_profile(db: Session, current_user: dict, profile: dict) -> dict:
     for field in ("full_name", "email", "phone", "company_name", "company_role", "company_size", "industry", "avatar"):
         if field in profile and profile[field] is not None:
             setattr(user, field, profile[field])
+    if not current_user.get("is_guest", False):
+        user.plan = "pro"
     db.commit()
     db.refresh(user)
     out = user.to_auth_dict()
@@ -180,6 +177,10 @@ def get_user(db: Session, username: str) -> Optional[dict]:
     if username in _guests:
         return _guests[username]
     u = _db_user(db, username)
+    if u and u.plan != "pro":
+        u.plan = "pro"
+        db.commit()
+        db.refresh(u)
     return u.to_auth_dict() if u else None
 
 
@@ -212,6 +213,10 @@ def authenticate_user(db: Session, username: str, password: str) -> Optional[dic
     u = _db_user(db, username)
     if not u or not u.hashed_password or not verify_password(password, u.hashed_password):
         return None
+    if u.plan != "pro":
+        u.plan = "pro"
+        db.commit()
+        db.refresh(u)
     return u.to_auth_dict()
 
 
@@ -337,8 +342,7 @@ def resolve_ws_user(token: str) -> Optional[dict]:
         return _guests[username]
     db = SessionLocal()
     try:
-        u = _db_user(db, username)
-        return u.to_auth_dict() if u else None
+        return get_user(db, username)
     finally:
         db.close()
 
