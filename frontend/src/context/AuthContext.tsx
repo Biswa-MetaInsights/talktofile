@@ -357,6 +357,7 @@ function LegacyAuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = () => {
+    sessionStorage.removeItem(LTI_SESSION_KEY)
     localStorage.removeItem(TOKEN_KEY)
     setAuthToken(null)
     setToken(null)
