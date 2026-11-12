@@ -53,7 +53,7 @@ Other LMSs follow their own registration screens but use the same LTI 1.3 standa
 - The OIDC state and nonce are short-lived and bound to a Secure, HttpOnly, SameSite=None cookie.
 - The LMS subject is mapped to an internal TalktoFile account identifier. A short-lived app JWT is handed to the frontend in a URL fragment and removed from the address bar on startup.
 - Existing document processing and session cleanup behavior remains in place. This integration does not add document persistence.
-- LTI app sessions expire after eight hours. The app's existing auth refresh endpoint continues to refresh LTI sessions.
+- The initial LTI app token expires after eight hours. When the user remains active, the app’s existing auth refresh endpoint renews the session using the existing token lifetime policy.
 - LTI accounts use the existing Pro feature plan behavior. Apply any institutional usage limits separately before offering this broadly.
 
 ## Deployment checklist
