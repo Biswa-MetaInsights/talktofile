@@ -18,7 +18,6 @@ from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.auth import create_access_token
 from core.config import get_settings
 from core.db import SessionLocal
 from models.db_models import User
@@ -215,15 +214,20 @@ async def launch(
     finally:
         db.close()
 
-    token = create_access_token({
-        "sub": username,
-        "lti": True,
-        "iss": issuer,
-        "deployment_id": deployment,
-        "context_id": (claims.get(LTI_CONTEXT) or {}).get("id", ""),
-        "roles": claims.get(LTI_ROLES, []),
-        "exp": int(time.time()) + 8 * 60 * 60,
-    })
+    settings = get_settings()
+    token = jwt.encode(
+        {
+            "sub": username,
+            "lti": True,
+            "iss": issuer,
+            "deployment_id": deployment,
+            "context_id": (claims.get(LTI_CONTEXT) or {}).get("id", ""),
+            "roles": claims.get(LTI_ROLES, []),
+            "exp": int(time.time()) + 8 * 60 * 60,
+        },
+        settings.secret_key,
+        algorithm=settings.algorithm,
+    )
     frontend_url = get_settings().lti_frontend_url.rstrip("/")
     response = RedirectResponse(f"{frontend_url}/#lti_token={token}", status_code=303)
     response.delete_cookie(STATE_COOKIE, path="/api/lti")
