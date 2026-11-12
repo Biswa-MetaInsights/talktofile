@@ -214,6 +214,8 @@ async def launch(
     finally:
         db.close()
 
+    context_claim = claims.get(LTI_CONTEXT)
+    context_id = context_claim.get("id", "") if isinstance(context_claim, dict) else ""
     settings = get_settings()
     token = jwt.encode(
         {
@@ -221,7 +223,7 @@ async def launch(
             "lti": True,
             "iss": issuer,
             "deployment_id": deployment,
-            "context_id": (claims.get(LTI_CONTEXT) or {}).get("id", ""),
+            "context_id": context_id,
             "roles": claims.get(LTI_ROLES, []),
             "exp": int(time.time()) + 8 * 60 * 60,
         },
