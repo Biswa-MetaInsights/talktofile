@@ -44,7 +44,7 @@ class Settings(BaseSettings):
 
     # Supabase Auth (optional). When supabase_jwt_secret is set, the backend
     # verifies Supabase-issued JWTs instead of its own. Empty = legacy custom auth.
-    supabase_url: str = ""
+    # LTI 1.3 is opt-in. Each LMS issuer/client/deployment must be registered here.\n    lti_platform_config: str = ""\n    lti_redirect_uri: str = "https://talktofile.ai/api/lti/launch"\n    lti_frontend_url: str = "https://talktofile.ai"\n\n    supabase_url: str = ""
     supabase_jwt_secret: str = ""
 
     # Proxy for YouTube transcript fetches. YouTube blocks transcript requests from
