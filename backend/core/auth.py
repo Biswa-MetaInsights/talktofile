@@ -343,7 +343,10 @@ def resolve_ws_user(token: str) -> Optional[dict]:
             return None
         db = SessionLocal()
         try:
-            return get_user(db, payload.get("sub", ""))
+            user = get_user(db, payload.get("sub", ""))
+            if user:
+                user["lti"] = True
+            return user
         finally:
             db.close()
 
@@ -412,6 +415,7 @@ def get_current_user(
         if payload.get("lti") is True:
             user = get_user(db, payload.get("sub", ""))
             if user:
+                user["lti"] = True
                 return user
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
