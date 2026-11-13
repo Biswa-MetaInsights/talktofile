@@ -6,7 +6,7 @@ import { withAttribution, shareOrCopy, printAsPdf, escapeHtml, type SectionShare
 import { parseChapterSelection, isWholeDocument, selectedTitles } from '../lib/chapters'
 import SectionComposer from './SectionComposer'
 import SectionExtras from './SectionExtras'
-import ChapterPicker from './ChapterPicker'
+import SummaryChapterPicker from './SummaryChapterPicker'
 
 interface Props {
   session: SessionInfo
@@ -297,7 +297,7 @@ export default function SummaryView({ session, onSwitchMode, engagedModes, onAct
         onSwitch={onSwitchMode}
         engaged={engagedModes}
         placeholder={chapters.length > 1 ? 'Tick chapters above, or type e.g. “chapters 1 and 2”.' : 'Add your preferences here.'}
-        pickerRow={<ChapterPicker chapters={chapters} selected={selected} onChange={setSelected} />}
+        pickerRow={<SummaryChapterPicker chapters={chapters} selected={selected} onChange={setSelected} />}
         value={pref}
         onChange={setPref}
         onSubmit={() => { generate() }}
