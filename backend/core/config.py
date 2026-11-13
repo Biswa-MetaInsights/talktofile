@@ -51,7 +51,6 @@ class Settings(BaseSettings):
 
     supabase_url: str = ""
     supabase_jwt_secret: str = ""
-    supabase_jwt_secret: str = ""
 
     # Proxy for YouTube transcript fetches. YouTube blocks transcript requests from
     # datacenter/cloud IPs, so a production deploy on a VM/container will hit
