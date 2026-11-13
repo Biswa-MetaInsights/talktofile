@@ -34,7 +34,10 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def _token_response(user: dict) -> TokenResponse:
-    token = create_access_token({"sub": user["username"]})
+    payload = {"sub": user["username"]}
+    if user.get("lti"):
+        payload["lti"] = True
+    token = create_access_token(payload)
     return TokenResponse(
         access_token=token,
         username=user["username"],

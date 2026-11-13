@@ -327,11 +327,26 @@ def resolve_ws_user(token: str) -> Optional[dict]:
     if get_settings().supabase_enabled:
         from core.supabase_auth import verify_supabase_jwt
         claims = verify_supabase_jwt(token)
-        if not claims:
+        if claims:
+            db = SessionLocal()
+            try:
+                return get_or_create_supabase_user(db, claims)
+            finally:
+                db.close()
+        # LTI sessions use the app's own short-lived JWT even when Supabase
+        # handles regular sign-in. Only explicitly marked LTI tokens are accepted.
+        try:
+            payload = jwt.decode(token, get_settings().secret_key, algorithms=[get_settings().algorithm])
+        except JWTError:
+            return None
+        if payload.get("lti") is not True:
             return None
         db = SessionLocal()
         try:
-            return get_or_create_supabase_user(db, claims)
+            user = get_user(db, payload.get("sub", ""))
+            if user:
+                user["lti"] = True
+            return user
         finally:
             db.close()
 
@@ -385,9 +400,24 @@ def get_current_user(
     if get_settings().supabase_enabled:
         from core.supabase_auth import verify_supabase_jwt
         claims = verify_supabase_jwt(credentials.credentials)
-        if not claims:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-        return get_or_create_supabase_user(db, claims)
+        if claims:
+            return get_or_create_supabase_user(db, claims)
+        # LTI is a separate optional identity provider and does not alter Supabase
+        # token handling for existing users.
+        try:
+            payload = jwt.decode(
+                credentials.credentials,
+                get_settings().secret_key,
+                algorithms=[get_settings().algorithm],
+            )
+        except JWTError:
+            payload = {}
+        if payload.get("lti") is True:
+            user = get_user(db, payload.get("sub", ""))
+            if user:
+                user["lti"] = True
+                return user
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
     username = decode_token_username(credentials.credentials)
     user = get_user(db, username) if username else None

@@ -38,9 +38,24 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 const TOKEN_KEY = 'ttf_token'
+const LTI_SESSION_KEY = 'ttf_lti_session'
+
+// The LMS launch carries the short-lived app token in the URL fragment. Fragments
+// are not sent to the backend or included in HTTP referrers. Consume it once before
+// React chooses the normal Supabase or legacy authentication provider.
+if (typeof window !== 'undefined') {
+  const fragment = new URLSearchParams(window.location.hash.slice(1))
+  const ltiToken = fragment.get('lti_token')
+  if (ltiToken) {
+    localStorage.setItem(TOKEN_KEY, ltiToken)
+    sessionStorage.setItem(LTI_SESSION_KEY, '1')
+    window.history.replaceState(null, '', window.location.pathname + window.location.search)
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  return SUPABASE_ENABLED ? (
+  const ltiSession = typeof window !== 'undefined' && sessionStorage.getItem(LTI_SESSION_KEY) === '1'
+  return SUPABASE_ENABLED && !ltiSession ? (
     <SupabaseAuthProvider>{children}</SupabaseAuthProvider>
   ) : (
     <LegacyAuthProvider>{children}</LegacyAuthProvider>
@@ -342,6 +357,7 @@ function LegacyAuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = () => {
+    sessionStorage.removeItem(LTI_SESSION_KEY)
     localStorage.removeItem(TOKEN_KEY)
     setAuthToken(null)
     setToken(null)

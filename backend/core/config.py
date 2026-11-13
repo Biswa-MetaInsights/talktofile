@@ -44,6 +44,11 @@ class Settings(BaseSettings):
 
     # Supabase Auth (optional). When supabase_jwt_secret is set, the backend
     # verifies Supabase-issued JWTs instead of its own. Empty = legacy custom auth.
+    # LTI 1.3 is opt-in. Each LMS issuer/client/deployment must be registered here.
+    lti_platform_config: str = ""
+    lti_redirect_uri: str = "https://talktofile.ai/api/lti/launch"
+    lti_frontend_url: str = "https://talktofile.ai"
+
     supabase_url: str = ""
     supabase_jwt_secret: str = ""
 
