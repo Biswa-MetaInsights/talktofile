@@ -49,7 +49,8 @@ class Settings(BaseSettings):
     lti_redirect_uri: str = "https://talktofile.ai/api/lti/launch"
     lti_frontend_url: str = "https://talktofile.ai"
 
-    # Optional LTI 1.3 support. Empty platform config keeps LMS launches disabled.\n    lti_platform_config: str = ""\n    lti_redirect_uri: str = "https://talktofile.ai/api/lti/launch"\n    lti_frontend_url: str = "https://talktofile.ai"\n\n    supabase_url: str = ""
+    supabase_url: str = ""
+    supabase_jwt_secret: str = ""
     supabase_jwt_secret: str = ""
 
     # Proxy for YouTube transcript fetches. YouTube blocks transcript requests from
